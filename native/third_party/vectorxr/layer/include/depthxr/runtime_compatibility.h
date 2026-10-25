@@ -1,0 +1,74 @@
+#pragma once
+
+#include <chrono>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <vector>
+
+namespace depthxr {
+
+enum class EyeGazeProbeState {
+    kPresent,
+    kAbsent,
+    kIndeterminate,
+};
+
+enum class EyeGazeRequestReason {
+    kApplicationRequested,
+    kRuntimeAdvertised,
+    kProbeIndeterminate,
+    kProbeInconsistent,
+    kRuntimeWorkaround,
+    kNativeQuadviews,
+    kReliableNegative,
+    kQuadviewsNotRequested,
+};
+
+struct EyeGazeRequestDecision {
+    bool inject_extension{false};
+    EyeGazeRequestReason reason{EyeGazeRequestReason::kQuadviewsNotRequested};
+};
+
+struct EyeGazeRequestPolicyInput {
+    bool app_requested_layer_owned_quadviews{false};
+    bool forwarding_native_quadviews{false};
+    bool downstream_already_has_eye_gaze{false};
+    // Pre-instance extension enumeration is advisory only. An unavailable or
+    // failed probe is indeterminate, while some known runtimes can complete the
+    // probe with a false negative and still accept the extension at create time.
+    EyeGazeProbeState pre_instance_probe{EyeGazeProbeState::kIndeterminate};
+    bool pre_instance_probe_structurally_unreliable{false};
+    bool pre_instance_probe_known_unreliable{false};
+};
+
+bool IsEyeGazeExtensionProbeKnownUnreliable(std::string_view active_runtime_manifest_path);
+bool IsRuntimeExtensionProbeStructurallyUnreliable(
+    bool extension_scan_complete,
+    std::span<const std::string_view> advertised_extensions,
+    std::span<const std::string_view> forwarded_extensions);
+EyeGazeProbeState ClassifyEyeGazeProbe(bool extension_scan_complete, bool extension_advertised);
+EyeGazeRequestDecision DecideEyeGazeExtensionRequest(const EyeGazeRequestPolicyInput& input);
+std::string_view EyeGazeProbeStateName(EyeGazeProbeState state);
+std::string_view EyeGazeRequestReasonName(EyeGazeRequestReason reason);
+bool ShouldRetryWithoutInjectedEyeGaze(bool injected_request, bool extension_related_failure);
+// The extension lists an instance creation is tried with, in order, after the
+// runtime refused `first` over an extension: `first` without each of the
+// layer's own `additions` (those in `first`) on its own, in the order given,
+// so a refused addition costs only itself (Frame Generation's
+// XR_KHR_D3D12_enable is not lost to a refused eye-gaze extension), then,
+// with more than one addition, without all of them.
+std::vector<std::vector<const char*>> InstanceExtensionRetries(const std::vector<const char*>& first,
+                                                               std::span<const char* const> additions);
+
+
+std::chrono::milliseconds QuadViewsRecoveryStabilizationDelay(std::string_view runtime_name);
+bool ResolveQuadViewsSessionActive(bool configured_active, std::optional<bool> session_latched_active);
+// Why a session with Quadviews on began in stereo, for its log line. An
+// application can select quad views when it enabled XR_VARJO_quad_views (or
+// XR_VARJO_foveated_rendering) or uses OpenXR 1.1, where the foveated-inset
+// configuration is core; offered is whether the view configurations it listed
+// included it.
+std::string_view QuadViewsInactiveReason(bool application_can_select_quad_views, bool quad_views_offered);
+
+} // namespace depthxr

@@ -1,0 +1,47 @@
+{
+  "framegen": {
+    "enabled": false,
+    "synthesisMode": "interpolate",
+    "flowQuality": "balanced",
+    "motionEstimation": "shader",
+    "frameMultiplier": "dynamic",
+    "artifactSuppression": 50,
+    "motionLimitPercent": 10,
+    "diagnosticView": "off",
+    "toggleShortcut": "Ctrl+Alt+F9"
+  },
+  "overlay": {
+    "enabled": false,
+    "layout": "expanded",
+    "horizontalDegrees": 20,
+    "verticalDegrees": -12,
+    "distanceMeters": 1.2,
+    "scale": 100,
+    "opacity": 90,
+    "updateHz": 5,
+    "showGraph": true,
+    "showRuntime": true,
+    "showApp": true,
+    "showClock": false,
+    "showPerformance": true,
+    "showFramegen": true,
+    "showToolkit": true,
+    "accent": "violet",
+    "customColor": "#8e70f2",
+    "compactMetrics": "all",
+    "toggleShortcut": "Ctrl+Alt+F10",
+    "cycleShortcut": "Ctrl+Alt+F11"
+  },
+  "nativeFoveation": {
+    "outerResolution": 35,
+    "focusWidth": 40,
+    "resolutionScale": 100
+  },
+  "sharpening": {
+    "mode": "off",
+    "strength": 50,
+    "clamp": 0.035,
+    "radius": 1,
+    "pattern": 2
+  }
+}

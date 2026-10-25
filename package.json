@@ -1,0 +1,109 @@
+{
+  "name": "opengrid-xr",
+  "version": "0.2.1",
+  "description": "The free, open source sim racing XR toolkit by Dan Suzuki",
+  "author": "Dan Suzuki",
+  "license": "GPL-2.0-only",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "test:desktop": "node tests/desktop-smoke.cjs && node tests/ui-save-race.cjs",
+    "test:telemetry": "node tests/telemetry-integration.cjs",
+    "test:gpu": "node tests/gpu-source-smoke.cjs --stream --window --d3d12",
+    "test:input-ui": "node tests/input-ui-smoke.cjs",
+    "package": "npm run build && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.dansuzuki.opengrid.xr",
+    "productName": "OpenGrid XR",
+    "directories": {
+      "output": "release/0.2.1"
+    },
+    "files": [
+      "dist/**",
+      "desktop/**",
+      "src/model.mjs",
+      "src/spatial-overlays.mjs",
+      "src/input-bindings.mjs",
+      "src/enhancements.mjs",
+      "src/enhancement-defaults.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/build/Release",
+        "to": "native",
+        "filter": [
+          "OpenGridXR.dll",
+          "OpenGridXR.json",
+          "OpenGridXR-Output.exe",
+          "OpenGridXR-Enhancements.dll",
+          "OpenGridXR-Telemetry.exe",
+          "OpenGridXR-OverlayHost.exe",
+          "OpenGridXR-Control.exe",
+          "OpenGridXR-Input.exe"
+        ]
+      }
+    ],
+    "extraFiles": [
+      "LICENSE",
+      "THIRD-PARTY-NOTICES.md",
+      "README.md",
+      "NEXT-STEPS.md",
+      "CONTRIBUTING.md",
+      {
+        "from": "docs",
+        "to": "docs",
+        "filter": ["**/*.md"]
+      },
+      {
+        "from": "native/README.md",
+        "to": "native/README.md"
+      },
+      {
+        "from": "public/fonts",
+        "to": "licenses/fonts",
+        "filter": [
+          "*-OFL.txt"
+        ]
+      },
+      {
+        "from": "public/licenses",
+        "to": "licenses"
+      },
+      {
+        "from": "native/telemetry/third_party",
+        "to": "licenses/telemetry"
+      },
+      {
+        "from": "native/third_party",
+        "to": "licenses/native",
+        "filter": [
+          "**/*LICENSE*",
+          "**/*NOTICE*",
+          "**/*COPYING*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "dir",
+      "icon": "public/app.ico",
+      "signExecutable": false
+    },
+    "asar": true
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "lucide-react": "1.61.0",
+    "playwright-core": "1.64.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vite": "8.3.5"
+  }
+}

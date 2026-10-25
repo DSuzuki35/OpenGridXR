@@ -1,0 +1,409 @@
+#include "depthxr/settings_resolver.h"
+
+#include <algorithm>
+#include <cctype>
+
+namespace depthxr {
+namespace {
+
+std::string NormalizeExe(std::string_view value) {
+    std::string normalized(value);
+    const size_t slash = normalized.find_last_of("/\\");
+    if (slash != std::string::npos) {
+        normalized = normalized.substr(slash + 1);
+    }
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return normalized;
+}
+
+void ApplyDepthOverride(DepthXrResolvedSettings& target, const DepthXrSettingsOverride& source) {
+    if (source.stereo_boost.has_value()) {
+        target.stereo_boost = *source.stereo_boost;
+    }
+    if (source.convergence.has_value()) {
+        target.convergence = *source.convergence;
+    }
+    if (source.depth_anchor.has_value()) {
+        target.depth_anchor = *source.depth_anchor;
+    }
+}
+
+} // namespace
+
+bool ExeNameMatches(std::string_view lhs, std::string_view rhs) {
+    return NormalizeExe(lhs) == NormalizeExe(rhs);
+}
+
+const RegisteredApplication* FindMatchingApplication(const ConfigDocument& config, std::string_view exe_name) {
+    for (const RegisteredApplication& application : config.applications) {
+        if (ExeNameMatches(application.match.exe_name, exe_name)) {
+            return &application;
+        }
+    }
+    return nullptr;
+}
+
+const DepthXrProfile* FindMatchingDepthXrProfile(const ConfigDocument& config, std::string_view exe_name) {
+    const RegisteredApplication* application = FindMatchingApplication(config, exe_name);
+    if (!application) {
+        return nullptr;
+    }
+
+    for (const DepthXrProfile& profile : config.depthxr.profiles) {
+        if (!profile.enabled) {
+            continue;
+        }
+
+        if (std::find(profile.application_ids.begin(), profile.application_ids.end(), application->id) != profile.application_ids.end()) {
+            return &profile;
+        }
+    }
+    return nullptr;
+}
+
+DepthXrResolvedSettings ResolveDepthXrSettings(const ConfigDocument& config, std::string_view exe_name) {
+    DepthXrResolvedSettings resolved = config.depthxr.defaults;
+    resolved.enabled = config.depthxr.enabled;
+
+    const DepthXrProfile* profile = FindMatchingDepthXrProfile(config, exe_name);
+    if (!profile || !profile->enabled) {
+        return resolved;
+    }
+
+    resolved.enabled = true;
+    ApplyDepthOverride(resolved, profile->settings);
+    return resolved;
+}
+
+void ApplyPivotSettings(PivotXrResolvedProfile& resolved, const PivotXrSettings& settings) {
+    resolved.smoothing = settings.smoothing;
+    resolved.apply_motion_to_snap_views = settings.apply_motion_to_snap_views;
+    resolved.position_assist = settings.position_assist;
+    resolved.yaw_deadzone_transition_degrees = settings.yaw_deadzone_transition_degrees;
+    resolved.pitch_deadzone_transition_degrees = settings.pitch_deadzone_transition_degrees;
+    resolved.activation_ramp_seconds = settings.activation_ramp_seconds;
+    resolved.yaw_rotation_multiplier = settings.yaw_rotation_multiplier;
+    resolved.yaw_deadzone_degrees = settings.yaw_deadzone_degrees;
+    resolved.yaw_max_extra_degrees = settings.yaw_max_extra_degrees;
+    resolved.pitch_rotation_multiplier = settings.pitch_rotation_multiplier;
+    resolved.pitch_deadzone_degrees = settings.pitch_deadzone_degrees;
+    resolved.pitch_max_extra_degrees = settings.pitch_max_extra_degrees;
+    resolved.response_mode = settings.response_mode;
+    resolved.step_glide_mode = settings.step_glide_mode;
+    resolved.step_glide_seconds = settings.step_glide_seconds;
+
+    if (settings.advanced_axes) {
+        resolved.yaw_positive = settings.yaw_left;
+        resolved.yaw_negative = settings.yaw_right;
+        resolved.pitch_positive = settings.pitch_up;
+        resolved.pitch_negative = settings.pitch_down;
+        resolved.yaw_step_positive = settings.yaw_left_step;
+        resolved.yaw_step_negative = settings.yaw_right_step;
+        resolved.pitch_step_positive = settings.pitch_up_step;
+        resolved.pitch_step_negative = settings.pitch_down_step;
+    } else {
+        const PivotAxisTuning yaw{settings.yaw_rotation_multiplier, settings.yaw_deadzone_degrees,
+                                  settings.yaw_max_extra_degrees, settings.yaw_deadzone_transition_degrees};
+        const PivotAxisTuning pitch{settings.pitch_rotation_multiplier, settings.pitch_deadzone_degrees,
+                                    settings.pitch_max_extra_degrees, settings.pitch_deadzone_transition_degrees};
+        resolved.yaw_positive = yaw;
+        resolved.yaw_negative = yaw;
+        resolved.pitch_positive = pitch;
+        resolved.pitch_negative = pitch;
+        resolved.yaw_step_positive = settings.yaw_step;
+        resolved.yaw_step_negative = settings.yaw_step;
+        resolved.pitch_step_positive = settings.pitch_step;
+        resolved.pitch_step_negative = settings.pitch_step;
+    }
+}
+
+namespace {
+
+// Binding identity for activation arbitration: two profiles collide when the
+// same physical input would trigger both. Sound and display metadata are
+// irrelevant here. Unbound (None) profiles never collide — they simply can't
+// be activated by input.
+bool SameActivationInput(const InputBinding& lhs, const InputBinding& rhs) {
+    if (lhs.type != rhs.type || lhs.type == InputBindingType::None) {
+        return false;
+    }
+    if (lhs.type == InputBindingType::Keyboard) {
+        return lhs.chord == rhs.chord;
+    }
+    return lhs.device_guid == rhs.device_guid && lhs.input_path == rhs.input_path;
+}
+
+std::vector<PivotActivationBinding> FilterUnclaimedActivationBindings(
+    const std::vector<PivotActivationBinding>& source,
+    const std::vector<PivotXrResolvedProfile>& earlier_profiles) {
+    std::vector<PivotActivationBinding> filtered;
+    for (const PivotActivationBinding& activation : source) {
+        const InputBinding& binding = activation.binding;
+        if (binding.type == InputBindingType::None) {
+            continue;
+        }
+        const bool claimed_here = std::any_of(filtered.begin(), filtered.end(), [&](const PivotActivationBinding& accepted) {
+            return SameActivationInput(accepted.binding, binding);
+        });
+        const bool claimed_earlier = std::any_of(
+            earlier_profiles.begin(), earlier_profiles.end(), [&](const PivotXrResolvedProfile& earlier) {
+                // Snap View profiles have no motion activation, so they never
+                // claim a binding from a later motion profile.
+                return earlier.behavior == PivotProfileBehavior::EnhancedMotion &&
+                       std::any_of(earlier.activation_bindings.begin(), earlier.activation_bindings.end(),
+                                   [&](const PivotActivationBinding& earlier_binding) {
+                                       return SameActivationInput(earlier_binding.binding, binding);
+                                   });
+            });
+        if (!claimed_here && !claimed_earlier) {
+            filtered.push_back(activation);
+        }
+    }
+    return filtered;
+}
+
+const PivotNudgeSet* FindPivotNudgeSet(const PivotXrModuleConfig& module,
+                                           const std::string& nudge_set_id) {
+    if (nudge_set_id.empty()) return nullptr;
+    const auto found = std::find_if(module.nudge_sets.begin(), module.nudge_sets.end(),
+                                    [&](const PivotNudgeSet& set) { return set.id == nudge_set_id; });
+    return found == module.nudge_sets.end() ? nullptr : &*found;
+}
+
+PivotNudgeSettings ResolvePivotNudges(const PivotXrModuleConfig& module,
+                                      const std::string& nudge_set_id,
+                                      const PivotNudgeSettings& legacy) {
+    if (nudge_set_id == "none") {
+        return {};
+    }
+    const PivotNudgeSet* set = FindPivotNudgeSet(module, nudge_set_id);
+    return set ? set->settings : legacy;
+}
+
+bool HasViewControlBindings(const PivotViewControls& controls) {
+    const PivotNudgeSettings& nudges = controls.nudges;
+    if (!nudges.yaw_left_bindings.empty() || !nudges.yaw_right_bindings.empty() ||
+        !nudges.pitch_up_bindings.empty() || !nudges.pitch_down_bindings.empty() ||
+        !nudges.center_bindings.empty()) {
+        return true;
+    }
+    return std::any_of(controls.quick_views.begin(), controls.quick_views.end(),
+                       [](const PivotQuickView& quick_view) {
+                           return !quick_view.activation_bindings.empty();
+                       });
+}
+} // namespace
+
+PivotXrResolvedSettings ResolvePivotXrSettings(const ConfigDocument& config, std::string_view exe_name) {
+    PivotXrResolvedSettings resolved;
+
+    const RegisteredApplication* application = FindMatchingApplication(config, exe_name);
+    if (application) {
+        for (const PivotXrProfile& profile : config.pivotxr.profiles) {
+            if (!profile.enabled) {
+                continue;
+            }
+            if (std::find(profile.application_ids.begin(), profile.application_ids.end(), application->id) ==
+                profile.application_ids.end()) {
+                continue;
+            }
+
+            std::vector<PivotActivationBinding> activation_bindings =
+                FilterUnclaimedActivationBindings(profile.activation_bindings, resolved.profiles);
+            PivotViewControls view_controls = profile.view_controls;
+            view_controls.nudges = ResolvePivotNudges(config.pivotxr, profile.nudge_set_id,
+                                                       profile.view_controls.nudges);
+            const bool all_bindings_shadowed = !profile.activation_bindings.empty() && activation_bindings.empty();
+            if (all_bindings_shadowed && !profile.always_active &&
+                !HasViewControlBindings(view_controls)) {
+                continue;
+            }
+
+            PivotXrResolvedProfile candidate;
+            candidate.id = profile.id.empty() ? profile.name : profile.id;
+            candidate.name = profile.name;
+            candidate.behavior = profile.behavior;
+            candidate.nudge_set_id = profile.nudge_set_id;
+            const PivotNudgeSet* nudge_set =
+                FindPivotNudgeSet(config.pivotxr, profile.nudge_set_id);
+            candidate.allow_inactive_nudges =
+                nudge_set ? nudge_set->allow_while_inactive : profile.allow_inactive_nudges;
+            candidate.always_active = profile.always_active;
+            candidate.activation_bindings = std::move(activation_bindings);
+            candidate.set_origin_bindings = profile.set_origin_bindings;
+            candidate.release_origin_bindings = profile.release_origin_bindings;
+            candidate.view_controls = std::move(view_controls);
+            ApplyPivotSettings(candidate, profile.settings);
+            resolved.profiles.push_back(std::move(candidate));
+        }
+    }
+
+    // Custom profiles replace the default profile entirely; the default only
+    // participates when no custom profile targets this application.
+    if (resolved.profiles.empty() && config.pivotxr.enabled) {
+        PivotXrResolvedProfile candidate;
+        candidate.id = "default";
+        candidate.name = "Default";
+        candidate.behavior = config.pivotxr.behavior;
+        candidate.nudge_set_id = config.pivotxr.nudge_set_id;
+        const PivotNudgeSet* nudge_set =
+            FindPivotNudgeSet(config.pivotxr, config.pivotxr.nudge_set_id);
+        candidate.allow_inactive_nudges =
+            nudge_set ? nudge_set->allow_while_inactive : config.pivotxr.allow_inactive_nudges;
+        candidate.always_active = config.pivotxr.always_active;
+        candidate.activation_bindings =
+            FilterUnclaimedActivationBindings(config.pivotxr.activation_bindings, {});
+        candidate.set_origin_bindings = config.pivotxr.set_origin_bindings;
+        candidate.release_origin_bindings = config.pivotxr.release_origin_bindings;
+        candidate.view_controls = config.pivotxr.view_controls;
+        candidate.view_controls.nudges = ResolvePivotNudges(config.pivotxr, config.pivotxr.nudge_set_id,
+                                                             config.pivotxr.view_controls.nudges);
+        ApplyPivotSettings(candidate, config.pivotxr.defaults);
+        resolved.profiles.push_back(std::move(candidate));
+    }
+
+    resolved.enabled = !resolved.profiles.empty();
+    return resolved;
+}
+
+const QuadViewsProfile* FindMatchingQuadViewsProfile(const ConfigDocument& config, std::string_view exe_name) {
+    const RegisteredApplication* application = FindMatchingApplication(config, exe_name);
+    if (!application) {
+        return nullptr;
+    }
+
+    for (const QuadViewsProfile& profile : config.quadviews.profiles) {
+        if (!profile.enabled) {
+            continue;
+        }
+
+        if (std::find(profile.application_ids.begin(), profile.application_ids.end(), application->id) != profile.application_ids.end()) {
+            return &profile;
+        }
+    }
+    return nullptr;
+}
+
+void ApplyQuadViewsSettings(QuadViewsResolvedSettings& resolved, const QuadViewsSettings& settings) {
+    resolved.eye_tracking_correction = settings.eye_tracking_correction;
+    resolved.tracking_mode = settings.tracking_mode;
+    resolved.focus_horizontal_size_percent = settings.focus_horizontal_size_percent;
+    resolved.focus_vertical_size_percent = settings.focus_vertical_size_percent;
+    resolved.focus_scale = settings.focus_scale;
+    resolved.peripheral_scale = settings.peripheral_scale;
+    resolved.foveate_sharpness = settings.foveate_sharpness;
+    resolved.transition_thickness_percent = settings.transition_thickness_percent;
+    resolved.horizontal_offset_degrees = settings.horizontal_offset_degrees;
+    resolved.vertical_offset_degrees = settings.vertical_offset_degrees;
+    resolved.gaze_smoothing = settings.gaze_smoothing;
+    resolved.gaze_deadzone_degrees = settings.gaze_deadzone_degrees;
+}
+
+QuadViewsResolvedSettings ResolveQuadViewsSettings(const ConfigDocument& config, std::string_view exe_name) {
+    QuadViewsResolvedSettings resolved;
+    resolved.enabled = config.quadviews.enabled;
+    resolved.diagnostic_visualization_binding = config.quadviews.diagnostic_visualization_binding;
+    ApplyQuadViewsSettings(resolved, config.quadviews.defaults);
+
+    const QuadViewsProfile* profile = FindMatchingQuadViewsProfile(config, exe_name);
+    if (profile) {
+        resolved.enabled = true;
+        ApplyQuadViewsSettings(resolved, profile->settings);
+    }
+
+    return resolved;
+}
+
+TurboResolvedSettings ResolveTurboSettings(const ConfigDocument& config, std::string_view exe_name) {
+    TurboResolvedSettings resolved;
+    resolved.enabled = config.turbo.enabled;
+    resolved.interrupted_session_recovery = config.turbo.interrupted_session_recovery;
+    resolved.toggle_bindings = config.turbo.toggle_bindings;
+    resolved.pacing_mode = config.turbo.pacing_mode;
+    resolved.runtime_pins = config.turbo.runtime_pins;
+    resolved.metrics_mode = config.turbo.metrics_mode;
+    resolved.metrics_bindings = config.turbo.metrics_bindings;
+
+    const RegisteredApplication* application = FindMatchingApplication(config, exe_name);
+    // Pre-release 0.18 configs listed applications under a module-level
+    // experiment. The desktop app migrates it into each application's profile
+    // on save; until then honor it only where Turbo is actually on for the
+    // application and its profile carries no timing of its own.
+    const auto& legacy_experiment = config.turbo.experimental;
+    const bool legacy_listed = application && application->enabled &&
+        std::find(legacy_experiment.application_ids.begin(), legacy_experiment.application_ids.end(),
+                  application->id) != legacy_experiment.application_ids.end();
+    bool profile_timing = false;
+    if (application) {
+        for (const TurboProfile& profile : config.turbo.profiles) {
+            if (!profile.enabled) {
+                continue;
+            }
+            if (std::find(profile.application_ids.begin(), profile.application_ids.end(), application->id) !=
+                profile.application_ids.end()) {
+                resolved.enabled = true;
+                resolved.profile_name=profile.name;
+                if (profile.experimental) {
+                    resolved.experimental = *profile.experimental;
+                    profile_timing = true;
+                }
+                resolved.interrupted_session_recovery = resolved.interrupted_session_recovery && !profile.disable_safety;
+                break;
+            }
+        }
+    }
+    if (legacy_listed && resolved.enabled && !profile_timing) {
+        resolved.experimental = legacy_experiment;
+    }
+
+    return resolved;
+}
+
+const FrameGenProfile* FindMatchingFrameGenProfile(const ConfigDocument& config, std::string_view exe_name) {
+    const RegisteredApplication* application = FindMatchingApplication(config, exe_name);
+    if (!application) {
+        return nullptr;
+    }
+    for (const FrameGenProfile& profile : config.framegen.profiles) {
+        if (profile.enabled &&
+            std::find(profile.application_ids.begin(), profile.application_ids.end(), application->id) !=
+                profile.application_ids.end()) {
+            return &profile;
+        }
+    }
+    return nullptr;
+}
+
+FrameGenResolvedSettings ResolveFrameGenSettings(const ConfigDocument& config, std::string_view exe_name) {
+    FrameGenResolvedSettings resolved;
+    resolved.enabled = config.framegen.enabled;
+    resolved.toggle_bindings = config.framegen.toggle_bindings;
+    resolved.diagnostic_view = config.framegen.diagnostic_view;
+    static_cast<FrameGenSettings&>(resolved) = config.framegen.defaults;
+    if (const FrameGenProfile* profile = FindMatchingFrameGenProfile(config, exe_name)) {
+        resolved.enabled = true;
+        resolved.profile_name = profile->name;
+        static_cast<FrameGenSettings&>(resolved) = profile->settings;
+    }
+    return resolved;
+}
+
+ResolvedRuntimeConfig ResolveRuntimeConfig(const ConfigDocument& config, std::string_view exe_name) {
+    ResolvedRuntimeConfig resolved;
+    resolved.core = config.core;
+    resolved.depthxr = ResolveDepthXrSettings(config, exe_name);
+    resolved.depthxr_bindings = config.depthxr.bindings;
+    resolved.pivotxr = ResolvePivotXrSettings(config, exe_name);
+    resolved.quadviews = ResolveQuadViewsSettings(config, exe_name);
+    resolved.turbo = ResolveTurboSettings(config, exe_name);
+    resolved.framegen = ResolveFrameGenSettings(config, exe_name);
+    resolved.depthxr.enabled = resolved.pivotxr.enabled = resolved.quadviews.enabled = resolved.turbo.enabled = false;
+    resolved.framegen.extend_head_prediction = false;
+    resolved.core.track_seen_apps = false;
+    resolved.core.sound_volume = 0;
+    return resolved;
+}
+
+} // namespace depthxr

@@ -1,0 +1,2822 @@
+#include "depthxr/config_parser.h"
+
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <fstream>
+#include <map>
+#include <optional>
+#include <sstream>
+#include <stdexcept>
+#include <unordered_map>
+#include <unordered_set>
+#include <variant>
+#include <vector>
+
+#include "depthxr/config_path.h"
+
+namespace depthxr {
+namespace {
+
+class JsonValue {
+  public:
+    using Object = std::map<std::string, JsonValue>;
+    using Array = std::vector<JsonValue>;
+    using Storage = std::variant<std::nullptr_t, bool, double, std::string, Object, Array>;
+
+    JsonValue() : storage_(nullptr) {}
+    explicit JsonValue(std::nullptr_t) : storage_(nullptr) {}
+    explicit JsonValue(bool value) : storage_(value) {}
+    explicit JsonValue(double value) : storage_(value) {}
+    explicit JsonValue(std::string value) : storage_(std::move(value)) {}
+    explicit JsonValue(Object value) : storage_(std::move(value)) {}
+    explicit JsonValue(Array value) : storage_(std::move(value)) {}
+
+    bool IsBool() const { return std::holds_alternative<bool>(storage_); }
+    bool IsNumber() const { return std::holds_alternative<double>(storage_); }
+    bool IsString() const { return std::holds_alternative<std::string>(storage_); }
+    bool IsObject() const { return std::holds_alternative<Object>(storage_); }
+    bool IsArray() const { return std::holds_alternative<Array>(storage_); }
+
+    bool AsBool() const { return std::get<bool>(storage_); }
+    double AsNumber() const { return std::get<double>(storage_); }
+    const std::string& AsString() const { return std::get<std::string>(storage_); }
+    const Object& AsObject() const { return std::get<Object>(storage_); }
+    const Array& AsArray() const { return std::get<Array>(storage_); }
+
+  private:
+    Storage storage_;
+};
+
+class JsonParser {
+  public:
+    explicit JsonParser(std::string_view input) : input_(input) {}
+
+    JsonValue Parse() {
+        SkipWhitespace();
+        JsonValue value = ParseValue();
+        SkipWhitespace();
+
+        if (!ok_) {
+            return JsonValue();
+        }
+
+        if (position_ != input_.size()) {
+            Fail("Unexpected trailing characters");
+        }
+
+        return value;
+    }
+
+    bool ok() const { return ok_; }
+    const std::string& error() const { return error_; }
+
+  private:
+    JsonValue ParseValue() {
+        SkipWhitespace();
+        if (position_ >= input_.size()) {
+            Fail("Unexpected end of input");
+            return JsonValue();
+        }
+
+        const char c = input_[position_];
+        if (c == '{') {
+            return ParseObject();
+        }
+        if (c == '[') {
+            return ParseArray();
+        }
+        if (c == '"') {
+            return JsonValue(ParseString());
+        }
+        if (c == 't' || c == 'f') {
+            return JsonValue(ParseBool());
+        }
+        if (c == 'n') {
+            ParseNull();
+            return JsonValue(nullptr);
+        }
+        if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) {
+            return JsonValue(ParseNumber());
+        }
+
+        Fail("Unexpected token");
+        return JsonValue();
+    }
+
+    JsonValue ParseObject() {
+        Expect('{');
+        JsonValue::Object object;
+        SkipWhitespace();
+
+        if (Match('}')) {
+            return JsonValue(std::move(object));
+        }
+
+        while (ok_) {
+            SkipWhitespace();
+            if (!Match('"')) {
+                Fail("Expected string key");
+                return JsonValue();
+            }
+            const std::string key = ParseStringBody();
+
+            SkipWhitespace();
+            Expect(':');
+            SkipWhitespace();
+            object.emplace(key, ParseValue());
+            SkipWhitespace();
+
+            if (Match('}')) {
+                break;
+            }
+            Expect(',');
+        }
+
+        return JsonValue(std::move(object));
+    }
+
+    JsonValue ParseArray() {
+        Expect('[');
+        JsonValue::Array array;
+        SkipWhitespace();
+
+        if (Match(']')) {
+            return JsonValue(std::move(array));
+        }
+
+        while (ok_) {
+            array.push_back(ParseValue());
+            SkipWhitespace();
+
+            if (Match(']')) {
+                break;
+            }
+            Expect(',');
+        }
+
+        return JsonValue(std::move(array));
+    }
+
+    std::string ParseString() {
+        Expect('"');
+        return ParseStringBody();
+    }
+
+    std::string ParseStringBody() {
+        std::string result;
+
+        while (ok_ && position_ < input_.size()) {
+            const char c = input_[position_++];
+            if (c == '"') {
+                return result;
+            }
+
+            if (c == '\\') {
+                if (position_ >= input_.size()) {
+                    Fail("Invalid escape sequence");
+                    return {};
+                }
+
+                const char escaped = input_[position_++];
+                switch (escaped) {
+                case '"':
+                case '\\':
+                case '/':
+                    result.push_back(escaped);
+                    break;
+                case 'b':
+                    result.push_back('\b');
+                    break;
+                case 'f':
+                    result.push_back('\f');
+                    break;
+                case 'n':
+                    result.push_back('\n');
+                    break;
+                case 'r':
+                    result.push_back('\r');
+                    break;
+                case 't':
+                    result.push_back('\t');
+                    break;
+                case 'u':
+                    if (position_ + 4 > input_.size()) {
+                        Fail("Invalid unicode escape");
+                        return {};
+                    }
+                    position_ += 4;
+                    result.push_back('?');
+                    break;
+                default:
+                    Fail("Unsupported escape sequence");
+                    return {};
+                }
+                continue;
+            }
+
+            result.push_back(c);
+        }
+
+        Fail("Unterminated string");
+        return {};
+    }
+
+    bool ParseBool() {
+        if (input_.substr(position_, 4) == "true") {
+            position_ += 4;
+            return true;
+        }
+        if (input_.substr(position_, 5) == "false") {
+            position_ += 5;
+            return false;
+        }
+
+        Fail("Invalid boolean");
+        return false;
+    }
+
+    void ParseNull() {
+        if (input_.substr(position_, 4) == "null") {
+            position_ += 4;
+            return;
+        }
+
+        Fail("Invalid null");
+    }
+
+    double ParseNumber() {
+        const size_t start = position_;
+
+        if (input_[position_] == '-') {
+            ++position_;
+        }
+
+        while (position_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[position_]))) {
+            ++position_;
+        }
+
+        if (position_ < input_.size() && input_[position_] == '.') {
+            ++position_;
+            while (position_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[position_]))) {
+                ++position_;
+            }
+        }
+
+        if (position_ < input_.size() && (input_[position_] == 'e' || input_[position_] == 'E')) {
+            ++position_;
+            if (position_ < input_.size() && (input_[position_] == '+' || input_[position_] == '-')) {
+                ++position_;
+            }
+            while (position_ < input_.size() && std::isdigit(static_cast<unsigned char>(input_[position_]))) {
+                ++position_;
+            }
+        }
+
+        try {
+            return std::stod(std::string(input_.substr(start, position_ - start)));
+        } catch (const std::exception&) {
+            Fail("Invalid number");
+            return 0.0;
+        }
+    }
+
+    void SkipWhitespace() {
+        while (position_ < input_.size() && std::isspace(static_cast<unsigned char>(input_[position_]))) {
+            ++position_;
+        }
+    }
+
+    bool Match(char expected) {
+        if (position_ < input_.size() && input_[position_] == expected) {
+            ++position_;
+            return true;
+        }
+        return false;
+    }
+
+    void Expect(char expected) {
+        if (!Match(expected)) {
+            std::ostringstream stream;
+            stream << "Expected '" << expected << "'";
+            Fail(stream.str());
+        }
+    }
+
+    void Fail(const std::string& message) {
+        if (!ok_) {
+            return;
+        }
+        ok_ = false;
+        std::ostringstream stream;
+        stream << message << " at offset " << position_;
+        error_ = stream.str();
+    }
+
+    std::string_view input_;
+    size_t position_{0};
+    bool ok_{true};
+    std::string error_;
+};
+
+const JsonValue::Object* RequireObject(const JsonValue& value, const std::string& field, std::string& error) {
+    if (!value.IsObject()) {
+        error = field + " must be an object";
+        return nullptr;
+    }
+    return &value.AsObject();
+}
+
+const JsonValue::Array* RequireArray(const JsonValue& value, const std::string& field, std::string& error) {
+    if (!value.IsArray()) {
+        error = field + " must be an array";
+        return nullptr;
+    }
+    return &value.AsArray();
+}
+
+bool ReadRequiredBool(const JsonValue::Object& object, const std::string& key, bool& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        error = "Missing required field: " + key;
+        return false;
+    }
+    if (!it->second.IsBool()) {
+        error = key + " must be a boolean";
+        return false;
+    }
+    out = it->second.AsBool();
+    return true;
+}
+
+bool ReadOptionalBool(const JsonValue::Object& object, const std::string& key, std::optional<bool>& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsBool()) {
+        error = key + " must be a boolean";
+        return false;
+    }
+    out = it->second.AsBool();
+    return true;
+}
+
+bool ReadRequiredNumber(const JsonValue::Object& object, const std::string& key, double& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        error = "Missing required field: " + key;
+        return false;
+    }
+    if (!it->second.IsNumber()) {
+        error = key + " must be a number";
+        return false;
+    }
+    out = it->second.AsNumber();
+    return true;
+}
+
+bool ReadOptionalNumber(const JsonValue::Object& object, const std::string& key, std::optional<double>& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsNumber()) {
+        error = key + " must be a number";
+        return false;
+    }
+    out = it->second.AsNumber();
+    return true;
+}
+
+bool ReadOptionalInt(const JsonValue::Object& object, const std::string& key, std::optional<int>& out, std::string& error) {
+    std::optional<double> number;
+    if (!ReadOptionalNumber(object, key, number, error)) {
+        return false;
+    }
+    if (!number.has_value()) {
+        return true;
+    }
+    out = static_cast<int>(*number);
+    return true;
+}
+
+bool ReadRequiredString(const JsonValue::Object& object, const std::string& key, std::string& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        error = "Missing required field: " + key;
+        return false;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+    out = it->second.AsString();
+    return true;
+}
+
+bool ParseStringArray(const JsonValue& value, const std::string& field, std::vector<std::string>& out, std::string& error) {
+    const JsonValue::Array* array = RequireArray(value, field, error);
+    if (!array) {
+        return false;
+    }
+
+    for (const JsonValue& item : *array) {
+        if (!item.IsString()) {
+            error = field + " items must be strings";
+            return false;
+        }
+        out.push_back(item.AsString());
+    }
+
+    return true;
+}
+
+bool ReadOptionalString(const JsonValue::Object& object, const std::string& key, std::optional<std::string>& out, std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+    out = it->second.AsString();
+    return true;
+}
+
+bool ReadOptionalLogLevel(const JsonValue::Object& object,
+                          const std::string& key,
+                          std::optional<LogLevel>& out,
+                          std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+
+    out = ParseLogLevel(it->second.AsString());
+    if (!out) {
+        error = key + " must be one of: info, debug";
+        return false;
+    }
+    return true;
+}
+
+bool ReadOptionalActivationMode(const JsonValue::Object& object,
+                                const std::string& key,
+                                std::optional<ActivationMode>& out,
+                                std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+
+    out = ParseActivationMode(it->second.AsString());
+    if (!out) {
+        error = key + " must be one of: toggle, hold, alwaysOn";
+        return false;
+    }
+    return true;
+}
+
+bool ReadOptionalActivationKey(const JsonValue::Object& object,
+                               const std::string& key,
+                               std::optional<std::string>& out,
+                               std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+
+    out = ParseActivationKey(it->second.AsString());
+    if (!out) {
+        error = key + " must be one of: F1-F12, A-Z, 0-9, Space";
+        return false;
+    }
+    return true;
+}
+
+bool ReadOptionalQuadViewsTrackingMode(const JsonValue::Object& object,
+                                       const std::string& key,
+                                       std::optional<QuadViewsTrackingMode>& out,
+                                       std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+
+    out = ParseQuadViewsTrackingMode(it->second.AsString());
+    if (!out) {
+        error = key + " must be one of: head, eye";
+        return false;
+    }
+    return true;
+}
+
+bool ReadOptionalProfileMode(const JsonValue::Object& object,
+                             const std::string& key,
+                             std::optional<ProfileMode>& out,
+                             std::string& error) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        return true;
+    }
+    if (!it->second.IsString()) {
+        error = key + " must be a string";
+        return false;
+    }
+
+    out = ParseProfileMode(it->second.AsString());
+    if (!out) {
+        error = key + " must be one of: custom, disable";
+        return false;
+    }
+    return true;
+}
+
+// A key that its object's parser does not know, and the object holding it (a
+// node of the document ParseConfig parsed, which turns it into a JSON path).
+struct UnknownKey {
+    const JsonValue::Object* object;
+    std::string key;
+    std::string value; // set: an unknown name in that key's list (NoteUnknownValue)
+};
+
+// Where NoteUnknownKeys records the unknown keys of the ParseConfig running on
+// this thread; null outside one. Thread-local because the layer parses on its
+// config watcher and on application threads at the same time.
+thread_local std::vector<UnknownKey>* t_unknown_keys = nullptr;
+
+// Points t_unknown_keys at `keys` while in scope.
+class UnknownKeyCollector {
+  public:
+    explicit UnknownKeyCollector(std::vector<UnknownKey>& keys) : previous_(t_unknown_keys) {
+        t_unknown_keys = &keys;
+    }
+    ~UnknownKeyCollector() { t_unknown_keys = previous_; }
+    UnknownKeyCollector(const UnknownKeyCollector&) = delete;
+    UnknownKeyCollector& operator=(const UnknownKeyCollector&) = delete;
+
+  private:
+    std::vector<UnknownKey>* previous_;
+};
+
+// Keys outside `allowed` are ignored rather than rejected: a newer app may
+// save settings this layer does not know, and one of them must not turn every
+// module off. ParseConfig reports each one as a warning with its JSON path.
+// Wrong types, out-of-range values and invalid names stay fatal.
+void NoteUnknownKeys(const JsonValue::Object& object, const std::unordered_set<std::string>& allowed) {
+    if (!t_unknown_keys) {
+        return;
+    }
+    for (const auto& [key, _] : object) {
+        if (!allowed.contains(key)) {
+            t_unknown_keys->push_back({&object, key, {}});
+        }
+    }
+}
+
+// A name in a list that this layer does not know (a newer app's OSD row),
+// ignored the same way and reported as a warning.
+void NoteUnknownValue(const JsonValue::Object& object, const std::string& key, const std::string& value) {
+    if (t_unknown_keys) {
+        t_unknown_keys->push_back({&object, key, value});
+    }
+}
+
+bool ParseSoundFeedback(const JsonValue& value, SoundFeedback& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "inputBinding.sound", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {"enabled", "activateSound", "deactivateSound"};
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<bool> enabled;
+    std::optional<std::string> activate_sound;
+    std::optional<std::string> deactivate_sound;
+    if (!ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalString(*object, "activateSound", activate_sound, error) ||
+        !ReadOptionalString(*object, "deactivateSound", deactivate_sound, error)) {
+        return false;
+    }
+
+    out.enabled = enabled.value_or(false);
+    out.activate_sound = activate_sound.value_or(std::string{});
+    out.deactivate_sound = deactivate_sound.value_or(std::string{});
+    return true;
+}
+
+bool ParseInputBinding(const JsonValue& value, InputBinding& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "inputBinding", error);
+    if (!object) {
+        return false;
+    }
+
+    const auto type_it = object->find("type");
+    if (type_it == object->end() || !type_it->second.IsString()) {
+        error = "inputBinding.type must be a string";
+        return false;
+    }
+
+    const std::optional<InputBindingType> type = ParseInputBindingType(type_it->second.AsString());
+    if (!type.has_value()) {
+        error = "inputBinding.type must be one of: none, keyboard, device";
+        return false;
+    }
+
+    out = InputBinding{};
+    out.type = *type;
+    if (out.type == InputBindingType::None) {
+        static const std::unordered_set<std::string> allowed = {"type"};
+        NoteUnknownKeys(*object, allowed);
+        return true;
+    }
+
+    if (out.type == InputBindingType::Keyboard) {
+        static const std::unordered_set<std::string> allowed = {"type", "chord", "sound"};
+        NoteUnknownKeys(*object, allowed);
+
+        const auto chord_it = object->find("chord");
+        if (chord_it == object->end()) {
+            error = "Missing required field: inputBinding.chord";
+            return false;
+        }
+
+        std::vector<std::string> raw_chord;
+        if (!ParseStringArray(chord_it->second, "inputBinding.chord", raw_chord, error)) {
+            return false;
+        }
+
+        out.chord.clear();
+        for (const std::string& key : raw_chord) {
+            const std::optional<std::string> normalized = ParseActivationKey(key);
+            if (!normalized.has_value()) {
+                error = "inputBinding.chord contains unsupported key: " + key;
+                return false;
+            }
+            out.chord.push_back(*normalized);
+        }
+
+        if (out.chord.empty()) {
+            error = "inputBinding.chord must include at least one key";
+            return false;
+        }
+
+        if (const auto sound_it = object->find("sound"); sound_it != object->end() && !ParseSoundFeedback(sound_it->second, out.sound, error)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    static const std::unordered_set<std::string> allowed = {"type", "deviceGuid", "inputPath", "productGuid", "deviceName", "inputLabel", "sound"};
+    NoteUnknownKeys(*object, allowed);
+
+    if (!ReadRequiredString(*object, "deviceGuid", out.device_guid, error) ||
+        !ReadRequiredString(*object, "inputPath", out.input_path, error)) {
+        return false;
+    }
+
+    if (const auto product_guid_it = object->find("productGuid"); product_guid_it != object->end()) {
+        if (!product_guid_it->second.IsString()) {
+            error = "productGuid must be a string";
+            return false;
+        }
+        out.product_guid = product_guid_it->second.AsString();
+    }
+
+    if (const auto device_name_it = object->find("deviceName"); device_name_it != object->end()) {
+        if (!device_name_it->second.IsString()) {
+            error = "deviceName must be a string";
+            return false;
+        }
+        out.device_name = device_name_it->second.AsString();
+    }
+
+    if (const auto input_label_it = object->find("inputLabel"); input_label_it != object->end()) {
+        if (!input_label_it->second.IsString()) {
+            error = "inputLabel must be a string";
+            return false;
+        }
+        out.input_label = input_label_it->second.AsString();
+    }
+
+    if (const auto sound_it = object->find("sound"); sound_it != object->end() && !ParseSoundFeedback(sound_it->second, out.sound, error)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool ParseInputBindings(const JsonValue::Object& object,
+                        std::string_view plural_key,
+                        std::string_view legacy_key,
+                        std::vector<InputBinding>& out,
+                        std::string& error);
+
+// A toggle's bindings: `plural_key`'s list, or the single binding under
+// `legacy_key` that configs written before lists hold (and that the app still
+// writes for one binding, so older layers read it). Neither present leaves
+// `out`, its defaults, as it is.
+bool ParseToggleBindings(const JsonValue::Object& object,
+                         std::string_view plural_key,
+                         std::string_view legacy_key,
+                         std::vector<InputBinding>& out,
+                         std::string& error) {
+    if (!object.count(std::string(plural_key)) && !object.count(std::string(legacy_key))) {
+        return true;
+    }
+    return ParseInputBindings(object, plural_key, legacy_key, out, error);
+}
+
+bool ParseOsdSettings(const JsonValue::Object& object, OsdSettings& out, std::string& error) {
+    NoteUnknownKeys(object, {"enabled", "visibleOnStart", "compact", "horizontalDegrees", "verticalDegrees",
+        "distanceMeters", "scale", "opacity", "updateHz", "showGraph", "showRuntime", "showBrand", "showApp", "showTurbo", "showModules",
+        "showClock", "showPivot", "showFramegen", "showFramegenFps", "showPerformance", "compactShowRuntime", "compactShowClock", "compactShowTurbo", "compactShowPivot",
+        "compactShowFramegen", "compactShowPerformance",
+        "compactShowBrand", "compactShowApp", "compactMetrics",
+        "toolkitSummary", "clockFormat", "bodyOrder", "rowOrder", "customColor", "customPresets", "accent", "toggleBinding", "cycleBinding", "toggleBindings", "cycleBindings"});
+    for (const auto& [key, target] : {std::pair{"enabled", &out.enabled}, {"visibleOnStart", &out.visible_on_start},
+        {"compact", &out.compact}, {"showGraph", &out.show_graph}, {"showRuntime", &out.show_runtime}, {"showBrand", &out.show_brand}, {"showApp", &out.show_app},
+        {"showTurbo", &out.show_turbo}, {"showModules", &out.show_modules}, {"showClock", &out.show_clock}, {"showPivot", &out.show_pivot},
+        {"showFramegen", &out.show_framegen}, {"showFramegenFps", &out.show_framegen_fps}, {"showPerformance", &out.show_performance}}) {
+        std::optional<bool> value;
+        if (!ReadOptionalBool(object, key, value, error)) return false;
+        if (value) *target = *value;
+    }
+    for (const auto& [key, target] : {std::pair{"compactShowRuntime", &out.compact_show_runtime},
+        {"compactShowClock", &out.compact_show_clock}, {"compactShowTurbo", &out.compact_show_turbo},
+        {"compactShowPivot", &out.compact_show_pivot}, {"compactShowBrand", &out.compact_show_brand}, {"compactShowApp", &out.compact_show_app},
+        {"compactShowFramegen", &out.compact_show_framegen}, {"compactShowPerformance", &out.compact_show_performance}}) {
+        std::optional<bool> value;
+        if (!ReadOptionalBool(object, key, value, error)) return false;
+        if (value) *target = *value;
+    }
+    std::optional<std::string> toolkit;
+    if (!ReadOptionalString(object, "toolkitSummary", toolkit, error)) return false;
+    if (toolkit) {
+        if (toolkit->size()>180 || std::any_of(toolkit->begin(),toolkit->end(),[](unsigned char c){return c<32;})) { error="Invalid core.osd.toolkitSummary"; return false; }
+        out.toolkit_summary=*toolkit;
+    }
+    std::optional<std::string> metrics;
+    if (!ReadOptionalString(object, "compactMetrics", metrics, error)) return false;
+    if (metrics) {
+        if (*metrics!="all" && *metrics!="fps" && *metrics!="frameTime" && *metrics!="none") { error="Invalid core.osd.compactMetrics"; return false; }
+        out.compact_metrics=*metrics;
+    }
+    const auto number = [&](const char* key, double& target, double low, double high) {
+        std::optional<double> value;
+        if (!ReadOptionalNumber(object, key, value, error)) return false;
+        if (value) {
+            if (!std::isfinite(*value) || *value < low || *value > high) {
+                error = std::string("core.osd.") + key + " is out of range"; return false;
+            }
+            target = *value;
+        }
+        return true;
+    };
+    if (!number("horizontalDegrees", out.horizontal_degrees, -40, 40) ||
+        !number("verticalDegrees", out.vertical_degrees, -35, 35) ||
+        !number("distanceMeters", out.distance_meters, 0.5, 3) || !number("scale", out.scale, 25, 150)) return false;
+    for (const auto& [key, target] : {std::pair{"opacity", &out.opacity}, {"updateHz", &out.update_hz}}) {
+        std::optional<double> value;
+        if (!ReadOptionalNumber(object, key, value, error)) return false;
+        const int low = std::string_view(key) == "opacity" ? 30 : 1;
+        const int high = std::string_view(key) == "opacity" ? 100 : 20;
+        if (value) {
+            if (!std::isfinite(*value) || std::floor(*value) != *value || *value < low || *value > high) {
+                error = std::string("core.osd.") + key + " must be an integer in range"; return false;
+            }
+            *target = static_cast<int>(*value);
+        }
+    }
+    std::optional<std::string> accent;
+    if (!ReadOptionalString(object, "accent", accent, error)) return false;
+    if (accent) {
+        if (*accent != "teal" && *accent != "copper" && *accent != "blue" && *accent != "violet" && *accent != "rose" && *accent != "custom") { error = "Invalid core.osd.accent"; return false; }
+        out.accent = *accent;
+    }
+    std::optional<std::string> color, clock;
+    if (!ReadOptionalString(object, "customColor", color, error) || !ReadOptionalString(object, "clockFormat", clock, error)) return false;
+    if (color) {
+        if (color->size()!=7 || (*color)[0]!='#' || color->find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos) {
+            error="Invalid core.osd.customColor"; return false;
+        }
+        out.custom_color=*color;
+    }
+    if (clock) {
+        if (*clock!="12" && *clock!="24") { error="Invalid core.osd.clockFormat"; return false; }
+        out.clock_format=*clock;
+    }
+    // The app writes the rows 0.19.0-0.19.2 layers know to bodyOrder (they
+    // reject any other name) and the full order to rowOrder, which wins. A
+    // row this layer does not know (a newer app's) is skipped with a warning.
+    const char* const order_key=object.contains("rowOrder")?"rowOrder":"bodyOrder";
+    if (const auto it=object.find(order_key); it!=object.end()) {
+        const std::string path=std::string("core.osd.")+order_key;
+        const auto* rows=RequireArray(it->second,path,error);
+        if (!rows) return false;
+        std::vector<std::string> order;
+        for (const auto& row:*rows) {
+            const auto* name=row.IsString()?&row.AsString():nullptr;
+            if (!name || std::find(order.begin(),order.end(),*name)!=order.end()) { error="Invalid "+path; return false; }
+            if (*name!="graph" && *name!="performance" && *name!="turbo" && *name!="framegen" && *name!="pivot" && *name!="modules") {
+                NoteUnknownValue(object,order_key,*name);
+                continue;
+            }
+            order.push_back(*name);
+        }
+        for (const auto& name:out.body_order) if (std::find(order.begin(),order.end(),name)==order.end()) order.push_back(name);
+        out.body_order=std::move(order);
+    }
+    // Saved layouts belong to the desktop UI; validate them without carrying them into the frame path.
+    if (const auto it=object.find("customPresets"); it!=object.end()) {
+        const auto* presets=RequireArray(it->second,"core.osd.customPresets",error);
+        if (!presets || presets->size()>50) { error="Invalid core.osd.customPresets"; return false; }
+        for (const auto& preset:*presets) {
+            const auto* entry=RequireObject(preset,"OSD preset",error);
+            if (!entry) return false;
+            NoteUnknownKeys(*entry,{"name","settings"});
+            std::optional<std::string> name;
+            if (!ReadOptionalString(*entry,"name",name,error) || !name || name->empty() || name->size()>240) { error="Invalid OSD preset name"; return false; }
+            const auto layout=entry->find("settings");
+            if (layout==entry->end()) { error="Missing OSD preset settings"; return false; }
+            const auto* values=RequireObject(layout->second,"OSD preset settings",error);
+            if (!values) return false;
+            for (const auto* key:{"customPresets","enabled","visibleOnStart","toggleBinding","cycleBinding","toggleBindings","cycleBindings"})
+                if (values->count(key)) { error="OSD presets may only contain layout settings"; return false; }
+            OsdSettings checked;
+            if (!ParseOsdSettings(*values,checked,error)) return false;
+        }
+    }
+    return ParseToggleBindings(object, "toggleBindings", "toggleBinding", out.toggle_bindings, error) &&
+           ParseToggleBindings(object, "cycleBindings", "cycleBinding", out.cycle_bindings, error);
+}
+
+bool ParseCoreSettings(const JsonValue::Object& object, CoreSettings& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "logLevel",
+        "logRetentionFiles",
+        "trackSeenApps",
+        "osd", "overlays",
+        "sound",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    std::optional<LogLevel> log_level;
+    std::optional<int> log_retention_files;
+    std::optional<bool> track_seen_apps;
+
+    if (!ReadOptionalBool(object, "enabled", enabled, error) ||
+        !ReadOptionalLogLevel(object, "logLevel", log_level, error) ||
+        !ReadOptionalInt(object, "logRetentionFiles", log_retention_files, error) ||
+        !ReadOptionalBool(object, "trackSeenApps", track_seen_apps, error)) {
+        return false;
+    }
+
+    if (enabled.has_value()) {
+        out.enabled = *enabled;
+    }
+    if (log_level.has_value()) {
+        out.log_level = *log_level;
+    }
+    if (log_retention_files.has_value()) {
+        out.log_retention_files = *log_retention_files;
+    }
+    if (track_seen_apps.has_value()) {
+        out.track_seen_apps = *track_seen_apps;
+    }
+
+    if (const auto it=object.find("overlays");it!=object.end()) {
+        auto* values=RequireObject(it->second,"core.overlays",error);std::optional<bool> enabled;
+        if(!values || !ReadOptionalBool(*values,"enabled",enabled,error))return false;
+        if(enabled)out.overlays_enabled=*enabled;
+    }
+    if (const auto it = object.find("osd"); it != object.end()) {
+        const auto* osd = RequireObject(it->second, "core.osd", error);
+        if (!osd || !ParseOsdSettings(*osd, out.osd, error)) return false;
+    }
+    if (const auto sound_it = object.find("sound"); sound_it != object.end()) {
+        const JsonValue::Object* sound_object = RequireObject(sound_it->second, "core.sound", error);
+        if (!sound_object) {
+            return false;
+        }
+        static const std::unordered_set<std::string> sound_allowed = {"volume"};
+        NoteUnknownKeys(*sound_object, sound_allowed);
+        std::optional<int> volume;
+        if (!ReadOptionalInt(*sound_object, "volume", volume, error)) {
+            return false;
+        }
+        if (volume.has_value()) {
+            out.sound_volume = std::clamp(*volume, 0, 100);
+        }
+    }
+
+    return true;
+}
+
+bool ParseApplication(const JsonValue& value, RegisteredApplication& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "application", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "id",
+        "name",
+        "enabled",
+        "match",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    if (!ReadRequiredString(*object, "id", out.id, error) ||
+        !ReadRequiredString(*object, "name", out.name, error) ||
+        !ReadRequiredBool(*object, "enabled", out.enabled, error)) {
+        return false;
+    }
+
+    const auto match_it = object->find("match");
+    if (match_it == object->end()) {
+        error = "Missing required field: match";
+        return false;
+    }
+
+    const JsonValue::Object* match_object = RequireObject(match_it->second, "match", error);
+    if (!match_object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed_match = {"exe"};
+    NoteUnknownKeys(*match_object, allowed_match);
+
+    return ReadRequiredString(*match_object, "exe", out.match.exe_name, error);
+}
+
+bool ParseDepthDefaults(const JsonValue::Object& object, DepthXrResolvedSettings& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        // stereoBoostEnabled/convergenceEnabled are legacy: accepted (so older
+        // configs still load) but no longer have any effect. Neutral values
+        // (stereoBoost 1.0 / convergence 0.0) mean "off".
+        "stereoBoostEnabled",
+        "convergenceEnabled",
+        // Retired 0.13.7-development field. Accepted and ignored without a
+        // warning: configs written by the experimental compatibility-mode
+        // branch still carry it.
+        "compatibilityMode",
+        "stereoBoost",
+        "convergence",
+        "depthAnchor",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<double> stereo_boost;
+    std::optional<double> convergence;
+    std::optional<bool> depth_anchor;
+
+    if (!ReadOptionalNumber(object, "stereoBoost", stereo_boost, error) ||
+        !ReadOptionalNumber(object, "convergence", convergence, error) ||
+        !ReadOptionalBool(object, "depthAnchor", depth_anchor, error)) {
+        return false;
+    }
+
+    if (stereo_boost.has_value()) {
+        out.stereo_boost = *stereo_boost;
+    }
+    if (convergence.has_value()) {
+        out.convergence = *convergence;
+    }
+    if (depth_anchor.has_value()) {
+        out.depth_anchor = *depth_anchor;
+    }
+
+    return true;
+}
+
+bool ParseInputBindings(const JsonValue::Object& object,
+                        std::string_view plural_key,
+                        std::string_view legacy_key,
+                        std::vector<InputBinding>& out,
+                        std::string& error) {
+    const auto plural_it = object.find(std::string(plural_key));
+    const auto legacy_it = object.find(std::string(legacy_key));
+    if (plural_it != object.end() && legacy_it != object.end()) {
+        error = "Fields " + std::string(plural_key) + " and " + std::string(legacy_key) + " cannot both be present";
+        return false;
+    }
+
+    out.clear();
+    if (plural_it != object.end()) {
+        const JsonValue::Array* bindings = RequireArray(plural_it->second, std::string(plural_key), error);
+        if (!bindings) {
+            return false;
+        }
+        for (const JsonValue& binding_value : *bindings) {
+            InputBinding binding;
+            if (!ParseInputBinding(binding_value, binding, error)) {
+                return false;
+            }
+            if (binding.type != InputBindingType::None) {
+                out.push_back(std::move(binding));
+            }
+        }
+        return true;
+    }
+
+    if (legacy_it != object.end()) {
+        InputBinding binding;
+        if (!ParseInputBinding(legacy_it->second, binding, error)) {
+            return false;
+        }
+        if (binding.type != InputBindingType::None) {
+            out.push_back(std::move(binding));
+        }
+    }
+    return true;
+}
+bool ParsePivotActivationBindings(const JsonValue::Object& object,
+                                  std::string_view plural_key,
+                                  std::string_view legacy_key,
+                                  ActivationMode legacy_mode,
+                                  std::vector<PivotActivationBinding>& out,
+                                  std::string& error) {
+    const auto plural_it = object.find(std::string(plural_key));
+    const auto legacy_it = object.find(std::string(legacy_key));
+    if (plural_it != object.end() && legacy_it != object.end()) {
+        error = "Fields " + std::string(plural_key) + " and " + std::string(legacy_key) + " cannot both be present";
+        return false;
+    }
+
+    auto parse_one = [&](const JsonValue& value) {
+        PivotActivationBinding activation;
+        const JsonValue::Object* wrapper = value.IsObject() ? &value.AsObject() : nullptr;
+        if (wrapper && wrapper->contains("binding")) {
+            static const std::unordered_set<std::string> allowed = {"behavior", "binding"};
+            NoteUnknownKeys(*wrapper, allowed);
+            const auto behavior_it = wrapper->find("behavior");
+            if (behavior_it == wrapper->end() || !behavior_it->second.IsString()) {
+                error = "pivot activation behavior must be a string";
+                return false;
+            }
+            const std::string& behavior = behavior_it->second.AsString();
+            if (behavior == "toggle") activation.behavior = PivotActivationBehavior::Toggle;
+            else if (behavior == "hold") activation.behavior = PivotActivationBehavior::Hold;
+            else {
+                error = "pivot activation behavior must be one of: toggle, hold";
+                return false;
+            }
+            if (!ParseInputBinding(wrapper->at("binding"), activation.binding, error)) return false;
+        } else {
+            activation.behavior = legacy_mode == ActivationMode::Hold
+                ? PivotActivationBehavior::Hold
+                : PivotActivationBehavior::Toggle;
+            if (!ParseInputBinding(value, activation.binding, error)) return false;
+        }
+        if (activation.binding.type != InputBindingType::None) out.push_back(std::move(activation));
+        return true;
+    };
+
+    out.clear();
+    if (plural_it != object.end()) {
+        const JsonValue::Array* bindings = RequireArray(plural_it->second, std::string(plural_key), error);
+        if (!bindings) return false;
+        for (const JsonValue& value : *bindings) if (!parse_one(value)) return false;
+    } else if (legacy_it != object.end() && !parse_one(legacy_it->second)) {
+        return false;
+    }
+    return true;
+}
+
+bool ParseDepthBindings(const JsonValue::Object& object, DepthXrBindings& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "toggleEnabled",
+        "toggleAnchor",
+        "toggleEnabledBindings",
+        "toggleAnchorBindings",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    if (!object.count("toggleEnabled") && !object.count("toggleEnabledBindings")) {
+        error = "Missing required field: toggleEnabled";
+        return false;
+    }
+
+    return ParseToggleBindings(object, "toggleEnabledBindings", "toggleEnabled", out.toggle_enabled_bindings, error) &&
+           ParseToggleBindings(object, "toggleAnchorBindings", "toggleAnchor", out.toggle_anchor_bindings, error);
+}
+
+bool ParseDepthProfileSettings(const JsonValue::Object& object, DepthXrSettingsOverride& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        // Legacy keys accepted but ignored (see ParseDepthDefaults).
+        "stereoBoostEnabled",
+        "convergenceEnabled",
+        // Profile copies of the retired experimental field are harmless too.
+        // Any other unknown setting is ignored with a warning.
+        "compatibilityMode",
+        "stereoBoost",
+        "convergence",
+        "depthAnchor",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    return ReadOptionalNumber(object, "stereoBoost", out.stereo_boost, error) &&
+           ReadOptionalNumber(object, "convergence", out.convergence, error) &&
+           ReadOptionalBool(object, "depthAnchor", out.depth_anchor, error);
+}
+
+bool ParseDepthProfile(const JsonValue& value, DepthXrProfile& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "profile", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "name",
+        "enabled",
+        "mode",
+        "applicationIds",
+        "settings",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    const auto application_ids_it = object->find("applicationIds");
+    if (application_ids_it == object->end()) {
+        error = "Missing required field: applicationIds";
+        return false;
+    }
+    if (!ParseStringArray(application_ids_it->second, "applicationIds", out.application_ids, error)) {
+        return false;
+    }
+
+    std::optional<std::string> name;
+    std::optional<bool> enabled;
+    std::optional<ProfileMode> mode;
+    if (!ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalProfileMode(*object, "mode", mode, error)) {
+        return false;
+    }
+
+    out.name = name.value_or("New Profile");
+    out.enabled = enabled.value_or(true);
+    out.mode = mode.value_or(ProfileMode::Custom);
+
+    const auto settings_it = object->find("settings");
+    if (settings_it != object->end()) {
+        const JsonValue::Object* settings_object = RequireObject(settings_it->second, "settings", error);
+        if (!settings_object || !ParseDepthProfileSettings(*settings_object, out.settings, error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ParseDepthModule(const JsonValue::Object& object,
+                      DepthXrModuleConfig& out,
+                      std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "defaults",
+        "bindings",
+        "profiles",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    if (!ReadOptionalBool(object, "enabled", enabled, error)) {
+        return false;
+    }
+    if (enabled.has_value()) {
+        out.enabled = *enabled;
+        out.defaults.enabled = *enabled;
+    }
+
+    const auto defaults_it = object.find("defaults");
+    if (defaults_it != object.end()) {
+        const JsonValue::Object* defaults_object = RequireObject(defaults_it->second, "defaults", error);
+        if (!defaults_object || !ParseDepthDefaults(*defaults_object, out.defaults, error)) {
+            return false;
+        }
+    }
+
+    const auto bindings_it = object.find("bindings");
+    if (bindings_it != object.end()) {
+        const JsonValue::Object* bindings_object = RequireObject(bindings_it->second, "bindings", error);
+        if (!bindings_object || !ParseDepthBindings(*bindings_object, out.bindings, error)) {
+            return false;
+        }
+    }
+
+    const auto profiles_it = object.find("profiles");
+    if (profiles_it != object.end()) {
+        const JsonValue::Array* profiles = RequireArray(profiles_it->second, "profiles", error);
+        if (!profiles) {
+            return false;
+        }
+
+        for (const JsonValue& value : *profiles) {
+            DepthXrProfile profile;
+            if (!ParseDepthProfile(value, profile, error)) {
+                return false;
+            }
+            out.profiles.push_back(std::move(profile));
+        }
+    }
+
+    return true;
+}
+
+bool ParseTurboExperimental(const JsonValue::Object&, TurboExperimentalSettings&, std::string&);
+
+bool ParseTurboProfile(const JsonValue& value, TurboProfile& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "turboProfile", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "experimental",
+        "disableSafety",
+        "id",
+        "name",
+        "enabled",
+        "mode",
+        "applicationIds",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    if (const auto it=object->find("experimental");it!=object->end()){
+        const auto* settings=RequireObject(it->second,"turboProfile.experimental",error);
+        TurboExperimentalSettings parsed;
+        if(!settings || !ParseTurboExperimental(*settings,parsed,error))return false;
+        parsed.application_ids.clear();out.experimental=std::move(parsed);
+    }
+    std::optional<bool> disable_safety;
+    if (!ReadOptionalBool(*object, "disableSafety", disable_safety, error)) return false;
+    out.disable_safety = disable_safety.value_or(false);
+    const auto application_ids_it = object->find("applicationIds");
+    if (application_ids_it == object->end()) {
+        error = "Missing required field: turboProfile.applicationIds";
+        return false;
+    }
+    if (!ParseStringArray(application_ids_it->second, "applicationIds", out.application_ids, error)) {
+        return false;
+    }
+
+    std::optional<std::string> id;
+    std::optional<std::string> name;
+    std::optional<bool> enabled;
+    std::optional<ProfileMode> mode;
+
+    if (!ReadOptionalString(*object, "id", id, error) ||
+        !ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalProfileMode(*object, "mode", mode, error)) {
+        return false;
+    }
+
+    out.id = id.value_or("");
+    out.name = name.value_or("New Profile");
+    out.enabled = enabled.value_or(true);
+    out.mode = mode.value_or(ProfileMode::Custom);
+
+    return true;
+}
+
+bool ParseTurboExperimental(const JsonValue::Object& object, TurboExperimentalSettings& out, std::string& error) {
+    NoteUnknownKeys(object, {"enabled", "applicationIds", "waitForSubmit", "sampleAtEntry",
+                            "predictionPercent", "frameLimit", "timingTrace"});
+    for (auto [key, target] : {std::pair{"enabled", &out.enabled}, {"waitForSubmit", &out.wait_for_submit},
+                              {"sampleAtEntry", &out.sample_at_entry}}) {
+        std::optional<bool> value;
+        if (!ReadOptionalBool(object, key, value, error)) return false;
+        if (value) *target = *value;
+    }
+    std::optional<bool> legacy_trace;
+    if (!ReadOptionalBool(object, "timingTrace", legacy_trace, error)) return false;
+    const auto ids = object.find("applicationIds");
+    if (ids != object.end() && !ParseStringArray(ids->second, "turbo.experimental.applicationIds", out.application_ids, error)) return false;
+    for (auto [key, target] : {std::pair{"predictionPercent", &out.prediction_percent}, {"frameLimit", &out.frame_limit}}) {
+        std::optional<double> value;
+        if (!ReadOptionalNumber(object, key, value, error)) return false;
+        if (!value) continue;
+        const bool prediction = std::string_view(key) == "predictionPercent";
+        if (!std::isfinite(*value) || std::floor(*value) != *value ||
+            (prediction ? (*value < 50 || *value > 100) : (*value != 0 && (*value < 20 || *value > 240)))) {
+            error = std::string("turbo.experimental.") + key +
+                (prediction ? " must be an integer from 50 to 100" : " must be 0 (off) or an integer from 20 to 240");
+            return false;
+        }
+        *target = static_cast<int>(*value);
+    }
+    return true;
+}
+
+bool ParseTurboModule(const JsonValue::Object& object, TurboModuleConfig& out, std::string& error) {
+    std::optional<bool> recovery;
+    if (!ReadOptionalBool(object, "interruptedSessionRecovery", recovery, error)) return false;
+    out.interrupted_session_recovery = recovery.value_or(true);
+    static const std::unordered_set<std::string> allowed = {
+        "interruptedSessionRecovery",
+        "experimental",
+        "enabled",
+        "toggleBinding",
+        "toggleBindings",
+        "pacingMode",
+        "runtimePins",
+        "metricsMode",
+        "metricsBinding",
+        "metricsBindings",
+        "profiles",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    if (!ReadOptionalBool(object, "enabled", enabled, error)) {
+        return false;
+    }
+    if (enabled.has_value()) {
+        out.enabled = *enabled;
+    }
+
+    const auto experiment = object.find("experimental");
+    if (experiment != object.end()) {
+        const auto* settings = RequireObject(experiment->second, "turbo.experimental", error);
+        if (!settings || !ParseTurboExperimental(*settings, out.experimental, error)) return false;
+    }
+
+    // Optional: absent in configs written before pacing modes existed.
+    std::optional<std::string> pacing_mode;
+    if (!ReadOptionalString(object, "pacingMode", pacing_mode, error)) {
+        return false;
+    }
+    if (pacing_mode.has_value()) {
+        const std::optional<TurboPacingSetting> parsed = ParseTurboPacingSetting(*pacing_mode);
+        if (!parsed.has_value()) {
+            error = "turbo.pacingMode must be one of: auto, async, sequenced";
+            return false;
+        }
+        out.pacing_mode = *parsed;
+    }
+
+    const auto pins_it = object.find("runtimePins");
+    if (pins_it != object.end()) {
+        const JsonValue::Object* pins_object = RequireObject(pins_it->second, "turbo.runtimePins", error);
+        if (!pins_object) {
+            return false;
+        }
+        for (const auto& [runtime_name, pin_value] : *pins_object) {
+            if (!pin_value.IsString()) {
+                error = "turbo.runtimePins values must be strings";
+                return false;
+            }
+            const std::optional<TurboPacingMode> pin = ParseTurboPacingMode(pin_value.AsString());
+            if (!pin.has_value() || *pin == TurboPacingMode::kUnsupported) {
+                error = "turbo.runtimePins values must be one of: async, sequenced";
+                return false;
+            }
+            out.runtime_pins.emplace_back(runtime_name, *pin);
+        }
+    }
+
+    // Optional: absent in configs written before metrics capture existed.
+    std::optional<std::string> metrics_mode;
+    if (!ReadOptionalString(object, "metricsMode", metrics_mode, error)) {
+        return false;
+    }
+    if (metrics_mode.has_value()) {
+        const std::optional<TurboMetricsMode> parsed = ParseTurboMetricsMode(*metrics_mode);
+        if (!parsed.has_value()) {
+            error = "turbo.metricsMode must be one of: off, always, binding";
+            return false;
+        }
+        out.metrics_mode = *parsed;
+    }
+
+    if (!ParseToggleBindings(object, "toggleBindings", "toggleBinding", out.toggle_bindings, error) ||
+        !ParseToggleBindings(object, "metricsBindings", "metricsBinding", out.metrics_bindings, error)) {
+        return false;
+    }
+
+    const auto profiles_it = object.find("profiles");
+    if (profiles_it != object.end()) {
+        const JsonValue::Array* profiles = RequireArray(profiles_it->second, "turbo.profiles", error);
+        if (!profiles) {
+            return false;
+        }
+
+        for (const JsonValue& value : *profiles) {
+            TurboProfile profile;
+            if (!ParseTurboProfile(value, profile, error)) {
+                return false;
+            }
+            out.profiles.push_back(std::move(profile));
+        }
+    }
+
+    return true;
+}
+
+constexpr double kMaxPivotDeadzoneTransitionDegrees = 180.0;
+constexpr double kMaxPivotPositionAssistCm = 100.0;
+constexpr double kMaxPivotPositionAssistAngleDegrees = 180.0;
+
+bool IsValidPivotDeadzoneTransition(double degrees) {
+    return degrees >= 0.0 && degrees <= kMaxPivotDeadzoneTransitionDegrees;
+}
+
+bool ParsePivotAxisTuning(const JsonValue& value, const char* field, PivotAxisTuning& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, field, error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "rotationMultiplier",
+        "deadzoneDegrees",
+        "maxExtraDegrees",
+        "deadzoneTransitionDegrees",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<double> rotation_multiplier;
+    std::optional<double> deadzone_degrees;
+    std::optional<double> max_extra_degrees;
+    std::optional<double> deadzone_transition_degrees;
+
+    if (!ReadOptionalNumber(*object, "rotationMultiplier", rotation_multiplier, error) ||
+        !ReadOptionalNumber(*object, "deadzoneDegrees", deadzone_degrees, error) ||
+        !ReadOptionalNumber(*object, "maxExtraDegrees", max_extra_degrees, error) ||
+        !ReadOptionalNumber(*object, "deadzoneTransitionDegrees", deadzone_transition_degrees, error)) {
+        return false;
+    }
+
+    if (rotation_multiplier.has_value()) {
+        out.rotation_multiplier = *rotation_multiplier;
+    }
+    if (deadzone_degrees.has_value()) {
+        out.deadzone_degrees = *deadzone_degrees;
+    }
+    if (max_extra_degrees.has_value()) {
+        out.max_extra_degrees = *max_extra_degrees;
+    }
+    if (deadzone_transition_degrees.has_value()) {
+        if (!IsValidPivotDeadzoneTransition(*deadzone_transition_degrees)) {
+            error = std::string(field) + ".deadzoneTransitionDegrees must be between 0 and 180";
+            return false;
+        }
+        out.deadzone_transition_degrees = *deadzone_transition_degrees;
+    }
+
+    return true;
+}
+
+bool ParsePivotStepTuning(const JsonValue& value,
+                          const std::string& context,
+                          PivotStepTuning& out,
+                          std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, context, error);
+    if (!object) {
+        return false;
+    }
+    static const std::unordered_set<std::string> allowed = {
+        "deadzoneDegrees",
+        "triggerDegrees",
+        "amountDegrees",
+        "hysteresisDegrees",
+        "maxExtraDegrees",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<double> deadzone;
+    std::optional<double> trigger;
+    std::optional<double> amount;
+    std::optional<double> hysteresis;
+    std::optional<double> max_extra;
+    if (!ReadOptionalNumber(*object, "deadzoneDegrees", deadzone, error) ||
+        !ReadOptionalNumber(*object, "triggerDegrees", trigger, error) ||
+        !ReadOptionalNumber(*object, "amountDegrees", amount, error) ||
+        !ReadOptionalNumber(*object, "hysteresisDegrees", hysteresis, error) ||
+        !ReadOptionalNumber(*object, "maxExtraDegrees", max_extra, error)) {
+        return false;
+    }
+    if (deadzone) out.deadzone_degrees = *deadzone;
+    if (trigger) out.trigger_degrees = *trigger;
+    if (amount) out.amount_degrees = *amount;
+    if (hysteresis) out.hysteresis_degrees = *hysteresis;
+    if (max_extra) out.max_extra_degrees = *max_extra;
+    return true;
+}
+
+double MigratedStepGlideSeconds(double smoothing) {
+    if (smoothing <= 0.0) {
+        return 0.0;
+    }
+    const double per_frame_error = std::clamp(smoothing, 0.000001, 0.95);
+    const double bounded = std::clamp(std::log(0.001) / (90.0 * std::log(per_frame_error)), 0.01, 2.0);
+    return std::round(bounded * 100.0) / 100.0;
+}
+
+bool ParsePivotPositionDirection(const JsonValue& value,
+                                 const std::string& context,
+                                 PivotPositionDirection& out,
+                                 std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, context, error);
+    if (!object) {
+        return false;
+    }
+    static const std::unordered_set<std::string> allowed = {
+        "rightCm",
+        "upCm",
+        "forwardCm",
+        "startAngleDegrees",
+        "fullAngleDegrees",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<double> right_cm;
+    std::optional<double> up_cm;
+    std::optional<double> forward_cm;
+    std::optional<double> start_angle_degrees;
+    std::optional<double> full_angle_degrees;
+    if (!ReadOptionalNumber(*object, "rightCm", right_cm, error) ||
+        !ReadOptionalNumber(*object, "upCm", up_cm, error) ||
+        !ReadOptionalNumber(*object, "forwardCm", forward_cm, error) ||
+        !ReadOptionalNumber(*object, "startAngleDegrees", start_angle_degrees, error) ||
+        !ReadOptionalNumber(*object, "fullAngleDegrees", full_angle_degrees, error)) {
+        return false;
+    }
+    if (right_cm) out.right_cm = *right_cm;
+    if (up_cm) out.up_cm = *up_cm;
+    if (forward_cm) out.forward_cm = *forward_cm;
+    if (start_angle_degrees) out.start_angle_degrees = *start_angle_degrees;
+    if (full_angle_degrees) out.full_angle_degrees = *full_angle_degrees;
+
+    const bool offsets_valid = std::abs(out.right_cm) <= kMaxPivotPositionAssistCm &&
+                               std::abs(out.up_cm) <= kMaxPivotPositionAssistCm &&
+                               std::abs(out.forward_cm) <= kMaxPivotPositionAssistCm;
+    const bool angles_valid = out.start_angle_degrees >= 0.0 &&
+                              out.full_angle_degrees <= kMaxPivotPositionAssistAngleDegrees &&
+                              out.full_angle_degrees > out.start_angle_degrees;
+    if (!offsets_valid || !angles_valid) {
+        error = context + " requires offsets within +/-100 cm and 0 <= start angle < full angle <= 180";
+        return false;
+    }
+    return true;
+}
+
+bool ParsePivotPositionAssist(const JsonValue& value, PivotPositionAssist& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "positionAssist", error);
+    if (!object) {
+        return false;
+    }
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "advancedDirections",
+        "yaw",
+        "yawLeft",
+        "yawRight",
+        "pitchUp",
+        "pitchDown",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<bool> enabled;
+    std::optional<bool> advanced_directions;
+    if (!ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalBool(*object, "advancedDirections", advanced_directions, error)) {
+        return false;
+    }
+    if (enabled) out.enabled = *enabled;
+    if (advanced_directions) out.advanced_directions = *advanced_directions;
+
+    const std::pair<const char*, PivotPositionDirection*> directions[] = {
+        {"yaw", &out.yaw},
+        {"yawLeft", &out.yaw_left},
+        {"yawRight", &out.yaw_right},
+        {"pitchUp", &out.pitch_up},
+        {"pitchDown", &out.pitch_down},
+    };
+    for (const auto& [key, direction] : directions) {
+        const auto direction_it = object->find(key);
+        if (direction_it != object->end() &&
+            !ParsePivotPositionDirection(direction_it->second, std::string("positionAssist.") + key, *direction,
+                                         error)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ParsePivotSettings(const JsonValue::Object& object, PivotXrSettings& out, std::string& error) {
+
+
+    static const std::unordered_set<std::string> allowed = {
+        "smoothing",
+        "applyMotionToSnapViews",
+        "positionAssist",
+        "deadzoneTransitionDegrees",
+        "pitchDeadzoneTransitionDegrees",
+        "activationRampSeconds",
+        "rotationMultiplier",
+        "deadzoneDegrees",
+        "maxExtraYawDegrees",
+        "pitchRotationMultiplier",
+        "pitchDeadzoneDegrees",
+        "maxExtraPitchDegrees",
+        "responseMode",
+        "stepTriggerDegrees",
+        "stepAmountDegrees",
+        "stepHysteresisDegrees",
+        "advancedAxes",
+        "yawLeft",
+        "yawRight",
+        "pitchUp",
+        "pitchDown",
+        "stepGlideMode",
+        "stepGlideSeconds",
+        "yawStep",
+        "pitchStep",
+        "yawLeftStep",
+        "yawRightStep",
+        "pitchUpStep",
+        "pitchDownStep",
+        // Legacy shared step values migrate into both basic axes.
+        // Legacy: per-axis smoothing collapsed into a single "smoothing".
+        // Accepted but ignored so older configs still load.
+        "pitchSmoothing",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> apply_motion_to_snap_views;
+    std::optional<double> yaw_deadzone_transition_degrees;
+    std::optional<double> pitch_deadzone_transition_degrees;
+    if (!ReadOptionalBool(object, "applyMotionToSnapViews", apply_motion_to_snap_views, error) ||
+        !ReadOptionalNumber(object, "deadzoneTransitionDegrees", yaw_deadzone_transition_degrees, error) ||
+        !ReadOptionalNumber(object, "pitchDeadzoneTransitionDegrees", pitch_deadzone_transition_degrees, error)) {
+        return false;
+    }
+    if ((yaw_deadzone_transition_degrees && !IsValidPivotDeadzoneTransition(*yaw_deadzone_transition_degrees)) ||
+        (pitch_deadzone_transition_degrees && !IsValidPivotDeadzoneTransition(*pitch_deadzone_transition_degrees))) {
+        error = "Deadzone transition must be between 0 and 180 degrees";
+        return false;
+    }
+    if (apply_motion_to_snap_views) {
+        out.apply_motion_to_snap_views = *apply_motion_to_snap_views;
+    }
+    if (yaw_deadzone_transition_degrees) {
+        out.yaw_deadzone_transition_degrees = *yaw_deadzone_transition_degrees;
+    }
+    if (pitch_deadzone_transition_degrees) {
+        out.pitch_deadzone_transition_degrees = *pitch_deadzone_transition_degrees;
+    }
+    const auto position_assist_it = object.find("positionAssist");
+    if (position_assist_it != object.end() &&
+        !ParsePivotPositionAssist(position_assist_it->second, out.position_assist, error)) {
+        return false;
+    }
+
+    std::optional<double> smoothing;
+    std::optional<double> activation_ramp_seconds;
+    std::optional<double> rotation_multiplier;
+    std::optional<double> deadzone_degrees;
+    std::optional<double> max_extra_yaw_degrees;
+    std::optional<double> pitch_rotation_multiplier;
+    std::optional<double> pitch_deadzone_degrees;
+    std::optional<double> max_extra_pitch_degrees;
+
+    if (!ReadOptionalNumber(object, "smoothing", smoothing, error) ||
+        !ReadOptionalNumber(object, "activationRampSeconds", activation_ramp_seconds, error) ||
+        !ReadOptionalNumber(object, "rotationMultiplier", rotation_multiplier, error) ||
+        !ReadOptionalNumber(object, "deadzoneDegrees", deadzone_degrees, error) ||
+        !ReadOptionalNumber(object, "maxExtraYawDegrees", max_extra_yaw_degrees, error) ||
+        !ReadOptionalNumber(object, "pitchRotationMultiplier", pitch_rotation_multiplier, error) ||
+        !ReadOptionalNumber(object, "pitchDeadzoneDegrees", pitch_deadzone_degrees, error) ||
+        !ReadOptionalNumber(object, "maxExtraPitchDegrees", max_extra_pitch_degrees, error)) {
+        return false;
+    }
+
+    if (smoothing.has_value()) {
+        out.smoothing = *smoothing;
+    }
+    if (activation_ramp_seconds.has_value()) {
+        out.activation_ramp_seconds = *activation_ramp_seconds;
+    }
+    if (rotation_multiplier.has_value()) {
+        out.yaw_rotation_multiplier = *rotation_multiplier;
+    }
+    if (deadzone_degrees.has_value()) {
+        out.yaw_deadzone_degrees = *deadzone_degrees;
+    }
+    if (max_extra_yaw_degrees.has_value()) {
+        out.yaw_max_extra_degrees = *max_extra_yaw_degrees;
+    }
+    if (pitch_rotation_multiplier.has_value()) {
+        out.pitch_rotation_multiplier = *pitch_rotation_multiplier;
+    }
+    if (pitch_deadzone_degrees.has_value()) {
+        out.pitch_deadzone_degrees = *pitch_deadzone_degrees;
+    }
+    if (max_extra_pitch_degrees.has_value()) {
+        out.pitch_max_extra_degrees = *max_extra_pitch_degrees;
+    }
+
+    std::optional<std::string> response_mode;
+    std::optional<std::string> step_glide_mode;
+    std::optional<double> step_glide_seconds;
+    std::optional<double> legacy_step_trigger;
+    std::optional<double> legacy_step_amount;
+    std::optional<double> legacy_step_hysteresis;
+    std::optional<bool> advanced_axes;
+
+    if (!ReadOptionalString(object, "responseMode", response_mode, error) ||
+        !ReadOptionalString(object, "stepGlideMode", step_glide_mode, error) ||
+        !ReadOptionalNumber(object, "stepGlideSeconds", step_glide_seconds, error) ||
+        !ReadOptionalNumber(object, "stepTriggerDegrees", legacy_step_trigger, error) ||
+        !ReadOptionalNumber(object, "stepAmountDegrees", legacy_step_amount, error) ||
+        !ReadOptionalNumber(object, "stepHysteresisDegrees", legacy_step_hysteresis, error) ||
+        !ReadOptionalBool(object, "advancedAxes", advanced_axes, error)) {
+        return false;
+    }
+
+    if (response_mode) {
+        const std::optional<PivotResponseMode> parsed = ParsePivotResponseMode(*response_mode);
+        if (!parsed) {
+            error = "Invalid value for responseMode: " + *response_mode;
+            return false;
+        }
+        out.response_mode = *parsed;
+    }
+    if (step_glide_mode) {
+        const std::optional<PivotStepGlideMode> parsed = ParsePivotStepGlideMode(*step_glide_mode);
+        if (!parsed) {
+            error = "Invalid value for stepGlideMode: " + *step_glide_mode;
+            return false;
+        }
+        out.step_glide_mode = *parsed;
+    } else {
+        out.step_glide_mode = out.smoothing <= 0.0 ? PivotStepGlideMode::Instant : PivotStepGlideMode::Glide;
+    }
+    if (step_glide_seconds) {
+        out.step_glide_seconds = *step_glide_seconds;
+    } else if (!step_glide_mode) {
+        out.step_glide_seconds = MigratedStepGlideSeconds(out.smoothing);
+    }
+
+    out.yaw_step.deadzone_degrees = out.yaw_deadzone_degrees;
+    out.yaw_step.max_extra_degrees = out.yaw_max_extra_degrees;
+    out.pitch_step.deadzone_degrees = out.pitch_deadzone_degrees;
+    out.pitch_step.max_extra_degrees = out.pitch_max_extra_degrees;
+    if (legacy_step_trigger) {
+        out.yaw_step.trigger_degrees = *legacy_step_trigger;
+        out.pitch_step.trigger_degrees = *legacy_step_trigger;
+    }
+    if (legacy_step_amount) {
+        out.yaw_step.amount_degrees = *legacy_step_amount;
+        out.pitch_step.amount_degrees = *legacy_step_amount;
+    }
+    if (legacy_step_hysteresis) {
+        out.yaw_step.hysteresis_degrees = *legacy_step_hysteresis;
+        out.pitch_step.hysteresis_degrees = *legacy_step_hysteresis;
+    }
+    if (advanced_axes) {
+        out.advanced_axes = *advanced_axes;
+    }
+
+    const auto yaw_left_it = object.find("yawLeft");
+    if (yaw_left_it != object.end() && !ParsePivotAxisTuning(yaw_left_it->second, "yawLeft", out.yaw_left, error)) {
+        return false;
+    }
+    const auto yaw_right_it = object.find("yawRight");
+    if (yaw_right_it != object.end() && !ParsePivotAxisTuning(yaw_right_it->second, "yawRight", out.yaw_right, error)) {
+        return false;
+    }
+    const auto pitch_up_it = object.find("pitchUp");
+    if (pitch_up_it != object.end() && !ParsePivotAxisTuning(pitch_up_it->second, "pitchUp", out.pitch_up, error)) {
+        return false;
+    }
+    const auto pitch_down_it = object.find("pitchDown");
+    if (pitch_down_it != object.end() &&
+        !ParsePivotAxisTuning(pitch_down_it->second, "pitchDown", out.pitch_down, error)) {
+        return false;
+    }
+
+    const auto yaw_step_it = object.find("yawStep");
+    if (yaw_step_it != object.end() &&
+        !ParsePivotStepTuning(yaw_step_it->second, "yawStep", out.yaw_step, error)) {
+        return false;
+    }
+    const auto pitch_step_it = object.find("pitchStep");
+    if (pitch_step_it != object.end() &&
+        !ParsePivotStepTuning(pitch_step_it->second, "pitchStep", out.pitch_step, error)) {
+        return false;
+    }
+
+    out.yaw_left_step = out.yaw_step;
+    out.yaw_right_step = out.yaw_step;
+    out.pitch_up_step = out.pitch_step;
+    out.pitch_down_step = out.pitch_step;
+    const auto yaw_left_step_it = object.find("yawLeftStep");
+    if (yaw_left_step_it != object.end() &&
+        !ParsePivotStepTuning(yaw_left_step_it->second, "yawLeftStep", out.yaw_left_step, error)) {
+        return false;
+    }
+    const auto yaw_right_step_it = object.find("yawRightStep");
+    if (yaw_right_step_it != object.end() &&
+        !ParsePivotStepTuning(yaw_right_step_it->second, "yawRightStep", out.yaw_right_step, error)) {
+        return false;
+    }
+    const auto pitch_up_step_it = object.find("pitchUpStep");
+    if (pitch_up_step_it != object.end() &&
+        !ParsePivotStepTuning(pitch_up_step_it->second, "pitchUpStep", out.pitch_up_step, error)) {
+        return false;
+    }
+    const auto pitch_down_step_it = object.find("pitchDownStep");
+    if (pitch_down_step_it != object.end() &&
+        !ParsePivotStepTuning(pitch_down_step_it->second, "pitchDownStep", out.pitch_down_step, error)) {
+        return false;
+    }
+    return true;
+}
+
+bool ParsePivotProfileBehavior(const std::string& value, PivotProfileBehavior& out, std::string& error) {
+
+    if (value == "enhancedMotion") {
+        out = PivotProfileBehavior::EnhancedMotion;
+        return true;
+    }
+    if (value == "snapViews") {
+        out = PivotProfileBehavior::SnapViews;
+        return true;
+    }
+    error = "pivot behavior must be one of: enhancedMotion, snapViews";
+    return false;
+}
+
+bool ValidateLegacyPivotSnapTurnPreference(const std::string& value, std::string& error) {
+    if (value == "shortest" || value == "left" || value == "right") return true;
+    error = "legacy pivot snapTurnPreference must be one of: shortest, left, right";
+    return false;
+}
+
+bool ParsePivotNudgeSettings(const JsonValue& value, PivotNudgeSettings& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "pivot nudges", error);
+    if (!object) return false;
+    static const std::unordered_set<std::string> allowed = {
+        "yawStepDegrees", "pitchStepDegrees", "transitionSeconds",
+        "yawLeftBindings", "yawRightBindings", "pitchUpBindings", "pitchDownBindings", "centerBindings",
+        // The single bindings of configs from before lists (ParseInputBindings reads them).
+        "yawLeftBinding", "yawRightBinding", "pitchUpBinding", "pitchDownBinding", "centerBinding",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<double> yaw_step;
+    std::optional<double> pitch_step;
+    std::optional<double> transition;
+    if (!ReadOptionalNumber(*object, "yawStepDegrees", yaw_step, error) ||
+        !ReadOptionalNumber(*object, "pitchStepDegrees", pitch_step, error) ||
+        !ReadOptionalNumber(*object, "transitionSeconds", transition, error)) {
+        return false;
+    }
+    if (yaw_step) out.yaw_step_degrees = *yaw_step;
+    if (pitch_step) out.pitch_step_degrees = *pitch_step;
+    if (transition) out.transition_seconds = *transition;
+
+    return ParseInputBindings(*object, "yawLeftBindings", "yawLeftBinding", out.yaw_left_bindings, error) &&
+           ParseInputBindings(*object, "yawRightBindings", "yawRightBinding", out.yaw_right_bindings, error) &&
+           ParseInputBindings(*object, "pitchUpBindings", "pitchUpBinding", out.pitch_up_bindings, error) &&
+           ParseInputBindings(*object, "pitchDownBindings", "pitchDownBinding", out.pitch_down_bindings, error) &&
+           ParseInputBindings(*object, "centerBindings", "centerBinding", out.center_bindings, error);
+}
+
+bool ParsePivotNudgeSet(const JsonValue& value, PivotNudgeSet& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "pivot nudge set", error);
+    if (!object) return false;
+    static const std::unordered_set<std::string> allowed = {
+        "id", "name", "allowWhileInactive", "settings",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<std::string> id;
+    std::optional<std::string> name;
+    std::optional<bool> allow_while_inactive;
+    if (!ReadOptionalString(*object, "id", id, error) ||
+        !ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalBool(*object, "allowWhileInactive", allow_while_inactive, error)) {
+        return false;
+    }
+    if (!id.has_value() || id->empty()) {
+        error = "pivot nudge set id must not be empty";
+        return false;
+    }
+    out.id = *id;
+    out.name = name.value_or("Nudge Set");
+    out.allow_while_inactive = allow_while_inactive.value_or(false);
+    const auto settings_it = object->find("settings");
+    if (settings_it != object->end() &&
+        !ParsePivotNudgeSettings(settings_it->second, out.settings, error)) {
+        return false;
+    }
+    return true;
+}
+
+bool ParsePivotQuickView(const JsonValue& value, PivotQuickView& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "pivot quick view", error);
+    if (!object) return false;
+    static const std::unordered_set<std::string> allowed = {
+        "id", "name", "yawDegrees", "pitchDegrees", "positionRightCm", "positionUpCm",
+        "positionForwardCm", "transitionSeconds", "turnDirection", "activationBindings",
+        // The single binding of configs from before lists (ParsePivotActivationBindings reads it).
+        "activationBinding",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    std::optional<std::string> id;
+    std::optional<std::string> name;
+    std::optional<std::string> turn_direction;
+    std::optional<double> yaw;
+    std::optional<double> pitch;
+    std::optional<double> right;
+    std::optional<double> up;
+    std::optional<double> forward;
+    std::optional<double> transition;
+    if (!ReadOptionalString(*object, "id", id, error) ||
+        !ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalString(*object, "turnDirection", turn_direction, error) ||
+        !ReadOptionalNumber(*object, "yawDegrees", yaw, error) ||
+        !ReadOptionalNumber(*object, "pitchDegrees", pitch, error) ||
+        !ReadOptionalNumber(*object, "positionRightCm", right, error) ||
+        !ReadOptionalNumber(*object, "positionUpCm", up, error) ||
+        !ReadOptionalNumber(*object, "positionForwardCm", forward, error) ||
+        !ReadOptionalNumber(*object, "transitionSeconds", transition, error)) {
+        return false;
+    }
+    out.id = id.value_or("");
+    out.name = name.value_or("Quick View");
+    if (yaw) out.yaw_degrees = *yaw;
+    if (pitch) out.pitch_degrees = *pitch;
+    if (right) out.position_right_cm = *right;
+    if (up) out.position_up_cm = *up;
+    if (forward) out.position_forward_cm = *forward;
+    if (transition) out.transition_seconds = *transition;
+    // Accepted for configs saved by the first Snap Views prototype. Travel
+    // policy now belongs to the profile, so this per-view value is ignored.
+    if (turn_direction && *turn_direction != "left" && *turn_direction != "right") {
+        error = "legacy pivot quick view turnDirection must be one of: left, right";
+        return false;
+    }
+    return ParsePivotActivationBindings(*object, "activationBindings", "activationBinding",
+                                        ActivationMode::Toggle, out.activation_bindings, error);
+}
+
+bool ParsePivotViewControls(const JsonValue& value, PivotViewControls& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "pivot viewControls", error);
+    if (!object) return false;
+    static const std::unordered_set<std::string> allowed = {"nudges", "quickViews"};
+    NoteUnknownKeys(*object, allowed);
+
+    const auto nudges_it = object->find("nudges");
+    if (nudges_it != object->end() && !ParsePivotNudgeSettings(nudges_it->second, out.nudges, error)) {
+        return false;
+    }
+    const auto quick_views_it = object->find("quickViews");
+    if (quick_views_it != object->end()) {
+        const JsonValue::Array* quick_views = RequireArray(quick_views_it->second, "quickViews", error);
+        if (!quick_views) return false;
+        out.quick_views.clear();
+        for (const JsonValue& quick_view_value : *quick_views) {
+            PivotQuickView quick_view;
+            if (!ParsePivotQuickView(quick_view_value, quick_view, error)) return false;
+            out.quick_views.push_back(std::move(quick_view));
+        }
+    }
+    return true;
+}
+
+
+bool ParsePivotProfile(const JsonValue& value, PivotXrProfile& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "pivotProfile", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "id",
+        "name",
+        "enabled",
+        "mode",
+        "behavior",
+        "snapTurnPreference",
+        "nudgeSetId",
+        "allowInactiveNudges",
+        "applicationIds",
+        "activationMode",
+        "alwaysActive",
+        "activationBindings",
+        "setOriginBindings",
+        "releaseOriginBindings",
+        "activationBinding",
+        "setOriginBinding",
+        "releaseOriginBinding",
+        "viewControls",
+        "settings",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    const auto application_ids_it = object->find("applicationIds");
+    if (application_ids_it == object->end()) {
+        error = "Missing required field: pivotProfile.applicationIds";
+        return false;
+    }
+    if (!ParseStringArray(application_ids_it->second, "applicationIds", out.application_ids, error)) {
+        return false;
+    }
+
+    std::optional<std::string> id;
+    std::optional<std::string> name;
+    std::optional<std::string> behavior;
+    std::optional<std::string> snap_turn_preference;
+    std::optional<std::string> nudge_set_id;
+    std::optional<bool> allow_inactive_nudges;
+    std::optional<bool> enabled;
+    std::optional<ProfileMode> mode;
+    std::optional<ActivationMode> activation_mode;
+    std::optional<bool> always_active;
+
+    if (!ReadOptionalString(*object, "id", id, error) ||
+        !ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalString(*object, "behavior", behavior, error) ||
+        !ReadOptionalString(*object, "snapTurnPreference", snap_turn_preference, error) ||
+        !ReadOptionalString(*object, "nudgeSetId", nudge_set_id, error) ||
+        !ReadOptionalBool(*object, "allowInactiveNudges", allow_inactive_nudges, error) ||
+        !ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalProfileMode(*object, "mode", mode, error) ||
+        !ReadOptionalActivationMode(*object, "activationMode", activation_mode, error) ||
+        !ReadOptionalBool(*object, "alwaysActive", always_active, error)) {
+        return false;
+    }
+
+    out.id = id.value_or("");
+    out.name = name.value_or("New Profile");
+    out.enabled = enabled.value_or(true);
+    out.mode = mode.value_or(ProfileMode::Custom);
+    if (behavior.has_value() && !ParsePivotProfileBehavior(*behavior, out.behavior, error)) {
+        return false;
+    }
+    // Accepted for configs saved during the Snap travel prototype. Snap Views
+    // now always take the shortest path, so the value is validated then ignored.
+    if (snap_turn_preference &&
+        !ValidateLegacyPivotSnapTurnPreference(*snap_turn_preference, error)) {
+        return false;
+    }
+    out.nudge_set_id = nudge_set_id.value_or("");
+    out.allow_inactive_nudges = allow_inactive_nudges.value_or(false);
+    const ActivationMode legacy_activation_mode = activation_mode.value_or(ActivationMode::Toggle);
+    out.always_active = always_active.value_or(legacy_activation_mode == ActivationMode::AlwaysOn);
+
+    if (!ParsePivotActivationBindings(*object, "activationBindings", "activationBinding", legacy_activation_mode, out.activation_bindings, error) ||
+        !ParseInputBindings(*object, "setOriginBindings", "setOriginBinding", out.set_origin_bindings, error) ||
+        !ParseInputBindings(*object, "releaseOriginBindings", "releaseOriginBinding", out.release_origin_bindings,
+                            error)) {
+        return false;
+    }
+
+    const auto view_controls_it = object->find("viewControls");
+    if (view_controls_it != object->end() &&
+        !ParsePivotViewControls(view_controls_it->second, out.view_controls, error)) {
+        return false;
+    }
+
+    const auto settings_it = object->find("settings");
+    if (settings_it != object->end()) {
+        const JsonValue::Object* settings_object = RequireObject(settings_it->second, "pivotProfile.settings", error);
+        if (!settings_object || !ParsePivotSettings(*settings_object, out.settings, error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ParsePivotModule(const JsonValue::Object& object, PivotXrModuleConfig& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "defaults",
+        "behavior",
+        "snapTurnPreference",
+        "nudgeSetId",
+        "nudgeSets",
+        "allowInactiveNudges",
+        "activationMode",
+        "alwaysActive",
+        "activationBindings",
+        "setOriginBindings",
+        "releaseOriginBindings",
+        "activationBinding",
+        "setOriginBinding",
+        "releaseOriginBinding",
+        "viewControls",
+        "profiles",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    std::optional<std::string> behavior;
+    std::optional<std::string> snap_turn_preference;
+    std::optional<std::string> nudge_set_id;
+    std::optional<bool> allow_inactive_nudges;
+    std::optional<ActivationMode> activation_mode;
+    std::optional<bool> always_active;
+    if (!ReadOptionalBool(object, "enabled", enabled, error) ||
+        !ReadOptionalString(object, "behavior", behavior, error) ||
+        !ReadOptionalString(object, "snapTurnPreference", snap_turn_preference, error) ||
+        !ReadOptionalString(object, "nudgeSetId", nudge_set_id, error) ||
+        !ReadOptionalBool(object, "allowInactiveNudges", allow_inactive_nudges, error) ||
+        !ReadOptionalActivationMode(object, "activationMode", activation_mode, error) ||
+        !ReadOptionalBool(object, "alwaysActive", always_active, error)) {
+        return false;
+    }
+    if (enabled.has_value()) {
+        out.enabled = *enabled;
+    }
+    if (behavior.has_value() && !ParsePivotProfileBehavior(*behavior, out.behavior, error)) {
+        return false;
+    }
+    // Accepted for configs saved during the Snap travel prototype. Snap Views
+    // now always take the shortest path, so the value is validated then ignored.
+    if (snap_turn_preference &&
+        !ValidateLegacyPivotSnapTurnPreference(*snap_turn_preference, error)) {
+        return false;
+    }
+    out.nudge_set_id = nudge_set_id.value_or("");
+    out.allow_inactive_nudges = allow_inactive_nudges.value_or(false);
+
+    const ActivationMode legacy_activation_mode = activation_mode.value_or(ActivationMode::Toggle);
+    out.always_active = always_active.value_or(legacy_activation_mode == ActivationMode::AlwaysOn);
+
+    const auto defaults_it = object.find("defaults");
+    if (defaults_it != object.end()) {
+        const JsonValue::Object* defaults_object = RequireObject(defaults_it->second, "pivotxr.defaults", error);
+        if (!defaults_object || !ParsePivotSettings(*defaults_object, out.defaults, error)) {
+            return false;
+        }
+    }
+
+    if (!ParsePivotActivationBindings(object, "activationBindings", "activationBinding", legacy_activation_mode, out.activation_bindings, error) ||
+        !ParseInputBindings(object, "setOriginBindings", "setOriginBinding", out.set_origin_bindings, error) ||
+        !ParseInputBindings(object, "releaseOriginBindings", "releaseOriginBinding", out.release_origin_bindings,
+                            error)) {
+        return false;
+    }
+
+    const auto view_controls_it = object.find("viewControls");
+    if (view_controls_it != object.end() &&
+        !ParsePivotViewControls(view_controls_it->second, out.view_controls, error)) {
+        return false;
+    }
+
+    const auto nudge_sets_it = object.find("nudgeSets");
+    if (nudge_sets_it != object.end()) {
+        const JsonValue::Array* nudge_sets = RequireArray(nudge_sets_it->second, "pivotxr.nudgeSets", error);
+        if (!nudge_sets) {
+            return false;
+        }
+        out.nudge_sets.clear();
+        for (const JsonValue& nudge_set_value : *nudge_sets) {
+            PivotNudgeSet nudge_set;
+            if (!ParsePivotNudgeSet(nudge_set_value, nudge_set, error)) {
+                return false;
+            }
+            out.nudge_sets.push_back(std::move(nudge_set));
+        }
+    }
+
+    const auto profiles_it = object.find("profiles");
+    if (profiles_it != object.end()) {
+        const JsonValue::Array* profiles = RequireArray(profiles_it->second, "pivotxr.profiles", error);
+        if (!profiles) {
+            return false;
+        }
+
+        for (const JsonValue& profile_value : *profiles) {
+            PivotXrProfile profile;
+            if (!ParsePivotProfile(profile_value, profile, error)) {
+                return false;
+            }
+            out.profiles.push_back(std::move(profile));
+        }
+    }
+
+    return true;
+}
+
+bool ParseQuadViewsSettings(const JsonValue::Object& object, QuadViewsSettings& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "eyeTrackingCorrection",
+        "trackingMode",
+        "focusHorizontalSizePercent",
+        "focusVerticalSizePercent",
+        "focusScale",
+        "peripheralScale",
+        "foveateSharpness",
+        "transitionThicknessPercent",
+        "horizontalOffsetDegrees",
+        "verticalOffsetDegrees",
+        "gazeSmoothing",
+        "gazeDeadzoneDegrees",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<std::string> eye_tracking_correction;
+    std::optional<QuadViewsTrackingMode> tracking_mode;
+    std::optional<double> focus_horizontal_size_percent;
+    std::optional<double> focus_vertical_size_percent;
+    std::optional<double> focus_scale;
+    std::optional<double> peripheral_scale;
+    std::optional<double> foveate_sharpness;
+    std::optional<double> transition_thickness_percent;
+    std::optional<double> horizontal_offset_degrees;
+    std::optional<double> vertical_offset_degrees;
+    std::optional<double> gaze_smoothing;
+    std::optional<double> gaze_deadzone_degrees;
+
+    if (!ReadOptionalString(object, "eyeTrackingCorrection", eye_tracking_correction, error) ||
+        !ReadOptionalQuadViewsTrackingMode(object, "trackingMode", tracking_mode, error) ||
+        !ReadOptionalNumber(object, "focusHorizontalSizePercent", focus_horizontal_size_percent, error) ||
+        !ReadOptionalNumber(object, "focusVerticalSizePercent", focus_vertical_size_percent, error) ||
+        !ReadOptionalNumber(object, "focusScale", focus_scale, error) ||
+        !ReadOptionalNumber(object, "peripheralScale", peripheral_scale, error) ||
+        !ReadOptionalNumber(object, "foveateSharpness", foveate_sharpness, error) ||
+        !ReadOptionalNumber(object, "transitionThicknessPercent", transition_thickness_percent, error) ||
+        !ReadOptionalNumber(object, "horizontalOffsetDegrees", horizontal_offset_degrees, error) ||
+        !ReadOptionalNumber(object, "verticalOffsetDegrees", vertical_offset_degrees, error) ||
+        !ReadOptionalNumber(object, "gazeSmoothing", gaze_smoothing, error) ||
+        !ReadOptionalNumber(object, "gazeDeadzoneDegrees", gaze_deadzone_degrees, error)) {
+        return false;
+    }
+
+    if (eye_tracking_correction.has_value()) {
+        if (*eye_tracking_correction != "default" && *eye_tracking_correction != "flip-z") {
+            error = "eyeTrackingCorrection must be default or flip-z";
+            return false;
+        }
+        out.eye_tracking_correction = *eye_tracking_correction;
+    }
+    if (tracking_mode.has_value()) {
+        out.tracking_mode = *tracking_mode;
+    }
+    if (focus_horizontal_size_percent.has_value()) {
+        out.focus_horizontal_size_percent = *focus_horizontal_size_percent;
+    }
+    if (focus_vertical_size_percent.has_value()) {
+        out.focus_vertical_size_percent = *focus_vertical_size_percent;
+    }
+    if (focus_scale.has_value()) {
+        out.focus_scale = *focus_scale;
+    }
+    if (peripheral_scale.has_value()) {
+        out.peripheral_scale = *peripheral_scale;
+    }
+    if (foveate_sharpness.has_value()) {
+        out.foveate_sharpness = *foveate_sharpness;
+    }
+    if (transition_thickness_percent.has_value()) {
+        out.transition_thickness_percent = *transition_thickness_percent;
+    }
+    if (horizontal_offset_degrees.has_value()) {
+        out.horizontal_offset_degrees = *horizontal_offset_degrees;
+    }
+    if (vertical_offset_degrees.has_value()) {
+        out.vertical_offset_degrees = *vertical_offset_degrees;
+    }
+    if (gaze_smoothing.has_value()) {
+        out.gaze_smoothing = *gaze_smoothing;
+    }
+    if (gaze_deadzone_degrees.has_value()) {
+        out.gaze_deadzone_degrees = *gaze_deadzone_degrees;
+    }
+
+    return true;
+}
+
+bool ParseQuadViewsProfile(const JsonValue& value, QuadViewsProfile& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "quadviewsProfile", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "name",
+        "enabled",
+        "mode",
+        "applicationIds",
+        "settings",
+    };
+
+    NoteUnknownKeys(*object, allowed);
+
+    const auto application_ids_it = object->find("applicationIds");
+    if (application_ids_it == object->end()) {
+        error = "Missing required field: quadviewsProfile.applicationIds";
+        return false;
+    }
+    if (!ParseStringArray(application_ids_it->second, "quadviewsProfile.applicationIds", out.application_ids, error)) {
+        return false;
+    }
+
+    std::optional<std::string> name;
+    std::optional<bool> enabled;
+    std::optional<ProfileMode> mode;
+    if (!ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalProfileMode(*object, "mode", mode, error)) {
+        return false;
+    }
+
+    out.name = name.value_or("New Profile");
+    out.enabled = enabled.value_or(true);
+    out.mode = mode.value_or(ProfileMode::Custom);
+
+    const auto settings_it = object->find("settings");
+    if (settings_it != object->end()) {
+        const JsonValue::Object* settings_object = RequireObject(settings_it->second, "quadviewsProfile.settings", error);
+        if (!settings_object || !ParseQuadViewsSettings(*settings_object, out.settings, error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ParseQuadViewsModule(const JsonValue::Object& object, QuadViewsModuleConfig& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "diagnosticVisualizationBinding",
+        "defaults",
+        "profiles",
+    };
+
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    if (!ReadOptionalBool(object, "enabled", enabled, error)) {
+        return false;
+    }
+    if (enabled.has_value()) {
+        out.enabled = *enabled;
+    }
+
+    const auto diagnostic_binding_it = object.find("diagnosticVisualizationBinding");
+    if (diagnostic_binding_it != object.end() &&
+        !ParseInputBinding(diagnostic_binding_it->second, out.diagnostic_visualization_binding, error)) {
+        return false;
+    }
+
+    const auto defaults_it = object.find("defaults");
+    if (defaults_it != object.end()) {
+        const JsonValue::Object* defaults_object = RequireObject(defaults_it->second, "quadviews.defaults", error);
+        if (!defaults_object || !ParseQuadViewsSettings(*defaults_object, out.defaults, error)) {
+            return false;
+        }
+    }
+
+    const auto profiles_it = object.find("profiles");
+    if (profiles_it != object.end()) {
+        const JsonValue::Array* profiles = RequireArray(profiles_it->second, "quadviews.profiles", error);
+        if (!profiles) {
+            return false;
+        }
+
+        for (const JsonValue& profile_value : *profiles) {
+            QuadViewsProfile profile;
+            if (!ParseQuadViewsProfile(profile_value, profile, error)) {
+                return false;
+            }
+            out.profiles.push_back(std::move(profile));
+        }
+    }
+
+    return true;
+}
+
+bool ReadOptionalBoundedInt(const JsonValue::Object& object, const char* key, const char* field, int low, int high,
+                            int& out, std::string& error) {
+    std::optional<double> value;
+    if (!ReadOptionalNumber(object, key, value, error)) {
+        return false;
+    }
+    if (!value) {
+        return true;
+    }
+    if (!std::isfinite(*value) || std::floor(*value) != *value || *value < low || *value > high) {
+        error = std::string(field) + "." + key + " must be an integer from " + std::to_string(low) + " to " +
+            std::to_string(high);
+        return false;
+    }
+    out = static_cast<int>(*value);
+    return true;
+}
+
+bool ParseFrameGenSettings(const JsonValue::Object& object, const char* field, FrameGenSettings& out,
+                           std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "synthesisMode",
+        "flowQuality",
+        "motionEstimation",
+        "frameMultiplier",
+        "artifactSuppression",
+        "motionLimitPercent",
+        "extendHeadPrediction",
+    };
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<std::string> synthesis_mode;
+    std::optional<std::string> flow_quality;
+    std::optional<std::string> motion_estimation;
+    std::optional<std::string> multiplier;
+    if (!ReadOptionalString(object, "synthesisMode", synthesis_mode, error) ||
+        !ReadOptionalString(object, "flowQuality", flow_quality, error) ||
+        !ReadOptionalString(object, "motionEstimation", motion_estimation, error) ||
+        !ReadOptionalString(object, "frameMultiplier", multiplier, error)) {
+        return false;
+    }
+    if (motion_estimation) {
+        const auto parsed = ParseFrameGenMotionEstimation(*motion_estimation);
+        if (!parsed) {
+            error = std::string(field) + ".motionEstimation must be shader or hardware";
+            return false;
+        }
+        out.motion_estimation = *parsed;
+    }
+    if (multiplier) {
+        const auto parsed = ParseFrameGenMultiplier(*multiplier);
+        if (!parsed) {
+            error = std::string(field) + ".frameMultiplier must be auto, dynamic, 2x, 3x, or 4x";
+            return false;
+        }
+        out.multiplier = *parsed;
+    }
+    if (synthesis_mode) {
+        const auto parsed = ParseFrameGenSynthesisMode(*synthesis_mode);
+        if (!parsed) {
+            error = std::string(field) + ".synthesisMode must be interpolate or extrapolate";
+            return false;
+        }
+        out.synthesis_mode = *parsed;
+    }
+    if (flow_quality) {
+        const auto parsed = ParseFrameGenFlowQuality(*flow_quality);
+        if (!parsed) {
+            error = std::string(field) + ".flowQuality must be performance, balanced, or quality";
+            return false;
+        }
+        out.flow_quality = *parsed;
+    }
+    std::optional<bool> extend_head_prediction;
+    if (!ReadOptionalBool(object, "extendHeadPrediction", extend_head_prediction, error)) {
+        return false;
+    }
+    if (extend_head_prediction) {
+        out.extend_head_prediction = *extend_head_prediction;
+    }
+    return ReadOptionalBoundedInt(object, "artifactSuppression", field, 0, 100, out.artifact_suppression, error) &&
+        ReadOptionalBoundedInt(object, "motionLimitPercent", field, 2, 25, out.motion_limit_percent, error);
+}
+
+bool ParseFrameGenProfile(const JsonValue& value, FrameGenProfile& out, std::string& error) {
+    const JsonValue::Object* object = RequireObject(value, "framegenProfile", error);
+    if (!object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed = {
+        "name",
+        "enabled",
+        "mode",
+        "applicationIds",
+        "settings",
+    };
+    NoteUnknownKeys(*object, allowed);
+
+    const auto application_ids_it = object->find("applicationIds");
+    if (application_ids_it == object->end()) {
+        error = "Missing required field: framegenProfile.applicationIds";
+        return false;
+    }
+    if (!ParseStringArray(application_ids_it->second, "framegenProfile.applicationIds", out.application_ids, error)) {
+        return false;
+    }
+
+    std::optional<std::string> name;
+    std::optional<bool> enabled;
+    std::optional<ProfileMode> mode;
+    if (!ReadOptionalString(*object, "name", name, error) ||
+        !ReadOptionalBool(*object, "enabled", enabled, error) ||
+        !ReadOptionalProfileMode(*object, "mode", mode, error)) {
+        return false;
+    }
+    out.name = name.value_or("New Profile");
+    out.enabled = enabled.value_or(true);
+    out.mode = mode.value_or(ProfileMode::Custom);
+
+    const auto settings_it = object->find("settings");
+    if (settings_it != object->end()) {
+        const JsonValue::Object* settings_object = RequireObject(settings_it->second, "framegenProfile.settings", error);
+        if (!settings_object || !ParseFrameGenSettings(*settings_object, "framegenProfile.settings", out.settings, error)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ParseFrameGenModule(const JsonValue::Object& object, FrameGenModuleConfig& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed = {
+        "enabled",
+        "toggleBinding",
+        "toggleBindings",
+        "diagnosticView",
+        "defaults",
+        "profiles",
+    };
+    NoteUnknownKeys(object, allowed);
+
+    std::optional<bool> enabled;
+    std::optional<std::string> diagnostic_view;
+    if (!ReadOptionalBool(object, "enabled", enabled, error) ||
+        !ReadOptionalString(object, "diagnosticView", diagnostic_view, error)) {
+        return false;
+    }
+    if (enabled) {
+        out.enabled = *enabled;
+    }
+    if (diagnostic_view) {
+        const auto parsed = ParseFrameGenDiagnosticView(*diagnostic_view);
+        if (!parsed) {
+            error = "framegen.diagnosticView must be off, flow, confidence, or tint";
+            return false;
+        }
+        out.diagnostic_view = *parsed;
+    }
+
+    if (!ParseToggleBindings(object, "toggleBindings", "toggleBinding", out.toggle_bindings, error)) {
+        return false;
+    }
+
+    const auto defaults_it = object.find("defaults");
+    if (defaults_it != object.end()) {
+        const JsonValue::Object* defaults_object = RequireObject(defaults_it->second, "framegen.defaults", error);
+        if (!defaults_object || !ParseFrameGenSettings(*defaults_object, "framegen.defaults", out.defaults, error)) {
+            return false;
+        }
+    }
+
+    const auto profiles_it = object.find("profiles");
+    if (profiles_it != object.end()) {
+        const JsonValue::Array* profiles = RequireArray(profiles_it->second, "framegen.profiles", error);
+        if (!profiles) {
+            return false;
+        }
+        for (const JsonValue& profile_value : *profiles) {
+            FrameGenProfile profile;
+            if (!ParseFrameGenProfile(profile_value, profile, error)) {
+                return false;
+            }
+            out.profiles.push_back(std::move(profile));
+        }
+    }
+    return true;
+}
+
+bool ParseVectorDocument(const JsonValue::Object& root_object, ConfigDocument& out, std::string& error) {
+    static const std::unordered_set<std::string> allowed_root = {"version", "core", "applications", "modules"};
+    NoteUnknownKeys(root_object, allowed_root);
+
+    const auto core_it = root_object.find("core");
+    if (core_it == root_object.end()) {
+        error = "Missing required field: core";
+        return false;
+    }
+    const JsonValue::Object* core_object = RequireObject(core_it->second, "core", error);
+    if (!core_object || !ParseCoreSettings(*core_object, out.core, error)) {
+        return false;
+    }
+
+    const auto applications_it = root_object.find("applications");
+    if (applications_it == root_object.end()) {
+        error = "Missing required field: applications";
+        return false;
+    }
+
+    const JsonValue::Array* applications = RequireArray(applications_it->second, "applications", error);
+    if (!applications) {
+        return false;
+    }
+
+    for (const JsonValue& value : *applications) {
+        RegisteredApplication application;
+        if (!ParseApplication(value, application, error)) {
+            return false;
+        }
+        out.applications.push_back(std::move(application));
+    }
+
+    const auto modules_it = root_object.find("modules");
+    if (modules_it == root_object.end()) {
+        error = "Missing required field: modules";
+        return false;
+    }
+
+    const JsonValue::Object* modules_object = RequireObject(modules_it->second, "modules", error);
+    if (!modules_object) {
+        return false;
+    }
+
+    static const std::unordered_set<std::string> allowed_modules = {"depthxr", "pivotxr", "quadviews", "turbo", "framegen"};
+    NoteUnknownKeys(*modules_object, allowed_modules);
+
+    const auto depth_it = modules_object->find("depthxr");
+    if (depth_it == modules_object->end()) {
+        error = "Missing required field: modules.depthxr";
+        return false;
+    }
+    const JsonValue::Object* depth_object = RequireObject(depth_it->second, "modules.depthxr", error);
+    if (!depth_object || !ParseDepthModule(*depth_object, out.depthxr, error)) {
+        return false;
+    }
+
+    const auto pivot_it = modules_object->find("pivotxr");
+    if (pivot_it == modules_object->end()) {
+        error = "Missing required field: modules.pivotxr";
+        return false;
+    }
+    const JsonValue::Object* pivot_object = RequireObject(pivot_it->second, "modules.pivotxr", error);
+    if (!pivot_object || !ParsePivotModule(*pivot_object, out.pivotxr, error)) {
+        return false;
+    }
+
+    const auto quadviews_it = modules_object->find("quadviews");
+    if (quadviews_it != modules_object->end()) {
+        const JsonValue::Object* quadviews_object = RequireObject(quadviews_it->second, "modules.quadviews", error);
+        if (!quadviews_object || !ParseQuadViewsModule(*quadviews_object, out.quadviews, error)) {
+            return false;
+        }
+    }
+
+    // Optional: absent in configs written before turbo existed.
+    const auto turbo_it = modules_object->find("turbo");
+    if (turbo_it != modules_object->end()) {
+        const JsonValue::Object* turbo_object = RequireObject(turbo_it->second, "modules.turbo", error);
+        if (!turbo_object || !ParseTurboModule(*turbo_object, out.turbo, error)) {
+            return false;
+        }
+    }
+
+    // Optional: absent in configs written before Frame Generation existed.
+    const auto framegen_it = modules_object->find("framegen");
+    if (framegen_it != modules_object->end()) {
+        const JsonValue::Object* framegen_object = RequireObject(framegen_it->second, "modules.framegen", error);
+        if (!framegen_object || !ParseFrameGenModule(*framegen_object, out.framegen, error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// The JSON path of every object under `value` (empty for the root), keyed by
+// the object, so that an unknown key can be reported where it sits.
+void IndexObjectPaths(const JsonValue& value,
+                      const std::string& path,
+                      std::unordered_map<const JsonValue::Object*, std::string>& out) {
+    if (value.IsObject()) {
+        out.emplace(&value.AsObject(), path);
+        for (const auto& [key, child] : value.AsObject()) {
+            IndexObjectPaths(child, path.empty() ? key : path + "." + key, out);
+        }
+    } else if (value.IsArray()) {
+        const JsonValue::Array& items = value.AsArray();
+        for (size_t index = 0; index < items.size(); ++index) {
+            IndexObjectPaths(items[index], path + "[" + std::to_string(index) + "]", out);
+        }
+    }
+}
+
+} // namespace
+
+ParseResult ParseConfig(std::string_view json_text) {
+    ParseResult result;
+
+    JsonParser parser(json_text);
+    JsonValue root = parser.Parse();
+    if (!parser.ok()) {
+        result.error = parser.error();
+        return result;
+    }
+
+    std::string error;
+    const JsonValue::Object* root_object = RequireObject(root, "root", error);
+    if (!root_object) {
+        result.error = error;
+        return result;
+    }
+
+    const auto version_it = root_object->find("version");
+    if (version_it == root_object->end() || !version_it->second.IsNumber()) {
+        result.error = "version must be a number";
+        return result;
+    }
+
+    const int version = static_cast<int>(version_it->second.AsNumber());
+    if (version != 3) {
+        result.error = "Unsupported config version. Expected version 3.";
+        return result;
+    }
+
+    result.document.version = 3;
+    std::vector<UnknownKey> unknown_keys;
+    {
+        const UnknownKeyCollector collector(unknown_keys);
+        if (!ParseVectorDocument(*root_object, result.document, error)) {
+            result.error = error;
+            return result;
+        }
+    }
+
+    if (!unknown_keys.empty()) {
+        std::unordered_map<const JsonValue::Object*, std::string> paths;
+        IndexObjectPaths(root, "", paths);
+        for (const UnknownKey& unknown : unknown_keys) {
+            const auto path_it = paths.find(unknown.object);
+            const std::string field = path_it == paths.end() || path_it->second.empty()
+                                          ? unknown.key
+                                          : path_it->second + "." + unknown.key;
+            const std::string warning = unknown.value.empty()
+                                            ? "Unknown field ignored: " + field
+                                            : "Unknown value ignored: " + field + " \"" + unknown.value + "\"";
+            if (std::find(result.warnings.begin(), result.warnings.end(), warning) == result.warnings.end()) {
+                result.warnings.push_back(warning);
+            }
+        }
+    }
+
+    // OpenGrid XR integrates only frame generation and the toolkit OSD.
+    // Clear whole module settings so bindings and profile reloads cannot enable unrelated features.
+    result.document.depthxr = {};
+    result.document.depthxr.defaults.enabled = false;
+    result.document.pivotxr = {};
+    result.document.quadviews = {};
+    result.document.turbo = {};
+    result.document.core.track_seen_apps = false;
+    result.document.core.sound_volume = 0;
+    result.document.framegen.defaults.extend_head_prediction = false;
+    for (auto& profile : result.document.framegen.profiles) profile.settings.extend_head_prediction = false;
+    result.ok = true;
+    return result;
+}
+
+ParseResult LoadConfigFromFile(const std::filesystem::path& path) {
+    std::ifstream stream(path);
+    if (!stream) {
+        return {.ok = false, .error = "Unable to open config file: " + PathToUtf8(path)};
+    }
+
+    std::ostringstream buffer;
+    buffer << stream.rdbuf();
+    return ParseConfig(buffer.str());
+}
+
+} // namespace depthxr

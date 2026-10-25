@@ -1,0 +1,160 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <map>
+#include <optional>
+
+namespace depthxr {
+
+// xrLocateViews may be queried more than once for the same display time. A
+// VIEW-relative query has no world-space head orientation to drive Pivot from,
+// so it must not advance smoothing or replace the frame's cached pose delta.
+constexpr bool ShouldDrivePivotFromLocateViews(bool has_locate_info,
+                                               bool requested_base_is_tracked_view) noexcept {
+    return has_locate_info && !requested_base_is_tracked_view;
+}
+
+inline constexpr std::int64_t kPivotPoseDeltaMatchWindow = 5'000'000;
+inline constexpr std::size_t kPivotPoseDeltaMaxEntries = 180;
+inline constexpr std::size_t kPivotPoseDeltaMaxHeldMisses = 1;
+// Frames an application can have located before a Pivot press took effect and
+// not yet ended: the frame it ends next and, when it pipelines, the one after
+// (located after that frame's xrWaitFrame; a later frame begins only after
+// this xrEndFrame). Their xrEndFrame lookups miss as expected.
+inline constexpr std::size_t kPivotPoseDeltaEngagementMisses = 2;
+
+enum class PivotPoseDeltaSelection {
+    None,
+    Matched,
+    HeldPrevious,
+};
+
+// A display time identifies one logical Pivot update. Keep the first
+// world-space result for that time so repeated xrLocateViews calls cannot
+// advance smoothing or make the eventual correction depend on call order.
+template <typename Time, typename Pose>
+bool CachePivotPoseDeltaValue(std::map<Time, Pose>& cache, Time time, const Pose& pose_delta) {
+    const bool inserted = cache.try_emplace(time, pose_delta).second;
+    while (cache.size() > kPivotPoseDeltaMaxEntries) {
+        cache.erase(cache.begin());
+    }
+    return inserted;
+}
+
+// Re-express a rigid pose delta from one coordinate space into another. The
+// caller supplies conventional pose composition (lhs * rhs) and inversion so
+// this routing helper remains independent of the OpenXR SDK types.
+//
+// If source_in_target maps source-space poses into target space, a delta D is
+// represented in target space by source_in_target * D * inverse(source_in_target).
+template <typename Pose, typename Compose, typename Invert>
+Pose ReexpressPivotPoseDelta(const Pose& pose_delta_in_source,
+                             const Pose& source_in_target,
+                             Compose compose,
+                             Invert invert) {
+    return compose(compose(source_in_target, pose_delta_in_source),
+                   invert(source_in_target));
+}
+
+template <typename Time, typename Pose>
+bool FindPivotPoseDeltaValue(const std::map<Time, Pose>& cache,
+                             Time time,
+                             const Pose& fallback,
+                             Pose* pose_delta,
+                             Time* matched_time) {
+    if (!pose_delta || !matched_time) {
+        return false;
+    }
+
+    if (cache.empty()) {
+        *pose_delta = fallback;
+        *matched_time = 0;
+        return false;
+    }
+
+    const auto exact = cache.find(time);
+    if (exact != cache.end()) {
+        *pose_delta = exact->second;
+        *matched_time = exact->first;
+        return true;
+    }
+
+    const auto upper = cache.lower_bound(time);
+    typename std::map<Time, Pose>::const_iterator best;
+    if (upper == cache.begin()) {
+        best = upper;
+    } else if (upper == cache.end()) {
+        best = std::prev(upper);
+    } else {
+        const auto lower = std::prev(upper);
+        best = (time - lower->first <= upper->first - time) ? lower : upper;
+    }
+
+    const Time match_delta = best->first > time ? best->first - time : time - best->first;
+    if (match_delta > static_cast<Time>(kPivotPoseDeltaMatchWindow)) {
+        *pose_delta = fallback;
+        *matched_time = best->first;
+        return false;
+    }
+
+    *pose_delta = best->second;
+    *matched_time = best->first;
+    return true;
+}
+
+// A missing EndFrame lookup must not remove an otherwise valid Pivot
+// correction for a single frame. Keep this deliberately bounded: one miss can
+// reuse the last matched delta, while a second miss falls back to identity so a
+// stale correction can never be held indefinitely.
+template <typename Time, typename Pose>
+PivotPoseDeltaSelection ResolvePivotPoseDeltaValue(
+    const std::map<Time, Pose>& cache,
+    Time time,
+    const Pose& fallback,
+    bool allow_held_previous,
+    std::optional<Pose>* held_pose_delta,
+    std::size_t* consecutive_misses,
+    Pose* pose_delta,
+    Time* matched_time) {
+    if (!held_pose_delta || !consecutive_misses || !pose_delta || !matched_time) {
+        return PivotPoseDeltaSelection::None;
+    }
+
+    if (FindPivotPoseDeltaValue(cache, time, fallback, pose_delta, matched_time)) {
+        *consecutive_misses = 0;
+        if (allow_held_previous) {
+            *held_pose_delta = *pose_delta;
+        } else {
+            held_pose_delta->reset();
+        }
+        return PivotPoseDeltaSelection::Matched;
+    }
+
+    if (!allow_held_previous) {
+        held_pose_delta->reset();
+        *consecutive_misses = 0;
+        return PivotPoseDeltaSelection::None;
+    }
+
+    ++(*consecutive_misses);
+    if (held_pose_delta->has_value() &&
+        *consecutive_misses <= kPivotPoseDeltaMaxHeldMisses) {
+        *pose_delta = held_pose_delta->value();
+        return PivotPoseDeltaSelection::HeldPrevious;
+    }
+
+    *pose_delta = fallback;
+    return PivotPoseDeltaSelection::None;
+}
+
+template <typename Time, typename Pose>
+void PrunePivotPoseDeltaValues(std::map<Time, Pose>& cache, Time time) {
+    const auto keep_from = cache.upper_bound(time);
+    if (keep_from != cache.begin()) {
+        cache.erase(cache.begin(), keep_from);
+    }
+}
+
+} // namespace depthxr

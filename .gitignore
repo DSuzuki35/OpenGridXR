@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release/
+native/build/
+test-results/
+.superpowers/
+.cache/
+*.log

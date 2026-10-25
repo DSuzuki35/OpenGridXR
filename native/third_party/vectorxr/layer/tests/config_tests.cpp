@@ -1,0 +1,4330 @@
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+
+#include "depthxr/config_parser.h"
+#include "depthxr/effects.h"
+#include "depthxr/framegen_plan.h"
+#include "depthxr/input_devices.h"
+#include "depthxr/logger.h"
+#include "depthxr/pivot_routing.h"
+#include "depthxr/pivot_step.h"
+#include "depthxr/pivot_view.h"
+#include "depthxr/quadviews_compose.h"
+#include "depthxr/quadviews_frame_cache.h"
+#include "depthxr/quadviews_recovery.h"
+#include "depthxr/quadviews_sizing.h"
+#include "depthxr/runtime_pacing.h"
+#include "depthxr/runtime_relay.h"
+#include "depthxr/runtime_compatibility.h"
+#include "depthxr/seen_apps.h"
+#include "depthxr/session_graphics.h"
+#include "depthxr/settings_resolver.h"
+#include "depthxr/swapchain_state.h"
+#include "depthxr/turbo_metrics.h"
+#include "depthxr/turbo_trace.h"
+
+#ifdef _WIN32
+#include <d3dcompiler.h>
+#endif
+
+namespace {
+
+void Expect(bool condition, const std::string& message) {
+    if (!condition) {
+        std::cerr << message << '\n';
+        std::exit(1);
+    }
+}
+
+// A toggle's first binding (an unbound list's: a None binding).
+const depthxr::InputBinding& FirstBinding(const std::vector<depthxr::InputBinding>& bindings) {
+    static const depthxr::InputBinding none;
+    return bindings.empty() ? none : bindings.front();
+}
+
+bool FirstChordKey(const std::vector<depthxr::InputBinding>& bindings, const std::string& key) {
+    const depthxr::InputBinding& binding = FirstBinding(bindings);
+    return !binding.chord.empty() && binding.chord.front() == key;
+}
+
+void TestOsdConfig() {
+    const auto parse=[](const std::string& osd) {
+        return depthxr::ParseConfig(R"({"version":3,"core":{"enabled":true,"logLevel":"info","osd":)"+osd+R"(},"applications":[],"modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":{"toggleEnabled":{"type":"none"}},"profiles":[]},"pivotxr":{"enabled":false,"defaults":{},"profiles":[]}}})");
+    };
+    const auto defaults=parse("{}");
+    Expect(defaults.ok && !defaults.document.core.osd.enabled && defaults.document.core.osd.update_hz==5,
+           "OSD default compatibility failed: "+defaults.error);
+    const auto configured=parse(R"({"enabled":true,"visibleOnStart":false,"compact":true,"horizontalDegrees":-40,
+      "verticalDegrees":35,"distanceMeters":0.5,"scale":150,"opacity":30,"updateHz":20,"showGraph":false,
+      "showRuntime":false,"showTurbo":false,"showModules":false,"showClock":false,"accent":"blue",
+      "toggleBinding":{"type":"keyboard","chord":["Ctrl","F10"]},"cycleBinding":{"type":"none"}})");
+    Expect(configured.ok,"Valid OSD rejected: "+configured.error);
+    const auto custom=parse(R"({"scale":25,"showPivot":true,"clockFormat":"12","accent":"custom","customColor":"#aB12Ef","bodyOrder":["pivot","turbo","graph","modules"],"customPresets":[{"name":"Small cockpit","settings":{"scale":25,"accent":"rose","showPivot":false}}]})");
+    Expect(custom.ok && custom.document.core.osd.scale==25 && custom.document.core.osd.clock_format=="12" &&
+           custom.document.core.osd.custom_color=="#aB12Ef" && custom.document.core.osd.body_order.front()=="pivot","Custom OSD configuration rejected: "+custom.error);
+    for (const auto& bad:{R"({"customColor":"#zzzzzz"})",R"({"bodyOrder":["graph","graph"]})",R"({"clockFormat":"13"})",R"({"customPresets":[{"name":"Bad","settings":{"customPresets":[]}}]})"})
+        Expect(!parse(bad).ok,"Malformed OSD layout accepted");
+    const auto& osd=configured.document.core.osd;
+    Expect(osd.compact_show_runtime && osd.compact_show_clock && !osd.compact_show_turbo && !osd.compact_show_pivot,
+           "Independent compact defaults were not preserved");
+    const auto compact=parse(R"({"showRuntime":false,"showClock":false,"showTurbo":false,"showPivot":false,"compactShowRuntime":true,"compactShowClock":true,"compactShowTurbo":true,"compactShowPivot":true})");
+    Expect(compact.ok && compact.document.core.osd.compact_show_runtime && compact.document.core.osd.compact_show_clock &&
+           compact.document.core.osd.compact_show_turbo && compact.document.core.osd.compact_show_pivot &&
+           !compact.document.core.osd.show_turbo && !compact.document.core.osd.show_pivot,"Independent compact settings were dropped");
+    for (const auto* key:{"compactShowRuntime","compactShowClock","compactShowTurbo","compactShowPivot"})
+        Expect(!parse(std::string("{\"")+key+"\":1}").ok,"Invalid compact flag accepted");
+    const auto micro=parse(R"({"compactMetrics":"fps","compactShowBrand":false,"compactShowApp":false,"compactShowClock":false,"compactShowRuntime":false})");
+    Expect(micro.ok && micro.document.core.osd.compact_metrics=="fps" && !micro.document.core.osd.compact_show_brand && !micro.document.core.osd.compact_show_app,"Micro settings were dropped");
+    Expect(!parse(R"({"compactMetrics":"bad"})").ok,"Unknown compact metrics accepted");
+    const auto no_header=parse(R"({"showBrand":false,"showApp":false,"showRuntime":false,"showClock":false})");
+    Expect(no_header.ok && !no_header.document.core.osd.show_brand && !no_header.document.core.osd.show_app &&
+           !no_header.document.core.osd.show_runtime && !no_header.document.core.osd.show_clock,"Expanded header choices were dropped");
+    Expect(!parse(R"({"showBrand":1})").ok && !parse(R"({"showApp":"false"})").ok,"Invalid expanded header flags accepted");
+    Expect(osd.enabled && !osd.visible_on_start && osd.compact && osd.horizontal_degrees==-40 &&
+           osd.vertical_degrees==35 && osd.distance_meters==.5 && osd.scale==150 && osd.opacity==30 &&
+           osd.update_hz==20 && !osd.show_graph && !osd.show_runtime && !osd.show_turbo && !osd.show_modules &&
+           !osd.show_clock && osd.accent=="blue" && osd.toggle_bindings.size()==1 &&
+           osd.toggle_bindings.front().chord.size()==2 && osd.cycle_bindings.empty(),"OSD fields were dropped");
+    for(const std::string& fields:{R"("horizontalDegrees":41)",R"("verticalDegrees":-36)",R"("distanceMeters":0)",
+      R"("scale":24)",R"("opacity":101)",R"("updateHz":0)",R"("updateHz":5.5)",R"("enabled":"true")",
+      R"("showClock":1)",R"("accent":"red")"})
+        Expect(!parse("{"+fields+"}").ok,"Invalid OSD accepted: "+fields);
+    // An unknown key is ignored with a warning; the known values still apply.
+    const auto unknown=parse(R"({"scale":40,"unknown":true})");
+    Expect(unknown.ok && unknown.document.core.osd.scale==40 &&
+           unknown.warnings==std::vector<std::string>{"Unknown field ignored: core.osd.unknown"},
+           "Unknown OSD key was not ignored with a warning: "+unknown.error);
+    Expect(!parse(R"({"scale":24,"unknown":true})").ok,"Out-of-range OSD value accepted beside an unknown key");
+    const auto preset=parse(R"({"customPresets":[{"name":"Small cockpit","note":"x","settings":{"scale":25,"later":1}}]})");
+    Expect(preset.ok && preset.warnings==std::vector<std::string>{
+               "Unknown field ignored: core.osd.customPresets[0].note",
+               "Unknown field ignored: core.osd.customPresets[0].settings.later"},
+           "Unknown OSD preset keys were not reported by their path: "+preset.error);
+}
+
+void TestTurboExperimentalConfig() {
+    const auto parse = [](const std::string& turbo) {
+        return depthxr::ParseConfig(R"({"version":3,"core":{"enabled":true,"logLevel":"info","logRetentionFiles":7},
+          "applications":[{"id":"dcs","name":"DCS","enabled":true,"match":{"exe":"DCS.exe"}}],
+          "modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":{"toggleEnabled":{"type":"none"}},"profiles":[]},
+          "pivotxr":{"enabled":false,"defaults":{},"profiles":[]},"turbo":)" + turbo + "}}");
+    };
+    const auto legacy = parse(R"({"enabled":true})");
+    Expect(legacy.ok && !legacy.document.turbo.experimental.enabled &&
+        legacy.document.turbo.experimental.prediction_percent == 100, "Legacy Turbo timing must remain neutral: " + legacy.error);
+    const auto configured = parse(R"({"enabled":true,"experimental":{"enabled":true,"applicationIds":["dcs"],
+      "waitForSubmit":true,"sampleAtEntry":true,"predictionPercent":75,"frameLimit":45,"timingTrace":true}})");
+    Expect(configured.ok, "Valid experimental config rejected: " + configured.error);
+    const auto dcs = depthxr::ResolveTurboSettings(configured.document, "DCS.exe");
+    const auto other = depthxr::ResolveTurboSettings(configured.document, "Other.exe");
+    Expect(dcs.experimental.enabled && dcs.experimental.wait_for_submit &&
+           dcs.experimental.sample_at_entry && dcs.experimental.frame_limit == 45 &&
+           dcs.experimental.prediction_percent == 75, "Selected application's experimental settings were lost");
+    Expect(!other.experimental.enabled, "Experiments escaped the application allowlist");
+    const auto turbo_off = parse(R"({"enabled":false,"experimental":{"enabled":true,"applicationIds":["dcs"]}})");
+    Expect(turbo_off.ok && !depthxr::ResolveTurboSettings(turbo_off.document, "DCS.exe").experimental.enabled,
+           "Legacy module timing must not apply where Turbo is off for the application");
+    auto disabled = configured.document;
+    disabled.applications[0].enabled = false;
+    Expect(!depthxr::ResolveTurboSettings(disabled, "DCS.exe").experimental.enabled,
+           "Disabled registered application enabled experiments");
+    auto profiles=parse(R"({"enabled":false,"profiles":[
+      {"id":"first","name":"Toolkit","enabled":true,"applicationIds":["dcs"],"experimental":{"enabled":true,"waitForSubmit":true,"sampleAtEntry":true}},
+      {"id":"second","name":"Custom","enabled":true,"applicationIds":["dcs"],"experimental":{"enabled":true,"predictionPercent":80,"frameLimit":45}}]})");
+    Expect(profiles.ok,"Profile timing parse failed: "+profiles.error);
+    auto selected=depthxr::ResolveTurboSettings(profiles.document,"DCS.exe");
+    Expect(selected.enabled && selected.experimental.enabled && selected.experimental.wait_for_submit && selected.profile_name=="Toolkit", "First profile timing not selected");
+    profiles.document.turbo.profiles[0].enabled=false;
+    selected=depthxr::ResolveTurboSettings(profiles.document,"DCS.exe");
+    Expect(selected.experimental.prediction_percent==80 && selected.experimental.frame_limit==45 && selected.profile_name=="Custom", "Independent profile settings lost");
+    profiles.document.turbo.profiles[1].experimental=depthxr::TurboExperimentalSettings{};
+    Expect(!depthxr::ResolveTurboSettings(profiles.document,"DCS.exe").experimental.enabled,"Normal profile did not disable experiments");
+    Expect(!parse(R"({"profiles":[{"name":"Bad","applicationIds":["dcs"],"experimental":{"predictionPercent":200}}]})").ok,"Bad profile timing accepted");
+    for (const std::string& fields : {R"("predictionPercent":49)", R"("predictionPercent":101)",
+         R"("predictionPercent":75.5)", R"("frameLimit":1)", R"("frameLimit":241)", R"("frameLimit":45.5)",
+         R"("waitForSubmit":"yes")"}) {
+        const auto invalid = parse("{\"experimental\":{" + fields + "}}");
+        Expect(!invalid.ok, "Invalid experimental settings accepted: " + fields);
+    }
+    // An unknown key is ignored with a warning; the known values still apply.
+    const auto unknown = parse(R"({"experimental":{"predictionPercent":80,"unknown":true}})");
+    Expect(unknown.ok && unknown.document.turbo.experimental.prediction_percent == 80 &&
+               unknown.warnings == std::vector<std::string>{"Unknown field ignored: modules.turbo.experimental.unknown"},
+           "Unknown experimental Turbo key was not ignored with a warning: " + unknown.error);
+    Expect(!parse(R"({"experimental":{"predictionPercent":49,"unknown":true}})").ok,
+           "Out-of-range experimental Turbo value accepted beside an unknown key");
+}
+
+// A key this layer does not know (a newer app's setting) is ignored and
+// reported by its JSON path; every other error stays fatal.
+void TestUnknownKeysAreIgnoredWithWarnings() {
+    const depthxr::ParseResult parsed = depthxr::ParseConfig(R"json(
+{
+  "version": 3,
+  "telemetry": true,
+  "core": { "enabled": true, "logLevel": "info", "sound": { "volume": 40, "chime": "soft" } },
+  "applications": [
+    { "id": "app-dcs", "name": "DCS", "enabled": true, "icon": "dcs.png", "match": { "exe": "DCS.exe", "path": "C:/DCS" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": { "stereoBoost": 1.2, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "keyboard", "chord": ["Ctrl", "F9"], "repeat": true } },
+      "profiles": [ { "name": "DCS", "applicationIds": ["app-dcs"], "settings": { "stereoBoost": 1.5, "sharpen": 3 } } ]
+    },
+    "pivotxr": { "enabled": false, "defaults": { "yawLeft": { "maxExtraDegrees": 30, "curve": "s" } }, "profiles": [] },
+    "turbo": {
+      "enabled": true,
+      "toggleBindings": [
+        { "type": "keyboard", "chord": ["Ctrl", "F10"] },
+        { "type": "device", "deviceGuid": "{11111111-0000-0000-0000-000000000001}", "inputPath": "button-3", "hint": "x" }
+      ]
+    },
+    "framegen": { "enabled": true, "presenter": true },
+    "eyetrack": { "enabled": true }
+  }
+}
+)json");
+    Expect(parsed.ok, "A config with unknown keys must still load: " + parsed.error);
+    const std::vector<std::string> expected{
+        "Unknown field ignored: telemetry",
+        "Unknown field ignored: core.sound.chime",
+        "Unknown field ignored: applications[0].icon",
+        "Unknown field ignored: applications[0].match.path",
+        "Unknown field ignored: modules.eyetrack",
+        "Unknown field ignored: modules.depthxr.bindings.toggleEnabled.repeat",
+        "Unknown field ignored: modules.depthxr.profiles[0].settings.sharpen",
+        "Unknown field ignored: modules.pivotxr.defaults.yawLeft.curve",
+        "Unknown field ignored: modules.turbo.toggleBindings[1].hint",
+        "Unknown field ignored: modules.framegen.presenter",
+    };
+    std::string reported;
+    for (const std::string& warning : parsed.warnings) reported += "\n  " + warning;
+    Expect(parsed.warnings == expected, "Unknown keys were not reported once each by their JSON path:" + reported);
+    const depthxr::ConfigDocument& document = parsed.document;
+    Expect(document.core.sound_volume == 40 && document.applications.size() == 1 &&
+               document.applications[0].match.exe_name == "DCS.exe" && document.depthxr.enabled &&
+               document.depthxr.defaults.stereo_boost == 1.2 && FirstChordKey(document.depthxr.bindings.toggle_enabled_bindings, "Ctrl") &&
+               document.depthxr.profiles.size() == 1 && document.depthxr.profiles[0].settings.stereo_boost == 1.5 &&
+               document.pivotxr.defaults.yaw_left.max_extra_degrees == 30 && document.turbo.enabled &&
+               document.turbo.toggle_bindings.size() == 2 && document.framegen.enabled,
+           "Known settings beside unknown keys were not applied");
+
+    const auto framegen = [](const std::string& module) {
+        return depthxr::ParseConfig(R"({"version":3,"core":{"enabled":true},"applications":[],"modules":{"depthxr":{"enabled":false},"pivotxr":{"enabled":false},"framegen":)" +
+                                    module + "}}");
+    };
+    const auto clean = framegen(R"({"enabled":true})");
+    Expect(clean.ok && clean.warnings.empty(), "A config without unknown keys reported warnings: " + clean.error);
+
+    // Wrong types, out-of-range values, invalid names and structural errors
+    // beside an unknown key still reject the document, and name the error.
+    const std::pair<const char*, const char*> fatal[] = {
+        {R"({"presenter":true,"enabled":"yes"})", "enabled must be a boolean"},
+        {R"({"presenter":true,"defaults":{"motionLimitPercent":30}})",
+         "framegen.defaults.motionLimitPercent must be an integer from 2 to 25"},
+        {R"({"presenter":true,"defaults":{"synthesisMode":"blend"}})",
+         "framegen.defaults.synthesisMode must be interpolate or extrapolate"},
+        {R"({"presenter":true,"defaults":[]})", "framegen.defaults must be an object"},
+        {R"({"presenter":true,"profiles":[{"name":"DCS"}]})", "Missing required field: framegenProfile.applicationIds"},
+        {R"({"presenter":true,"toggleBinding":{"type":"none"},"toggleBindings":[]})",
+         "Fields toggleBindings and toggleBinding cannot both be present"},
+    };
+    for (const auto& [module, error] : fatal) {
+        const auto result = framegen(module);
+        Expect(!result.ok && result.error == error && result.warnings.empty(),
+               std::string("An invalid setting beside an unknown key must stay fatal: ") + module + " gave '" +
+                   result.error + "'");
+    }
+}
+
+// The single binding keys of configs from before binding lists are read, so
+// they are known keys: applied, and never reported as unknown.
+void TestLegacySingularViewControlBindings() {
+    const depthxr::ParseResult parsed = depthxr::ParseConfig(R"json(
+{
+  "version": 3,
+  "core": { "enabled": true },
+  "applications": [ { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } } ],
+  "modules": {
+    "depthxr": { "enabled": false },
+    "pivotxr": {
+      "enabled": false,
+      "nudgeSets": [
+        {
+          "id": "hat",
+          "name": "HAT",
+          "settings": {
+            "yawLeftBinding": { "type": "keyboard", "chord": ["Q"] },
+            "yawRightBinding": { "type": "keyboard", "chord": ["E"] },
+            "pitchUpBinding": { "type": "keyboard", "chord": ["R"] },
+            "pitchDownBinding": { "type": "keyboard", "chord": ["F"] },
+            "centerBinding": { "type": "keyboard", "chord": ["X"] }
+          }
+        }
+      ],
+      "profiles": [
+        {
+          "id": "views",
+          "name": "Views",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "behavior": "snapViews",
+          "viewControls": {
+            "nudges": { "centerBinding": { "type": "keyboard", "chord": ["C"] } },
+            "quickViews": [
+              {
+                "id": "check-six",
+                "name": "Check Six",
+                "yawDegrees": 180.0,
+                "activationBinding": { "type": "keyboard", "chord": ["F9"] }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+)json");
+    std::string reported;
+    for (const std::string& warning : parsed.warnings) reported += "\n  " + warning;
+    Expect(parsed.ok && parsed.warnings.empty(),
+           "Legacy single binding keys must parse without warnings: " + parsed.error + reported);
+    const depthxr::PivotViewControls& controls = parsed.document.pivotxr.profiles[0].view_controls;
+    Expect(FirstChordKey(controls.nudges.center_bindings, "C"),
+           "A nudge's legacy centerBinding was not applied");
+    Expect(controls.quick_views.size() == 1 && controls.quick_views[0].activation_bindings.size() == 1 &&
+               controls.quick_views[0].activation_bindings[0].binding.chord == std::vector<std::string>{"F9"} &&
+               controls.quick_views[0].activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Toggle,
+           "A quick view's legacy activationBinding was not applied as a toggle");
+    const depthxr::PivotNudgeSettings& hat = parsed.document.pivotxr.nudge_sets[0].settings;
+    Expect(FirstChordKey(hat.yaw_left_bindings, "Q") && FirstChordKey(hat.yaw_right_bindings, "E") &&
+               FirstChordKey(hat.pitch_up_bindings, "R") && FirstChordKey(hat.pitch_down_bindings, "F") &&
+               FirstChordKey(hat.center_bindings, "X"),
+           "A nudge set's legacy single bindings were not applied");
+}
+
+void TestParseConfig() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": {
+    "enabled": true,
+    "logLevel": "debug",
+    "logRetentionFiles": 9,
+    "trackSeenApps": false
+  },
+  "applications": [
+    {
+      "id": "game",
+      "name": "Game",
+      "enabled": true,
+      "match": { "exe": "Game.exe" }
+    }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "compatibilityMode": true,
+        "stereoBoost": 1.1,
+        "convergence": 0.08,
+        "depthAnchor": false
+      },
+      "bindings": {
+        "toggleEnabled": {
+          "type": "keyboard",
+          "chord": ["F7"]
+        },
+        "toggleAnchor": {
+          "type": "keyboard",
+          "chord": ["F9"]
+        }
+      },
+      "profiles": [
+        {
+          "name": "Game",
+          "applicationIds": ["game"],
+          "enabled": true,
+          "settings": {
+            "compatibilityMode": false,
+            "stereoBoost": 1.2,
+            "depthAnchor": true
+          }
+        }
+      ]
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.2,
+        "pitchSmoothing": 0.15,
+        "pitchDeadzoneDegrees": 10.0,
+        "maxExtraPitchDegrees": 18.0
+      },
+      "profiles": [
+        {
+          "name": "Game",
+          "applicationIds": ["game"],
+          "enabled": true,
+          "activationMode": "toggle",
+          "activationBinding": {
+            "type": "keyboard",
+            "chord": ["F8"]
+          },
+          "settings": {
+            "rotationMultiplier": 1.7,
+            "smoothing": 0.2,
+            "deadzoneDegrees": 8.0,
+            "maxExtraYawDegrees": 30.0,
+            "pitchRotationMultiplier": 1.2,
+            "pitchSmoothing": 0.15,
+            "pitchDeadzoneDegrees": 10.0,
+            "maxExtraPitchDegrees": 18.0
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid v3 config: " + result.error);
+    Expect(result.document.version == 3, "Version was not normalized to 3");
+    Expect(result.document.core.log_level == depthxr::LogLevel::Debug, "Core log level mismatch");
+    Expect(result.document.core.log_retention_files == 9, "Core log retention mismatch");
+    Expect(!result.document.core.track_seen_apps, "Core trackSeenApps mismatch");
+    Expect(result.document.applications.size() == 1, "Application registry count mismatch");
+    Expect(result.document.applications[0].id == "game", "Application registry id mismatch");
+    Expect(std::abs(result.document.depthxr.defaults.stereo_boost - 1.1) < 0.0001, "DepthXR stereoBoost mismatch");
+    Expect(std::abs(result.document.depthxr.defaults.convergence - 0.08) < 0.0001, "DepthXR convergence mismatch");
+    Expect(!result.document.depthxr.defaults.depth_anchor, "DepthXR default Depth Anchor mismatch");
+    Expect(result.document.depthxr.profiles[0].settings.depth_anchor.value_or(false), "DepthXR profile Depth Anchor mismatch");
+    Expect(FirstChordKey(result.document.depthxr.bindings.toggle_enabled_bindings, "F7"), "DepthXR toggle binding mismatch");
+    Expect(FirstChordKey(result.document.depthxr.bindings.toggle_anchor_bindings, "F9"),
+           "DepthXR Depth Anchor toggle binding mismatch");
+    Expect(result.document.depthxr.profiles.size() == 1, "DepthXR profile count mismatch");
+    Expect(result.document.depthxr.profiles[0].application_ids[0] == "game", "DepthXR profile application id mismatch");
+    Expect(result.document.pivotxr.profiles.size() == 1, "PivotXR profile count mismatch");
+    Expect(result.document.pivotxr.profiles[0].activation_bindings[0].binding.chord[0] == "F8", "PivotXR profile activation binding mismatch");
+    Expect(std::abs(result.document.pivotxr.profiles[0].settings.yaw_max_extra_degrees - 30.0) < 0.0001,
+           "PivotXR profile yaw clamp mismatch");
+    Expect(std::abs(result.document.pivotxr.profiles[0].settings.pitch_rotation_multiplier - 1.2) < 0.0001,
+           "PivotXR profile pitch multiplier mismatch");
+}
+
+void TestPivotActivationBindingModel() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {},
+    "pivotxr": {
+      "enabled": true,
+      "alwaysActive": true,
+      "activationBindings": [
+        {
+          "behavior": "toggle",
+          "binding": { "type": "keyboard", "chord": ["F8"] }
+        },
+        {
+          "behavior": "hold",
+          "binding": { "type": "keyboard", "chord": ["F9"] }
+        }
+      ],
+      "profiles": []
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected per-binding Pivot activation model: " + result.error);
+    Expect(result.document.pivotxr.always_active, "Pivot always-active baseline was not parsed");
+    Expect(result.document.pivotxr.activation_bindings.size() == 2,
+           "Pivot mixed activation binding count mismatch");
+    Expect(result.document.pivotxr.activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Toggle &&
+               result.document.pivotxr.activation_bindings[0].binding.chord[0] == "F8",
+           "Pivot Toggle binding was not parsed");
+    Expect(result.document.pivotxr.activation_bindings[1].behavior == depthxr::PivotActivationBehavior::Hold &&
+               result.document.pivotxr.activation_bindings[1].binding.chord[0] == "F9",
+           "Pivot Hold binding was not parsed");
+}
+
+void TestLogLevelCompatibility() {
+    const auto info = depthxr::ParseLogLevel("info");
+    const auto debug = depthxr::ParseLogLevel("debug");
+    const auto none = depthxr::ParseLogLevel("none");
+    const auto off = depthxr::ParseLogLevel("off");
+    const auto error = depthxr::ParseLogLevel("error");
+    Expect(info.has_value() && *info == depthxr::LogLevel::Info, "info should enable normal logging");
+    Expect(debug.has_value() && *debug == depthxr::LogLevel::Debug, "debug should enable verbose logging");
+    Expect(none.has_value() && *none == depthxr::LogLevel::Info, "legacy none should normalize to info");
+    Expect(off.has_value() && *off == depthxr::LogLevel::Info, "legacy off should normalize to info");
+    Expect(error.has_value() && *error == depthxr::LogLevel::Info, "legacy error should normalize to info");
+}
+
+void TestResolveRuntimeConfig() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": {
+    "enabled": true,
+    "logLevel": "info",
+    "logRetentionFiles": 7
+  },
+  "applications": [
+    {
+      "id": "dcs",
+      "name": "DCS",
+      "enabled": true,
+      "match": { "exe": "DCS.exe" }
+    }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.05,
+        "convergence": 0.0,
+        "depthAnchor": false
+      },
+      "bindings": {
+        "toggleEnabled": {
+          "type": "none"
+        }
+      },
+      "profiles": [
+        {
+          "name": "DCS",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "settings": {
+            "stereoBoost": 1.15,
+            "convergence": 0.12,
+            "depthAnchor": true
+          }
+        }
+      ]
+    },
+    "pivotxr": {
+      "enabled": true,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 22.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "activationMode": "hold",
+      "activationBinding": { "type": "keyboard", "chord": ["F9"] },
+      "profiles": [
+        {
+          "name": "DCS",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "hold",
+          "activationBinding": {
+            "type": "keyboard",
+            "chord": ["Ctrl", "Space"]
+          },
+          "settings": {
+            "rotationMultiplier": 1.7,
+            "smoothing": 0.25,
+            "deadzoneDegrees": 9.0,
+            "maxExtraYawDegrees": 22.0,
+            "pitchRotationMultiplier": 1.35,
+            "pitchSmoothing": 0.3,
+            "pitchDeadzoneDegrees": 14.0,
+            "maxExtraPitchDegrees": 24.0
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid resolve test config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "dcs.exe");
+    Expect(resolved.core.enabled, "Core enabled should be true");
+    Expect(std::abs(resolved.depthxr.stereo_boost - 1.15) < 0.0001, "Profile stereoBoost override was not applied");
+    Expect(std::abs(resolved.depthxr.convergence - 0.12) < 0.0001, "Profile convergence override was not applied");
+    Expect(resolved.depthxr.depth_anchor, "Profile Depth Anchor override was not applied");
+    Expect(resolved.depthxr_bindings.toggle_enabled_bindings.empty(), "DepthXR toggle binding should be none");
+    Expect(resolved.pivotxr.enabled, "PivotXR module enable was not resolved");
+    Expect(resolved.pivotxr.profiles.size() == 1, "PivotXR resolved candidate count mismatch");
+    const depthxr::PivotXrResolvedProfile& pivot_profile = resolved.pivotxr.profiles[0];
+    Expect(!pivot_profile.always_active && pivot_profile.activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Hold, "PivotXR activation mode mismatch");
+    Expect(pivot_profile.activation_bindings[0].binding.chord.size() == 2, "PivotXR activation chord size mismatch");
+    Expect(pivot_profile.activation_bindings[0].binding.chord[1] == "Space", "PivotXR activation binding was not resolved");
+    Expect(std::abs(pivot_profile.yaw_max_extra_degrees - 22.0) < 0.0001, "PivotXR yaw clamp mismatch");
+    Expect(std::abs(pivot_profile.pitch_rotation_multiplier - 1.35) < 0.0001,
+           "PivotXR pitch multiplier mismatch");
+}
+
+void TestDisabledProfileFallsBackToDefaults() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": {
+    "enabled": true,
+    "logLevel": "info",
+    "logRetentionFiles": 7
+  },
+  "applications": [
+    {
+      "id": "dcs",
+      "name": "DCS",
+      "enabled": true,
+      "match": { "exe": "DCS.exe" }
+    }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.05,
+        "convergence": 0.01
+      },
+      "bindings": {
+        "toggleEnabled": {
+          "type": "none"
+        }
+      },
+      "profiles": [
+        {
+          "name": "DCS",
+          "applicationIds": ["dcs"],
+          "enabled": false,
+          "settings": {
+            "stereoBoost": 1.2,
+            "convergence": 0.12
+          }
+        }
+      ]
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": []
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected disabled-profile config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(std::abs(resolved.depthxr.stereo_boost - 1.05) < 0.0001, "Disabled profile should fall back to defaults");
+    Expect(std::abs(resolved.depthxr.convergence - 0.01) < 0.0001, "Disabled profile convergence should fall back to defaults");
+    Expect(!resolved.pivotxr.enabled, "PivotXR should be disabled");
+}
+
+void TestPivotProfileResolution() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.0,
+        "convergence": 0.0
+      },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": true,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": [
+        {
+          "name": "DCS",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "toggle",
+          "activationBinding": { "type": "keyboard", "chord": ["F8"] },
+          "settings": {
+            "rotationMultiplier": 2.0,
+            "smoothing": 0.3,
+            "deadzoneDegrees": 10.0,
+            "maxExtraYawDegrees": 60.0,
+            "pitchRotationMultiplier": 1.5,
+            "pitchSmoothing": 0.25,
+            "pitchDeadzoneDegrees": 14.0,
+            "maxExtraPitchDegrees": 45.0
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid pivot profile config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(resolved.pivotxr.enabled, "PivotXR should be enabled for DCS");
+    Expect(resolved.pivotxr.profiles.size() == 1, "PivotXR resolved candidate count mismatch");
+    const depthxr::PivotXrResolvedProfile& dcs_profile = resolved.pivotxr.profiles[0];
+    Expect(!dcs_profile.always_active && dcs_profile.activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Toggle, "PivotXR activation mode mismatch");
+    Expect(dcs_profile.activation_bindings[0].binding.chord[0] == "F8", "PivotXR activation binding mismatch");
+    Expect(std::abs(dcs_profile.yaw_rotation_multiplier - 2.0) < 0.0001, "PivotXR yaw multiplier mismatch");
+    Expect(std::abs(dcs_profile.yaw_max_extra_degrees - 60.0) < 0.0001, "PivotXR yaw clamp mismatch");
+    Expect(std::abs(dcs_profile.pitch_rotation_multiplier - 1.5) < 0.0001, "PivotXR pitch multiplier mismatch");
+
+    // No profile for a different exe falls back to the default Pivot profile.
+    const depthxr::ResolvedRuntimeConfig resolved_other = depthxr::ResolveRuntimeConfig(result.document, "other.exe");
+    Expect(resolved_other.pivotxr.enabled, "PivotXR default profile should resolve for exe with no matching profile");
+    Expect(resolved_other.pivotxr.profiles.size() == 1, "PivotXR default candidate count mismatch");
+    Expect(resolved_other.pivotxr.profiles[0].activation_bindings.empty(),
+           "PivotXR default activation bindings should fall back to an empty list");
+    Expect(std::abs(resolved_other.pivotxr.profiles[0].yaw_rotation_multiplier - 1.5) < 0.0001,
+           "PivotXR default yaw multiplier mismatch");
+}
+
+void TestPivotMultiProfileResolution() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {},
+      "profiles": [
+        {
+          "id": "dcs-mild",
+          "name": "DCS Mild",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "toggle",
+          "activationBindings": [
+            { "type": "keyboard", "chord": ["F8"] },
+            { "type": "keyboard", "chord": ["F10"] },
+            { "type": "keyboard", "chord": ["F8"] }
+          ],
+          "settings": { "rotationMultiplier": 1.5 }
+        },
+        {
+          "id": "dcs-disabled",
+          "name": "DCS Disabled",
+          "applicationIds": ["dcs"],
+          "enabled": false,
+          "activationBinding": { "type": "keyboard", "chord": ["F11"] },
+          "settings": { "rotationMultiplier": 3.0 }
+        },
+        {
+          "id": "dcs-strong",
+          "name": "DCS Strong",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "hold",
+          "activationBindings": [
+            { "type": "keyboard", "chord": ["F8"] },
+            { "type": "keyboard", "chord": ["F9"] }
+          ],
+          "settings": { "rotationMultiplier": 2.5 }
+        },
+        {
+          "name": "DCS Shadowed",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationBindings": [
+            { "type": "keyboard", "chord": ["F8"] },
+            { "type": "keyboard", "chord": ["F10"] }
+          ],
+          "settings": { "rotationMultiplier": 4.0 }
+        },
+        {
+          "name": "DCS Always",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "alwaysOn",
+          "activationBindings": [
+            { "type": "keyboard", "chord": ["F8"] },
+            { "type": "keyboard", "chord": ["F12"] }
+          ],
+          "settings": { "rotationMultiplier": 3.0 }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected multi-profile pivot config: " + result.error);
+    Expect(result.document.pivotxr.profiles[0].id == "dcs-mild", "Pivot profile id was not parsed");
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(resolved.pivotxr.enabled, "PivotXR should be enabled when custom profiles match");
+    // Disabled profiles and profiles whose entire binding list is shadowed are skipped.
+    // Individual colliding bindings are stripped while each profile's remaining
+    // independent bindings stay available.
+    Expect(resolved.pivotxr.profiles.size() == 3, "PivotXR multi-profile candidate count mismatch");
+    Expect(resolved.pivotxr.profiles[0].activation_bindings.size() == 2,
+           "First candidate should retain both independent bindings and prune its duplicate");
+    Expect(resolved.pivotxr.profiles[0].name == "DCS Mild", "Candidate priority order mismatch (first)");
+    Expect(resolved.pivotxr.profiles[1].name == "DCS Strong", "Candidate priority order mismatch (second)");
+    Expect(std::abs(resolved.pivotxr.profiles[1].yaw_rotation_multiplier - 2.5) < 0.0001,
+           "Second candidate settings mismatch");
+    Expect(!resolved.pivotxr.profiles[1].always_active && resolved.pivotxr.profiles[1].activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Hold,
+           "Second candidate activation mode mismatch");
+    Expect(resolved.pivotxr.profiles[1].activation_bindings.size() == 1 &&
+               resolved.pivotxr.profiles[1].activation_bindings[0].binding.chord[0] == "F9",
+           "Second candidate should retain only its unshadowed activation binding");
+    Expect(resolved.pivotxr.profiles[2].name == "DCS Always", "Candidate priority order mismatch (third)");
+    Expect(resolved.pivotxr.profiles[2].always_active,
+           "Shadowed always-on candidate activation mode mismatch");
+    Expect(resolved.pivotxr.profiles[2].activation_bindings.size() == 1 &&
+               resolved.pivotxr.profiles[2].activation_bindings[0].binding.chord[0] == "F12",
+           "Always-on candidate should retain its unshadowed suspend/resume binding");
+}
+
+void TestPivotResponseModeAndAdvancedAxes() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } },
+    { "id": "msfs", "name": "MSFS", "enabled": true, "match": { "exe": "MSFS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {},
+      "profiles": [
+        {
+          "name": "DCS Stepped",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "activationMode": "alwaysOn",
+          "activationBinding": { "type": "keyboard", "chord": ["F8"] },
+          "settings": {
+            "responseMode": "stepped",
+            "stepTriggerDegrees": 12.0,
+            "stepAmountDegrees": 15.0,
+            "stepHysteresisDegrees": 5.0,
+            "deadzoneDegrees": 180.0,
+            "pitchDeadzoneDegrees": 90.0
+          }
+        },
+        {
+          "name": "MSFS Advanced",
+          "applicationIds": ["msfs"],
+          "enabled": true,
+          "activationBinding": { "type": "keyboard", "chord": ["F9"] },
+          "settings": {
+            "advancedAxes": true,
+            "responseMode": "stepped",
+            "stepGlideMode": "instant",
+            "stepGlideSeconds": 0.0,
+            "yawStep": { "deadzoneDegrees": 7.0, "triggerDegrees": 11.0, "amountDegrees": 17.0, "hysteresisDegrees": 3.0, "maxExtraDegrees": 80.0 },
+            "pitchStep": { "deadzoneDegrees": 9.0, "triggerDegrees": 13.0, "amountDegrees": 19.0, "hysteresisDegrees": 4.0, "maxExtraDegrees": 60.0 },
+            "yawLeftStep": { "amountDegrees": 21.0 },
+            "yawRightStep": { "triggerDegrees": 14.0 },
+            "pitchUpStep": { "maxExtraDegrees": 45.0 },
+            "pitchDownStep": { "deadzoneDegrees": 12.0 },
+            "yawLeft": { "rotationMultiplier": 2.0, "deadzoneDegrees": 180.0, "maxExtraDegrees": 90.0 },
+            "yawRight": { "rotationMultiplier": 1.2 },
+            "pitchUp": { "rotationMultiplier": 1.8, "deadzoneDegrees": 90.0 },
+            "pitchDown": { "rotationMultiplier": 1.1, "maxExtraDegrees": 30.0 }
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected response-mode config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig stepped = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(stepped.pivotxr.profiles.size() == 1, "Stepped candidate count mismatch");
+    const depthxr::PivotXrResolvedProfile& stepped_profile = stepped.pivotxr.profiles[0];
+    Expect(stepped_profile.always_active,
+           "alwaysOn activation mode was not parsed");
+    Expect(stepped_profile.response_mode == depthxr::PivotResponseMode::Stepped,
+           "Stepped response mode was not resolved");
+    Expect(std::abs(stepped_profile.yaw_step_positive.trigger_degrees - 12.0) < 0.0001,
+           "Legacy trigger did not migrate to yaw");
+    Expect(std::abs(stepped_profile.pitch_step_positive.trigger_degrees - 12.0) < 0.0001,
+           "Legacy trigger did not migrate to pitch");
+    Expect(std::abs(stepped_profile.yaw_step_negative.amount_degrees - 15.0) < 0.0001,
+           "Legacy amount did not migrate to both yaw directions");
+    Expect(std::abs(stepped_profile.pitch_step_negative.hysteresis_degrees - 5.0) < 0.0001,
+           "Legacy hysteresis did not migrate to both pitch directions");
+    Expect(stepped_profile.step_glide_mode == depthxr::PivotStepGlideMode::Glide &&
+               std::abs(stepped_profile.step_glide_seconds - 0.05) < 0.0001,
+           "Legacy stepped smoothing did not migrate to glide");
+
+    const depthxr::ResolvedRuntimeConfig advanced = depthxr::ResolveRuntimeConfig(result.document, "MSFS.exe");
+    Expect(advanced.pivotxr.profiles.size() == 1, "Advanced candidate count mismatch");
+    const depthxr::PivotXrResolvedProfile& advanced_profile = advanced.pivotxr.profiles[0];
+    Expect(std::abs(advanced_profile.yaw_positive.rotation_multiplier - 2.0) < 0.0001,
+           "Advanced yaw-left multiplier mismatch");
+    Expect(std::abs(advanced_profile.yaw_positive.deadzone_degrees - 180.0) < 0.0001,
+           "Advanced yaw-left deadzone boundary mismatch");
+    Expect(std::abs(advanced_profile.yaw_positive.max_extra_degrees - 90.0) < 0.0001,
+           "Advanced yaw-left max extra mismatch");
+    Expect(std::abs(advanced_profile.yaw_negative.rotation_multiplier - 1.2) < 0.0001,
+           "Advanced yaw-right multiplier mismatch");
+    Expect(std::abs(advanced_profile.pitch_positive.rotation_multiplier - 1.8) < 0.0001,
+           "Advanced pitch-up multiplier mismatch");
+    Expect(std::abs(advanced_profile.pitch_positive.deadzone_degrees - 90.0) < 0.0001,
+           "Advanced pitch-up deadzone boundary mismatch");
+    Expect(std::abs(advanced_profile.pitch_negative.max_extra_degrees - 30.0) < 0.0001,
+           "Advanced pitch-down max extra mismatch");
+
+    Expect(advanced_profile.response_mode == depthxr::PivotResponseMode::Stepped,
+           "Advanced stepped response mode mismatch");
+    Expect(advanced_profile.step_glide_mode == depthxr::PivotStepGlideMode::Instant &&
+               std::abs(advanced_profile.step_glide_seconds) < 0.0001,
+           "Canonical instant glide settings mismatch");
+    Expect(std::abs(advanced_profile.yaw_step_positive.amount_degrees - 21.0) < 0.0001 &&
+               std::abs(advanced_profile.yaw_step_positive.trigger_degrees - 11.0) < 0.0001,
+           "Yaw-left step override did not inherit the remaining basic yaw fields");
+    Expect(std::abs(advanced_profile.yaw_step_negative.trigger_degrees - 14.0) < 0.0001 &&
+               std::abs(advanced_profile.yaw_step_negative.amount_degrees - 17.0) < 0.0001,
+           "Yaw-right step override did not inherit the remaining basic yaw fields");
+    Expect(std::abs(advanced_profile.pitch_step_positive.max_extra_degrees - 45.0) < 0.0001 &&
+               std::abs(advanced_profile.pitch_step_negative.deadzone_degrees - 12.0) < 0.0001,
+           "Advanced pitch step overrides mismatch");
+
+    // Symmetric profiles collapse direction tunings to the yaw/pitch values.
+    Expect(std::abs(stepped_profile.yaw_positive.deadzone_degrees - 180.0) < 0.0001,
+           "Symmetric collapse should mirror yaw deadzone into direction tunings");
+    Expect(std::abs(stepped_profile.pitch_positive.deadzone_degrees - 90.0) < 0.0001,
+           "Symmetric collapse should mirror pitch deadzone into direction tunings");
+}
+
+void TestPivotViewControlsParsingAndResolution() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {},
+    "pivotxr": {
+      "enabled": false,
+      "nudgeSets": [
+        {
+          "id": "shared-hat",
+          "name": "Shared HAT",
+          "allowWhileInactive": true,
+          "settings": {
+            "yawStepDegrees": 12.0,
+            "yawLeftBindings": [{ "type": "keyboard", "chord": ["Q"] }]
+          }
+        }
+      ],
+      "profiles": [
+        {
+          "id": "accessible-views",
+          "name": "Accessible Views",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "behavior": "snapViews",
+          "snapTurnPreference": "left",
+          "nudgeSetId": "shared-hat",
+          "alwaysActive": false,
+          "activationBindings": [],
+          "viewControls": {
+            "nudges": {
+              "yawStepDegrees": 35.0,
+              "pitchStepDegrees": 15.0,
+              "transitionSeconds": 0.2,
+              "yawLeftBindings": [{ "type": "keyboard", "chord": ["Q"] }],
+              "yawRightBindings": [],
+              "pitchUpBindings": [],
+              "pitchDownBindings": [],
+              "centerBindings": [{ "type": "keyboard", "chord": ["C"] }]
+            },
+            "quickViews": [
+              {
+                "id": "check-six",
+                "name": "Check Six",
+                "yawDegrees": 180.0,
+                "pitchDegrees": 10.0,
+                "positionRightCm": 2.0,
+                "positionUpCm": 3.0,
+                "positionForwardCm": 4.0,
+                "transitionSeconds": 0.25,
+                "activationBindings": [
+                  {
+                    "behavior": "hold",
+                    "binding": { "type": "keyboard", "chord": ["F9"] }
+                  }
+                ]
+              }
+            ]
+          },
+          "settings": {}
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected Pivot View Controls: " + result.error);
+    const depthxr::PivotViewControls& parsed =
+        result.document.pivotxr.profiles[0].view_controls;
+    Expect(std::abs(parsed.nudges.yaw_step_degrees - 35.0) < 0.0001 &&
+               result.document.pivotxr.nudge_sets[0].allow_while_inactive,
+           "Pivot nudge settings or inactive policy mismatch");
+    Expect(parsed.nudges.yaw_left_bindings[0].chord[0] == "Q" &&
+               parsed.nudges.center_bindings[0].chord[0] == "C",
+           "Pivot nudge bindings mismatch");
+    Expect(parsed.quick_views.size() == 1 && parsed.quick_views[0].id == "check-six",
+           "Pivot Quick View identity mismatch");
+    Expect(parsed.quick_views[0].activation_bindings[0].behavior ==
+               depthxr::PivotActivationBehavior::Hold,
+           "Pivot Quick View activation mismatch");
+
+    const depthxr::ResolvedRuntimeConfig resolved =
+        depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(resolved.pivotxr.enabled && resolved.pivotxr.profiles.size() == 1,
+           "A profile with View Control bindings must resolve without Motion Assist activation");
+    Expect(resolved.pivotxr.profiles[0].view_controls.quick_views[0].position_forward_cm == 4.0,
+           "Resolved Pivot Quick View position mismatch");
+    Expect(resolved.pivotxr.profiles[0].behavior == depthxr::PivotProfileBehavior::SnapViews &&
+               resolved.pivotxr.profiles[0].allow_inactive_nudges &&
+               resolved.pivotxr.profiles[0].nudge_set_id == "shared-hat",
+           "Resolved Pivot profile behavior or view-control policy mismatch");
+    Expect(std::abs(resolved.pivotxr.profiles[0].view_controls.nudges.yaw_step_degrees - 12.0) < 0.0001,
+           "Linked Nudge Set did not override legacy inline nudge settings");
+
+    result.document.pivotxr.profiles[0].nudge_set_id = "none";
+    const depthxr::ResolvedRuntimeConfig nudges_disabled =
+        depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    const depthxr::PivotNudgeSettings& disabled_nudges =
+        nudges_disabled.pivotxr.profiles[0].view_controls.nudges;
+    Expect(disabled_nudges.yaw_left_bindings.empty() &&
+               disabled_nudges.center_bindings.empty(),
+           "The reserved none Nudge Set id must disable all profile nudges");
+}
+
+void TestPivotViewTransitionMath() {
+    double activation_gain = depthxr::AdvancePivotActivationGain(0.65, false, true, 0.2, 1.0);
+    Expect(std::abs(activation_gain - 0.65) < 0.0001,
+           "A Quick View override must freeze the suspended motion activation gain");
+    activation_gain = depthxr::AdvancePivotActivationGain(activation_gain, true, true, 0.2, 1.0);
+    Expect(std::abs(activation_gain - 0.65) < 0.0001,
+           "A Quick View return must preserve its motion handoff gain");
+    activation_gain = depthxr::AdvancePivotActivationGain(activation_gain, true, false, 0.2, 0.05);
+    Expect(std::abs(activation_gain - 0.9) < 0.0001,
+           "Motion activation must resume after the Quick View handoff");
+
+    depthxr::PivotViewTransitionState state;
+    depthxr::PivotViewOffset target{1.0, -0.5, 0.1, 0.2, -0.3};
+    depthxr::RetargetPivotViewTransition(target, 0.2, state);
+    Expect(state.active && depthxr::PivotViewOffsetNearlyZero(state.current),
+           "Pivot View transition did not begin at the current offset");
+
+    depthxr::UpdatePivotViewTransition(0.1, state);
+    Expect(std::abs(state.current.yaw_radians - 0.5) < 0.0001 &&
+               std::abs(state.current.right_meters - 0.05) < 0.0001,
+           "Pivot View smoothstep midpoint mismatch");
+
+    const depthxr::PivotViewOffset midpoint = state.current;
+    depthxr::RetargetPivotViewTransition({}, 0.1, state);
+    Expect(depthxr::PivotViewOffsetNearlyEqual(state.start, midpoint),
+           "Pivot View retarget did not preserve the in-flight position");
+    depthxr::UpdatePivotViewTransition(0.1, state);
+    Expect(!state.active && depthxr::PivotViewOffsetNearlyZero(state.current),
+           "Pivot View transition did not settle exactly on its target");
+
+    depthxr::RetargetPivotViewTransition(target, 0.0, state);
+    Expect(state.active && depthxr::PivotViewOffsetNearlyZero(state.current),
+           "A zero-duration Pivot View retarget must not move the offset before the next drive update");
+    depthxr::UpdatePivotViewTransition(0.0, state);
+    Expect(!state.active && depthxr::PivotViewOffsetNearlyEqual(state.current, target),
+           "A zero-duration Pivot View transition must land on the next drive update");
+}
+
+void TestPivotSteppedGlideMath() {
+    const auto radians = [](double degrees) {
+        return degrees * 3.14159265358979323846 / 180.0;
+    };
+    const depthxr::PivotStepTuning positive{10.0, 10.0, 15.0, 4.0, 60.0};
+    const depthxr::PivotStepTuning negative{8.0, 12.0, 25.0, 3.0, 75.0};
+
+    int step = 0;
+    double displayed = 0.0;
+    depthxr::PivotStepGlideState state;
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(20.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Instant, 0.0, 0.0,
+                                                 step, displayed, state);
+    Expect(step == 1 && std::abs(displayed - radians(15.0)) < 0.000001,
+           "Instant stepped response did not land exactly on its target");
+
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(17.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Instant, 0.0, 0.0,
+                                                 step, displayed, state);
+    Expect(step == 1, "Step hysteresis released above the bounded release threshold");
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(15.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Instant, 0.0, 0.0,
+                                                 step, displayed, state);
+    Expect(step == 0, "Step hysteresis did not release below its threshold");
+
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(-20.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Instant, 0.0, 0.0,
+                                                 step, displayed, state);
+    Expect(step == -1 && std::abs(displayed - radians(-25.0)) < 0.000001,
+           "Negative direction did not use its independent trigger and amount");
+
+    const auto glide_at = [&](double frame_seconds, int frames) {
+        int glide_step = 0;
+        double glide_displayed = 0.0;
+        depthxr::PivotStepGlideState glide_state;
+        for (int frame = 0; frame < frames; ++frame) {
+            depthxr::UpdatePivotSteppedExtraAngleRadians(radians(20.0), positive, negative,
+                                                         depthxr::PivotStepGlideMode::Glide, 0.12,
+                                                         frame_seconds, glide_step,
+                                                         glide_displayed, glide_state);
+        }
+        return glide_displayed;
+    };
+    const double sixty_hz_midpoint = glide_at(0.01, 6);
+    const double thirty_hz_midpoint = glide_at(0.02, 3);
+    Expect(std::abs(sixty_hz_midpoint - thirty_hz_midpoint) < 0.000001,
+           "Step glide changed with frame rate at the same elapsed time");
+    Expect(std::abs(glide_at(0.02, 6) - radians(15.0)) < 0.000001,
+           "Step glide did not settle exactly on target");
+
+    step = 0;
+    displayed = 0.0;
+    state = {};
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(20.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Glide, 0.12, 0.04,
+                                                 step, displayed, state);
+    const double before_retarget = displayed;
+    depthxr::UpdatePivotSteppedExtraAngleRadians(radians(30.0), positive, negative,
+                                                 depthxr::PivotStepGlideMode::Glide, 0.12, 0.0,
+                                                 step, displayed, state);
+    Expect(step == 2 && std::abs(displayed - before_retarget) < 0.000001 &&
+               std::abs(state.start_radians - before_retarget) < 0.000001,
+           "Mid-glide retarget did not start from the currently displayed angle");
+    double previous = displayed;
+    for (int frame = 0; frame < 6; ++frame) {
+        depthxr::UpdatePivotSteppedExtraAngleRadians(radians(30.0), positive, negative,
+                                                     depthxr::PivotStepGlideMode::Glide, 0.12, 0.02,
+                                                     step, displayed, state);
+        Expect(displayed >= previous && displayed <= radians(30.0) + 0.000001,
+               "Retargeted step glide was non-monotonic or overshot");
+        previous = displayed;
+    }
+    Expect(std::abs(displayed - radians(30.0)) < 0.000001,
+           "Retargeted step glide did not settle exactly on target");
+}
+
+
+void TestTurboModuleResolution() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] },
+    "turbo": {
+      "enabled": false,
+      "toggleBinding": { "type": "keyboard", "chord": ["Ctrl", "F7"] },
+      "profiles": [
+        { "id": "turbo-dcs", "name": "DCS", "enabled": true, "applicationIds": ["dcs"] }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected turbo config: " + result.error);
+    Expect(result.document.turbo.profiles.size() == 1, "Turbo profile count mismatch");
+    Expect(result.document.turbo.profiles[0].id == "turbo-dcs", "Turbo profile id mismatch");
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(resolved.turbo.enabled, "Turbo should resolve enabled for a matched profile");
+    Expect(FirstBinding(resolved.turbo.toggle_bindings).chord.size() == 2, "Turbo toggle binding chord mismatch");
+
+    const depthxr::ResolvedRuntimeConfig resolved_other = depthxr::ResolveRuntimeConfig(result.document, "other.exe");
+    Expect(!resolved_other.turbo.enabled, "Turbo default-off should not apply to unmatched applications");
+    std::string opted_out = json;
+    opted_out.insert(opted_out.find("\"id\": \"turbo-dcs\""), "\"disableSafety\": true, ");
+    auto safety = depthxr::ParseConfig(opted_out);
+    Expect(safety.ok, "Profile safety override should parse");
+    Expect(!depthxr::ResolveRuntimeConfig(safety.document, "DCS.exe").turbo.interrupted_session_recovery,
+           "Matched profile can disable safety");
+    Expect(depthxr::ResolveRuntimeConfig(safety.document, "other.exe").turbo.interrupted_session_recovery,
+           "Profile opt-out must not disable protection for unrelated applications");
+    safety.document.turbo.profiles[0].enabled = false;
+    Expect(depthxr::ResolveRuntimeConfig(safety.document, "DCS.exe").turbo.interrupted_session_recovery,
+           "Disabled profiles cannot opt out of safety");
+}
+
+void TestTurboPacingModeParsing() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] },
+    "turbo": {
+      "enabled": true,
+      "pacingMode": "auto",
+      "runtimePins": { "Oculus": "sequenced", "SteamVR/OpenXR": "async" },
+      "toggleBinding": { "type": "none" },
+      "profiles": []
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected turbo pacing config: " + result.error);
+    Expect(result.document.turbo.interrupted_session_recovery, "Older configs should default recovery on");
+    std::string recovery_off = json;
+    recovery_off.insert(recovery_off.find("\"pacingMode\""), "\"interruptedSessionRecovery\": false, ");
+    const auto recovery_result = depthxr::ParseConfig(recovery_off);
+    Expect(recovery_result.ok && !recovery_result.document.turbo.interrupted_session_recovery,
+           "Recovery opt-out should parse");
+    Expect(!depthxr::ResolveRuntimeConfig(recovery_result.document, "any.exe").turbo.interrupted_session_recovery,
+           "Recovery opt-out must reach resolved settings");
+    Expect(result.document.turbo.pacing_mode == depthxr::TurboPacingSetting::kAuto,
+           "Turbo pacing mode should parse auto");
+    Expect(result.document.turbo.runtime_pins.size() == 2, "Turbo runtime pin count mismatch");
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "any.exe");
+    Expect(resolved.turbo.pacing_mode == depthxr::TurboPacingSetting::kAuto,
+           "Turbo pacing mode should resolve through");
+    Expect(resolved.turbo.runtime_pins.size() == 2, "Turbo runtime pins should resolve through");
+    bool found_oculus_pin = false;
+    for (const auto& [runtime_name, pin] : resolved.turbo.runtime_pins) {
+        if (runtime_name == "Oculus") {
+            found_oculus_pin = pin == depthxr::TurboPacingMode::kSequenced;
+        }
+    }
+    Expect(found_oculus_pin, "Oculus runtime pin should resolve to sequenced");
+
+    // Invalid values are rejected rather than silently defaulted.
+    std::string invalid = json;
+    const std::string needle = "\"pacingMode\": \"auto\"";
+    invalid.replace(invalid.find(needle), needle.size(), "\"pacingMode\": \"pipelined\"");
+    const depthxr::ParseResult invalid_result = depthxr::ParseConfig(invalid);
+    Expect(!invalid_result.ok, "Config parser should reject an unknown turbo pacing mode");
+
+    std::string unsupported_pin = json;
+    const std::string pin_needle = "\"Oculus\": \"sequenced\"";
+    unsupported_pin.replace(unsupported_pin.find(pin_needle), pin_needle.size(),
+                            "\"Oculus\": \"unsupported\"");
+    const depthxr::ParseResult unsupported_result = depthxr::ParseConfig(unsupported_pin);
+    Expect(!unsupported_result.ok, "Config parser should reject an 'unsupported' runtime pin");
+}
+
+void TestTurboModuleOptional() {
+    // Configs written before turbo existed must still parse, with turbo off.
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected config without turbo module: " + result.error);
+    Expect(!result.document.turbo.enabled, "Turbo should default to disabled when absent");
+    Expect(result.document.turbo.pacing_mode == depthxr::TurboPacingSetting::kAuto,
+           "Turbo pacing mode should default to auto when absent");
+    Expect(result.document.turbo.runtime_pins.empty(), "Turbo runtime pins should default empty");
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "any.exe");
+    Expect(!resolved.turbo.enabled, "Turbo resolved settings should default to disabled");
+}
+
+std::string FrameGenConfigJson(const std::string& framegen_module, const std::string& osd = "{}") {
+    return std::string(R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7, "osd": )json") + osd + R"json( },
+  "applications": [
+    { "id": "app-dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } },
+    { "id": "app-msfs", "name": "MSFS", "enabled": true, "match": { "exe": "FlightSimulator2024.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] },
+    "framegen": )json" + framegen_module + R"json(
+  }
+}
+)json";
+}
+
+void TestFrameGenModuleOptional() {
+    // Configs written before Frame Generation existed must parse with it off.
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config without framegen module was rejected: " + result.error);
+    Expect(!result.document.framegen.enabled, "Frame Generation should default off when absent");
+    const auto resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(!resolved.framegen.enabled, "Frame Generation should resolve off when absent");
+    Expect(resolved.framegen.synthesis_mode == depthxr::FrameGenSynthesisMode::kInterpolate,
+           "Frame Generation should default to interpolation");
+    Expect(resolved.framegen.flow_quality == depthxr::FrameGenFlowQuality::kBalanced,
+           "Frame Generation should default to balanced flow");
+    Expect(resolved.framegen.motion_estimation == depthxr::FrameGenMotionEstimation::kShader,
+           "Frame Generation should default to shader motion estimation");
+    Expect(resolved.framegen.artifact_suppression == 50 && resolved.framegen.motion_limit_percent == 10,
+           "Frame Generation numeric defaults changed");
+    Expect(resolved.framegen.diagnostic_view == depthxr::FrameGenDiagnosticView::kOff,
+           "Frame Generation diagnostics should default off");
+    Expect(resolved.framegen.multiplier == depthxr::FrameGenMultiplier::kDynamic,
+           "Frame Generation should default to Dynamic");
+    Expect(resolved.core.osd.show_framegen && !resolved.core.osd.compact_show_framegen,
+           "OSD Frame Gen rows should default to full-panel only");
+    Expect(resolved.core.osd.show_framegen_fps, "The OSD should show Frame Generation beside FPS by default");
+    Expect(resolved.core.osd.body_order.size() == 6 && resolved.core.osd.body_order[3] == "framegen",
+           "Default OSD body order should include the Frame Gen row after Turbo");
+}
+
+void TestFrameGenProfileResolution() {
+    const std::string module = R"json({
+      "enabled": false,
+      "diagnosticView": "tint",
+      "toggleBinding": { "type": "keyboard", "chord": ["Ctrl", "Alt", "F9"] },
+      "defaults": { "synthesisMode": "interpolate", "flowQuality": "performance", "frameMultiplier": "2x", "artifactSuppression": 40, "motionLimitPercent": 8 },
+      "profiles": [
+        { "name": "Disabled", "enabled": false, "applicationIds": ["app-dcs"],
+          "settings": { "synthesisMode": "interpolate", "flowQuality": "quality" } },
+        { "name": "DCS", "enabled": true, "applicationIds": ["app-dcs"],
+          "settings": { "synthesisMode": "extrapolate", "flowQuality": "quality", "motionEstimation": "hardware", "frameMultiplier": "4x", "artifactSuppression": 75, "motionLimitPercent": 25 } }
+      ]
+    })json";
+    const depthxr::ParseResult result = depthxr::ParseConfig(FrameGenConfigJson(module));
+    Expect(result.ok, "Frame Generation module was rejected: " + result.error);
+    Expect(result.document.framegen.profiles.size() == 2, "Frame Generation profiles were not parsed");
+    Expect(FirstBinding(result.document.framegen.toggle_bindings).type == depthxr::InputBindingType::Keyboard,
+           "Frame Generation toggle binding was not parsed");
+
+    const auto dcs = depthxr::ResolveFrameGenSettings(result.document, "DCS.exe");
+    Expect(dcs.enabled, "Matching enabled profile should enable Frame Generation over an off default");
+    Expect(dcs.profile_name == "DCS", "Disabled profiles must not win resolution");
+    Expect(dcs.synthesis_mode == depthxr::FrameGenSynthesisMode::kExtrapolate &&
+               dcs.flow_quality == depthxr::FrameGenFlowQuality::kQuality &&
+               dcs.artifact_suppression == 75 && dcs.motion_limit_percent == 25,
+           "Profile settings did not replace defaults");
+    Expect(dcs.multiplier == depthxr::FrameGenMultiplier::k4, "Profile frame multiplier did not apply");
+    Expect(dcs.motion_estimation == depthxr::FrameGenMotionEstimation::kHardware, "Profile motion estimation did not apply");
+    Expect(dcs.diagnostic_view == depthxr::FrameGenDiagnosticView::kTint,
+           "Module diagnostic view should apply to profiles");
+
+    const auto other = depthxr::ResolveFrameGenSettings(result.document, "FlightSimulator2024.exe");
+    Expect(!other.enabled && other.profile_name.empty(), "Unmatched application should use the off default");
+    Expect(other.motion_estimation == depthxr::FrameGenMotionEstimation::kShader,
+           "Unmatched application should keep shader motion estimation");
+    Expect(other.flow_quality == depthxr::FrameGenFlowQuality::kPerformance && other.artifact_suppression == 40 &&
+               other.motion_limit_percent == 8,
+           "Unmatched application should use module defaults");
+
+    const depthxr::ParseResult dynamic =
+        depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": true, "defaults": { "frameMultiplier": "dynamic" } })json"));
+    Expect(dynamic.ok && dynamic.document.framegen.defaults.multiplier == depthxr::FrameGenMultiplier::kDynamic,
+           "Dynamic frame multiplier was not parsed");
+    Expect(std::string(depthxr::ToString(depthxr::FrameGenMultiplier::kDynamic)) == "dynamic",
+           "Dynamic frame multiplier did not round-trip");
+    // The fixed rates, Auto among them, are still chosen explicitly.
+    const depthxr::ParseResult automatic =
+        depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": true, "defaults": { "frameMultiplier": "auto" } })json"));
+    Expect(automatic.ok && automatic.document.framegen.defaults.multiplier == depthxr::FrameGenMultiplier::kAuto,
+           "Auto frame multiplier was not parsed");
+    // A profile saved without a multiplier runs Dynamic.
+    const depthxr::ParseResult inherited = depthxr::ParseConfig(FrameGenConfigJson(
+        R"json({ "enabled": false, "profiles": [ { "name": "DCS", "applicationIds": ["app-dcs"], "settings": { "synthesisMode": "extrapolate" } } ] })json"));
+    Expect(inherited.ok && depthxr::ResolveFrameGenSettings(inherited.document, "DCS.exe").multiplier ==
+                               depthxr::FrameGenMultiplier::kDynamic,
+           "A profile without a frame multiplier should run Dynamic");
+}
+
+// Frame Generation's A/B toggle takes a list too, and its legacy binding.
+void TestFrameGenToggleBindingList() {
+    const auto config = [](const std::string& framegen) {
+        return depthxr::ParseConfig(
+            R"({"version":3,"core":{"enabled":true,"logLevel":"info"},"applications":[],"modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":{"toggleEnabled":{"type":"none"}},"profiles":[]},"pivotxr":{"enabled":false,"defaults":{},"profiles":[]},"framegen":)" +
+            framegen + "}}");
+    };
+    const auto lists = config(
+        R"({"enabled":false,"toggleBindings":[{"type":"device","deviceGuid":"{11111111-0000-0000-0000-000000000001}","inputPath":"button-23"},{"type":"keyboard","chord":["Ctrl","F8"]}]})");
+    Expect(lists.ok && lists.document.framegen.toggle_bindings.size() == 2 &&
+               lists.document.framegen.toggle_bindings[1].type == depthxr::InputBindingType::Keyboard,
+           "Frame Generation's toggle binding list was not kept: " + lists.error);
+    Expect(depthxr::ResolveFrameGenSettings(lists.document, "any.exe").toggle_bindings.size() == 2,
+           "Frame Generation's toggle binding list did not resolve through");
+    const auto legacy = config(R"({"enabled":false,"toggleBinding":{"type":"keyboard","chord":["Ctrl","F8"]}})");
+    Expect(legacy.ok && legacy.document.framegen.toggle_bindings.size() == 1,
+           "Frame Generation's legacy toggle binding was not read: " + legacy.error);
+    Expect(!config(R"({"enabled":false,"toggleBinding":{"type":"none"},"toggleBindings":[]})").ok,
+           "Frame Generation's toggle with both a list and a legacy binding was accepted");
+}
+
+void TestFrameGenInvalidSettingsRejected() {
+    const std::array<std::string, 8> invalid_modules{
+        R"json({ "enabled": true, "defaults": { "frameMultiplier": "6x" } })json",
+        R"json({ "enabled": true, "defaults": { "synthesisMode": "blend" } })json",
+        R"json({ "enabled": true, "defaults": { "flowQuality": "ultra" } })json",
+        R"json({ "enabled": true, "defaults": { "motionEstimation": "cuda" } })json",
+        R"json({ "enabled": true, "defaults": { "artifactSuppression": 101 } })json",
+        R"json({ "enabled": true, "defaults": { "motionLimitPercent": 1 } })json",
+        R"json({ "enabled": true, "defaults": { "motionLimitPercent": 7.5 } })json",
+        R"json({ "enabled": true, "diagnosticView": "wireframe" })json",
+    };
+    for (const auto& module : invalid_modules) {
+        const auto result = depthxr::ParseConfig(FrameGenConfigJson(module));
+        Expect(!result.ok, "Invalid Frame Generation settings were accepted: " + module);
+    }
+    // Unknown keys are ignored with a warning, like other modules' (a newer
+    // app may save settings this layer does not know).
+    const auto unknown = depthxr::ParseConfig(FrameGenConfigJson(
+        R"json({ "enabled": true, "presenter": true, "defaults": { "frameMultiplier": "3x", "lookahead": 2 } })json"));
+    Expect(unknown.ok && unknown.document.framegen.enabled &&
+               unknown.document.framegen.defaults.multiplier == depthxr::FrameGenMultiplier::k3 &&
+               unknown.warnings == std::vector<std::string>{"Unknown field ignored: modules.framegen.presenter",
+                                                            "Unknown field ignored: modules.framegen.defaults.lookahead"},
+           "Unknown Frame Generation keys were not ignored with a warning: " + unknown.error);
+}
+
+// The PERFORMANCE row: on in the expanded layout by default, after the graph;
+// off in the compact layout; appended to saved orders without it.
+void TestOsdPerformanceRow() {
+    const auto parse=[](const std::string& osd) {
+        return depthxr::ParseConfig(R"({"version":3,"core":{"enabled":true,"logLevel":"info","osd":)"+osd+R"(},"applications":[],"modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":{"toggleEnabled":{"type":"none"}},"profiles":[]},"pivotxr":{"enabled":false,"defaults":{},"profiles":[]}}})");
+    };
+    const auto defaults=parse("{}");
+    const auto& osd=defaults.document.core.osd;
+    Expect(defaults.ok && osd.show_performance && !osd.compact_show_performance,
+           "The performance row should default on in the expanded layout and off in the compact one");
+    Expect(osd.body_order==std::vector<std::string>{"graph","performance","turbo","framegen","pivot","modules"},
+           "The default OSD body order should put the performance row after the graph");
+    const auto configured=parse(R"({"showPerformance":false,"compactShowPerformance":true,"bodyOrder":["performance","graph","turbo","framegen","pivot","modules"]})");
+    Expect(configured.ok && !configured.document.core.osd.show_performance &&
+           configured.document.core.osd.compact_show_performance &&
+           configured.document.core.osd.body_order.front()=="performance",
+           "The performance row's settings were not parsed: "+configured.error);
+    Expect(configured.warnings.empty(),"The performance row's keys were reported unknown");
+    const auto saved=parse(R"({"bodyOrder":["pivot","modules","graph","turbo","framegen"]})");
+    Expect(saved.ok && saved.document.core.osd.body_order.size()==6 && saved.document.core.osd.body_order.back()=="performance",
+           "A saved order without the performance row should get it at the end");
+    Expect(!parse(R"({"showPerformance":"yes"})").ok && !parse(R"({"compactShowPerformance":1})").ok,
+           "A non-boolean performance row setting was accepted");
+    Expect(!parse(R"({"bodyOrder":["performance","performance"]})").ok,"A repeated performance row was accepted");
+    const auto preset=parse(R"({"customPresets":[{"name":"Numbers","settings":{"showPerformance":true,"compactShowPerformance":true}}]})");
+    Expect(preset.ok,"OSD presets should accept the performance row: "+preset.error);
+    // As the app saves it: bodyOrder holds the rows 0.19.0-0.19.2 layers know,
+    // rowOrder the full order, which wins.
+    const auto split=parse(R"({"bodyOrder":["pivot","graph","turbo","framegen","modules"],"rowOrder":["pivot","performance","graph","turbo","framegen","modules"],)"
+                           R"("customPresets":[{"name":"Cockpit","settings":{"bodyOrder":["modules","graph"],"rowOrder":["performance","modules","graph"]}}]})");
+    Expect(split.ok && split.warnings.empty() &&
+               split.document.core.osd.body_order==std::vector<std::string>{"pivot","performance","graph","turbo","framegen","modules"},
+           "rowOrder should give the full row order: "+split.error);
+    // A row a newer app adds is skipped with a warning, not a failed config.
+    const auto newer=parse(R"({"rowOrder":["graph","thermals","performance","turbo","framegen","pivot","modules"]})");
+    Expect(newer.ok && newer.document.core.osd.body_order==std::vector<std::string>{"graph","performance","turbo","framegen","pivot","modules"} &&
+               newer.warnings==std::vector<std::string>{"Unknown value ignored: core.osd.rowOrder \"thermals\""},
+           "An unknown OSD row should be skipped with a warning: "+newer.error);
+    Expect(!parse(R"({"rowOrder":["graph","graph"]})").ok && !parse(R"({"rowOrder":["graph",3]})").ok,
+           "A repeated or non-string rowOrder entry was accepted");
+}
+
+void TestFrameGenOsdRows() {
+    const auto result = depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": false })json",
+        R"json({ "showFramegen": false, "compactShowFramegen": true, "showFramegenFps": false, "bodyOrder": ["modules", "graph", "turbo", "pivot"] })json"));
+    Expect(result.ok, "OSD Frame Gen settings were rejected: " + result.error);
+    const auto& osd = result.document.core.osd;
+    Expect(!osd.show_framegen && osd.compact_show_framegen, "OSD Frame Gen row toggles were not parsed");
+    Expect(!osd.show_framegen_fps, "OSD Frame Gen beside FPS was not parsed");
+    const auto invalid = depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": false })json",
+        R"json({ "showFramegenFps": "yes" })json"));
+    Expect(!invalid.ok, "A non-boolean showFramegenFps was accepted");
+    const auto preset = depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": false })json",
+        R"json({ "customPresets": [ { "name": "Quiet", "settings": { "showFramegenFps": false } } ] })json"));
+    Expect(preset.ok, "OSD presets should accept showFramegenFps: " + preset.error);
+    Expect(osd.body_order.size() == 6 && osd.body_order.back() == "framegen" && osd.body_order[4] == "performance",
+           "Saved OSD orders without the Frame Gen row should append it");
+    const auto ordered = depthxr::ParseConfig(FrameGenConfigJson(R"json({ "enabled": false })json",
+        R"json({ "bodyOrder": ["framegen", "graph", "turbo", "pivot", "modules"] })json"));
+    Expect(ordered.ok && ordered.document.core.osd.body_order.front() == "framegen",
+           "OSD body order should accept the Frame Gen row");
+}
+
+void TestFrameGenPlan() {
+    using depthxr::FrameGenPass;
+    using depthxr::FrameGenTextureKind;
+    depthxr::FrameGenViewRequest request;
+    request.extent = {2000, 1800};
+    request.synthesize = true;
+    request.temporal = true;
+    request.newest.angle_left = request.previous.angle_left = -0.8f;
+    request.newest.angle_right = request.previous.angle_right = 0.8f;
+    request.newest.angle_up = request.previous.angle_up = 0.8f;
+    request.newest.angle_down = request.previous.angle_down = -0.8f;
+    depthxr::FrameGenTuning tuning;
+
+    const auto pyramid = depthxr::FrameGenPyramid({2001, 7});
+    Expect(pyramid[1].width == 1001 && pyramid[1].height == 4 && pyramid[5].height == 1,
+           "Frame Generation pyramid should round up and never reach zero");
+
+    const std::array<std::pair<depthxr::FrameGenFlowQuality, std::size_t>, 3> qualities{{
+        {depthxr::FrameGenFlowQuality::kPerformance, 1},
+        {depthxr::FrameGenFlowQuality::kBalanced, 2},
+        {depthxr::FrameGenFlowQuality::kQuality, 3},
+    }};
+    for (const auto& [quality, refines] : qualities) {
+        tuning.quality = quality;
+        const auto plan = depthxr::BuildFrameGenViewPlan(request, tuning);
+        Expect(plan.synthesize, "Frame Generation plan should synthesize with history");
+        // luma + 4 downsamples + search + refines + filter + synthesize
+        Expect(plan.dispatches.size() == 1 + 4 + 1 + refines + 1 + 1, "Unexpected Frame Generation dispatch count");
+        Expect(plan.dispatches.front().pass == FrameGenPass::kLuma &&
+                   plan.dispatches.back().pass == FrameGenPass::kSynthesizeUnorm8,
+               "Frame Generation plan should start with luma and end with synthesis");
+        const auto& final_refine = plan.dispatches[plan.dispatches.size() - 3];
+        Expect(final_refine.pass == FrameGenPass::kRefine &&
+                   final_refine.outputs[0].level == depthxr::FrameGenFinalFlowLevel(quality),
+               "Last refine should write the quality's flow level");
+        Expect(final_refine.inputs[3].kind == FrameGenTextureKind::kFilteredPrevious,
+               "Temporal flow should seed refinement when requested");
+        Expect(final_refine.inputs[0].level == depthxr::FrameGenMatchLevel(final_refine.outputs[0].level) &&
+                   final_refine.constants.options[3] == (1u << (final_refine.outputs[0].level - final_refine.inputs[0].level)),
+               "Refine should match on a finer level with the matching cell scale");
+        for (const auto& dispatch : plan.dispatches) {
+            Expect(dispatch.width > 0 && dispatch.height > 0, "Frame Generation dispatch has an empty extent");
+        }
+    }
+
+    request.synthesize = false;
+    const auto still = depthxr::BuildFrameGenViewPlan(request, tuning);
+    Expect(!still.synthesize && still.dispatches.size() == 1 &&
+               (still.dispatches[0].constants.options[1] & depthxr::kFrameGenFlagStill) != 0,
+           "Priming should write the newest frame through one still dispatch");
+    request.synthesize = true;
+    request.extent = {48, 48};
+    Expect(!depthxr::BuildFrameGenViewPlan(request, tuning).synthesize, "Tiny views should not run optical flow");
+
+    request.extent = {1024, 1024};
+    request.output = depthxr::FrameGenOutputKind::kFloat16;
+    tuning.mode = depthxr::FrameGenSynthesisMode::kExtrapolate;
+    tuning.diagnostic = depthxr::FrameGenDiagnosticView::kFlow;
+    const auto extrapolate = depthxr::BuildFrameGenViewPlan(request, tuning);
+    const auto& synth = extrapolate.dispatches.back();
+    Expect(synth.pass == FrameGenPass::kSynthesizeFloat16, "Float swapchains should use the float synthesis pass");
+    Expect((synth.constants.options[1] & depthxr::kFrameGenFlagExtrapolate) != 0 &&
+               (synth.constants.options[1] & depthxr::kFrameGenFlagSrgbEncode) == 0,
+           "Extrapolation flag set and no sRGB encode for float output");
+    Expect(synth.constants.options[2] == static_cast<std::uint32_t>(depthxr::FrameGenDiagnosticView::kFlow),
+           "Diagnostic view should reach the synthesis pass");
+
+    // Depth: the trust scores, their surface vote, the stereo depth-scale
+    // vote (with this frame's stereo evidence) in two stages, then the resolve.
+    request.depth = true;
+    for (const bool stereo : {true, false}) {
+        request.trust_stereo = stereo;
+        const auto depth_plan = depthxr::BuildFrameGenViewPlan(request, tuning);
+        std::vector<FrameGenPass> passes;
+        for (const auto& dispatch : depth_plan.dispatches) {
+            passes.push_back(dispatch.pass);
+            if (dispatch.pass == FrameGenPass::kTrustResolve) break;
+        }
+        const std::vector<FrameGenPass> expected =
+            stereo ? std::vector<FrameGenPass>{FrameGenPass::kTrustUpdate, FrameGenPass::kTrustVote,
+                                               FrameGenPass::kDepthScaleVote, FrameGenPass::kDepthScaleVote,
+                                               FrameGenPass::kTrustResolve}
+                   : std::vector<FrameGenPass>{FrameGenPass::kTrustUpdate, FrameGenPass::kTrustVote,
+                                               FrameGenPass::kTrustResolve};
+        Expect(passes == expected, "Depth trust passes should vote per surface before the resolve");
+        const auto& trust = depth_plan.dispatches[0];
+        const auto half = depthxr::FrameGenPyramid(request.extent)[1];
+        Expect(trust.width == half.width && trust.outputs[1].kind == FrameGenTextureKind::kTrustTiles &&
+                   depth_plan.dispatches[1].inputs[0].kind == FrameGenTextureKind::kTrustTiles &&
+                   depth_plan.dispatches[1].width == (half.width + depthxr::kFrameGenTrustTile - 1) / depthxr::kFrameGenTrustTile,
+               "The trust update should count its tiles for the vote, which runs per tile");
+        const auto& resolve = depth_plan.dispatches[passes.size() - 1];
+        Expect(resolve.inputs[1].kind == FrameGenTextureKind::kTrustVotes &&
+                   resolve.inputs[2].kind == (stereo ? FrameGenTextureKind::kDepthScaleVotes : FrameGenTextureKind::kNone) &&
+                   resolve.constants.options[0] == (stereo ? depthxr::kFrameGenResolveScale : 0u),
+               "The resolve should read the trust vote, and the stereo scale vote only with this frame's stereo evidence");
+        if (stereo) {
+            Expect(depth_plan.dispatches[2].outputs[0].kind == FrameGenTextureKind::kDepthScaleRaw &&
+                       depth_plan.dispatches[3].inputs[0].kind == FrameGenTextureKind::kDepthScaleRaw &&
+                       depth_plan.dispatches[3].constants.options[0] == depthxr::kFrameGenScaleAccept,
+                   "The scale vote's second stage should accept the first stage's votes");
+        }
+    }
+    const auto scale = depthxr::BuildFrameGenDepthScaleDispatch(request.extent, request.newest, request.previous);
+    Expect(scale.pass == FrameGenPass::kDepthScale && scale.outputs[0].kind == FrameGenTextureKind::kDepthScales &&
+               scale.constants.size[2] == depthxr::FrameGenPyramid(request.extent)[1].width,
+           "The stereo scale probe should run per trust tile over the half-resolution depth");
+    request.depth = false;
+    request.trust_stereo = false;
+
+    // Fractions follow display times and clamp.
+    using depthxr::FrameGenFraction;
+    using depthxr::FrameGenSynthesisMode;
+    Expect(std::abs(FrameGenFraction(FrameGenSynthesisMode::kInterpolate, 0, 22'222'222, 11'111'111) - 0.5f) < 1e-4f,
+           "Interpolation halfway between two real frames should be 0.5");
+    Expect(std::abs(FrameGenFraction(FrameGenSynthesisMode::kExtrapolate, 0, 22'222'222, 33'333'333) - 0.5f) < 1e-4f,
+           "Extrapolation one refresh past a half-rate frame should be 0.5");
+    Expect(FrameGenFraction(FrameGenSynthesisMode::kExtrapolate, 0, 10, 100) == 1.0f &&
+               FrameGenFraction(FrameGenSynthesisMode::kInterpolate, 10, 10, 10) == 1.0f,
+           "Frame Generation fractions should clamp hitches and degenerate intervals");
+
+    // Relative rotation: identity for equal poses; a yaw maps newest forward
+    // into the previous view by the yaw difference.
+    const float half = 0.05f;
+    const auto same = depthxr::FrameGenRelativeRotation({0, std::sin(half), 0, std::cos(half)}, {0, std::sin(half), 0, std::cos(half)});
+    Expect(std::abs(same[0][0] - 1) < 1e-5f && std::abs(same[0][2]) < 1e-5f && std::abs(same[2][2] - 1) < 1e-5f,
+           "Equal orientations should give an identity rotation");
+    const auto yawed = depthxr::FrameGenRelativeRotation({0, std::sin(half), 0, std::cos(half)}, {0, 0, 0, 1});
+    // Newest forward (0,0,-1) expressed in the previous view: rotated by +0.1 rad about +Y.
+    const float x = -yawed[0][2], z = -yawed[2][2];
+    Expect(std::abs(x + std::sin(2 * half)) < 1e-4f && std::abs(z + std::cos(2 * half)) < 1e-4f,
+           "Relative rotation should carry the newest view's yaw into previous-view space");
+}
+
+void TestFrameGenHistoryState() {
+    depthxr::FrameGenHistoryState state;
+    depthxr::FrameGenViewRequest request;
+    request.synthesize = true;
+    request.temporal = true;
+    Expect(state.Configure({1000, 1000}, 29, depthxr::FrameGenOutputKind::kSrgb8, 3) == depthxr::FrameGenHistoryState::kAll,
+           "First configuration should create every texture");
+    Expect(!state.Effective(request).synthesize, "No history yet: the first frame must be a still");
+    state.Commit(false);
+    auto effective = state.Effective(request);
+    Expect(effective.synthesize && !effective.temporal, "Second frame synthesizes without temporal flow");
+    state.Commit(true);
+    effective = state.Effective(request);
+    Expect(effective.synthesize && effective.temporal, "Third frame may reuse the previous filtered flow");
+    Expect(state.Configure({1000, 1000}, 29, depthxr::FrameGenOutputKind::kSrgb8, 2) == depthxr::FrameGenHistoryState::kFiltered,
+           "A flow quality change should only recreate the filtered flow");
+    effective = state.Effective(request);
+    Expect(effective.synthesize && !effective.temporal, "A quality change keeps history but drops temporal flow");
+    Expect(state.Configure({1200, 1000}, 29, depthxr::FrameGenOutputKind::kSrgb8, 2) == depthxr::FrameGenHistoryState::kAll &&
+               !state.Effective(request).synthesize,
+           "A view resize should drop history");
+    state.Commit(false);
+    state.Invalidate();
+    Expect(!state.Effective(request).synthesize, "Invalidate should drop history");
+}
+
+void TestTurboMetricsSettingsParsing() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": { "stereoBoost": 1.0, "convergence": 0.0 },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] },
+    "turbo": {
+      "enabled": true,
+      "pacingMode": "auto",
+      "metricsMode": "binding",
+      "metricsBinding": { "type": "keyboard", "chord": ["ctrl", "f10"] },
+      "toggleBinding": { "type": "none" },
+      "profiles": []
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected turbo metrics config: " + result.error);
+    Expect(result.document.turbo.metrics_mode == depthxr::TurboMetricsMode::kBinding,
+           "Turbo metrics mode should parse binding");
+    Expect(FirstBinding(result.document.turbo.metrics_bindings).type == depthxr::InputBindingType::Keyboard,
+           "Turbo metrics binding should parse as keyboard");
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "any.exe");
+    Expect(resolved.turbo.metrics_mode == depthxr::TurboMetricsMode::kBinding,
+           "Turbo metrics mode should resolve through");
+    Expect(FirstBinding(resolved.turbo.metrics_bindings).chord.size() == 2,
+           "Turbo metrics binding chord should resolve through");
+
+    // Absent keys default to always-on capture with no binding.
+    std::string without_metrics = json;
+    const std::string mode_needle = "\"metricsMode\": \"binding\",";
+    without_metrics.replace(without_metrics.find(mode_needle), mode_needle.size(), "");
+    const std::string binding_needle =
+        "\"metricsBinding\": { \"type\": \"keyboard\", \"chord\": [\"ctrl\", \"f10\"] },";
+    without_metrics.replace(without_metrics.find(binding_needle), binding_needle.size(), "");
+    const depthxr::ParseResult default_result = depthxr::ParseConfig(without_metrics);
+    Expect(default_result.ok, "Config parser rejected config without metrics keys: " + default_result.error);
+    Expect(default_result.document.turbo.metrics_mode == depthxr::TurboMetricsMode::kAlways,
+           "Turbo metrics mode should default to always");
+    Expect(default_result.document.turbo.metrics_bindings.empty(),
+           "Turbo metrics binding should default to none");
+
+    // Invalid values are rejected rather than silently defaulted.
+    std::string invalid = json;
+    const std::string needle = "\"metricsMode\": \"binding\"";
+    invalid.replace(invalid.find(needle), needle.size(), "\"metricsMode\": \"sometimes\"");
+    const depthxr::ParseResult invalid_result = depthxr::ParseConfig(invalid);
+    Expect(!invalid_result.ok, "Config parser should reject an unknown turbo metrics mode");
+}
+
+void TestTurboMetricsSessionRoundTrip() {
+    const std::filesystem::path test_directory =
+        std::filesystem::current_path() / "build" / "vectorxr-test-turbo-metrics";
+    std::error_code error;
+    std::filesystem::remove_all(test_directory, error);
+    error.clear();
+    std::filesystem::create_directories(test_directory, error);
+    Expect(!error, "Failed to create turbo-metrics test directory: " + error.message());
+
+    const std::filesystem::path path = test_directory / "turbo-metrics.json";
+    std::string record_error;
+
+    depthxr::TurboMetricsSession session;
+    session.session_id = "DCS.exe-1000";
+    session.app_name = "DCS.exe";
+    session.runtime_name = "PiOpenXR";
+    session.layer_version = "0.12.1";
+    session.collection_mode = "binding";
+    session.timing_configuration = "Experimental Async; cap=45; trace=on";
+    session.live = true;
+    session.started_unix_seconds = 1000;
+    session.updated_unix_seconds = 1015;
+
+    depthxr::TurboMetricsBucket off_bucket;
+    off_bucket.state = "off";
+    off_bucket.frames = 500;
+    off_bucket.seconds = 7.25;
+    off_bucket.avg_fps = 69.12;
+    off_bucket.avg_frame_ms = 14.47;
+    off_bucket.p99_frame_ms = 22.5;
+    off_bucket.max_frame_ms = 41.03;
+    off_bucket.avg_wait_block_ms = 6.81;
+    session.buckets.push_back(off_bucket);
+
+    depthxr::TurboMetricsBucket seq_bucket;
+    seq_bucket.state = "sequenced";
+    seq_bucket.frames = 900;
+    seq_bucket.seconds = 10.0;
+    seq_bucket.avg_fps = 90.0;
+    seq_bucket.avg_frame_ms = 11.11;
+    seq_bucket.p99_frame_ms = 15.5;
+    seq_bucket.max_frame_ms = 30.2;
+    seq_bucket.avg_wait_block_ms = 1.42;
+    seq_bucket.fabricated_waits = 890;
+    seq_bucket.drain_timeouts = 1;
+    seq_bucket.discarded_frames = 3;
+    session.buckets.push_back(seq_bucket);
+
+    Expect(depthxr::RecordTurboMetricsSession(path, session, &record_error),
+           "Failed to record turbo metrics session: " + record_error);
+
+    // Update the same session (periodic flush) — upsert, not append.
+    session.updated_unix_seconds = 1030;
+    session.live = false;
+    session.buckets[1].frames = 1800;
+    Expect(depthxr::RecordTurboMetricsSession(path, session, &record_error),
+           "Failed to upsert turbo metrics session: " + record_error);
+
+    auto sessions = depthxr::ReadTurboMetricsSessions(path);
+    Expect(sessions.size() == 1, "Turbo metrics session upsert should not duplicate");
+    Expect(sessions[0].timing_configuration == session.timing_configuration,
+           "Metrics lost the session's experimental timing label");
+    Expect(sessions[0].session_id == "DCS.exe-1000", "Turbo metrics session id mismatch");
+    Expect(sessions[0].app_name == "DCS.exe", "Turbo metrics app name mismatch");
+    Expect(sessions[0].runtime_name == "PiOpenXR", "Turbo metrics runtime name mismatch");
+    Expect(sessions[0].collection_mode == "binding", "Turbo metrics collection mode mismatch");
+    Expect(!sessions[0].live, "Turbo metrics live flag should update on upsert");
+    Expect(sessions[0].updated_unix_seconds == 1030, "Turbo metrics updated timestamp mismatch");
+    Expect(sessions[0].buckets.size() == 2, "Turbo metrics bucket count mismatch");
+    Expect(sessions[0].buckets[0].state == "off", "Turbo metrics bucket order mismatch");
+    Expect(sessions[0].buckets[0].frames == 500, "Turbo metrics off bucket frames mismatch");
+    Expect(std::abs(sessions[0].buckets[0].avg_fps - 69.12) < 0.001,
+           "Turbo metrics off bucket avgFps mismatch");
+    Expect(std::abs(sessions[0].buckets[0].avg_wait_block_ms - 6.81) < 0.001,
+           "Turbo metrics off bucket avgWaitBlockMs mismatch");
+    Expect(sessions[0].buckets[1].frames == 1800, "Turbo metrics sequenced bucket frames mismatch");
+    Expect(sessions[0].buckets[1].fabricated_waits == 890,
+           "Turbo metrics sequenced bucket fabricatedWaits mismatch");
+    Expect(sessions[0].buckets[1].drain_timeouts == 1,
+           "Turbo metrics sequenced bucket drainTimeouts mismatch");
+    Expect(sessions[0].buckets[1].discarded_frames == 3,
+           "Turbo metrics sequenced bucket discardedFrames mismatch");
+    Expect(std::abs(sessions[0].buckets[1].p99_frame_ms - 15.5) < 0.001,
+           "Turbo metrics sequenced bucket p99FrameMs mismatch");
+
+    // Retention: the newest sessions win, capped at kTurboMetricsRetainedSessions.
+    for (int i = 0; i < 12; ++i) {
+        depthxr::TurboMetricsSession extra;
+        extra.session_id = "extra-" + std::to_string(i);
+        extra.app_name = "other.exe";
+        extra.collection_mode = "always";
+        extra.started_unix_seconds = 2000 + i;
+        extra.updated_unix_seconds = 2000 + i;
+        depthxr::TurboMetricsBucket bucket;
+        bucket.state = "async";
+        bucket.frames = 10 + i;
+        extra.buckets.push_back(bucket);
+        Expect(depthxr::RecordTurboMetricsSession(path, extra, &record_error),
+               "Failed to record extra turbo metrics session: " + record_error);
+    }
+    sessions = depthxr::ReadTurboMetricsSessions(path);
+    Expect(sessions.size() == depthxr::kTurboMetricsRetainedSessions,
+           "Turbo metrics retention cap not applied");
+    Expect(sessions.front().session_id == "extra-11", "Turbo metrics sessions should be newest-first");
+    for (const auto& retained : sessions) {
+        Expect(retained.session_id != "DCS.exe-1000",
+               "Oldest turbo metrics session should have been evicted");
+    }
+
+    std::filesystem::remove_all(test_directory, error);
+}
+
+void TestQuadViewsProfileResolution() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "dcs", "name": "DCS", "enabled": true, "match": { "exe": "DCS.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.0,
+        "convergence": 0.0
+      },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": []
+    },
+    "quadviews": {
+      "enabled": true,
+      "diagnosticVisualizationBinding": { "type": "keyboard", "chord": ["Ctrl", "F8"] },
+      "defaults": {
+        "trackingMode": "eye",
+        "focusHorizontalSizePercent": 32.0,
+        "focusVerticalSizePercent": 32.0,
+        "focusScale": 1.1,
+        "peripheralScale": 0.45,
+        "foveateSharpness": 0.0,
+        "transitionThicknessPercent": 25.0,
+        "horizontalOffsetDegrees": 0.0,
+        "verticalOffsetDegrees": 0.0,
+        "gazeSmoothing": 0.15,
+        "gazeDeadzoneDegrees": 1.5
+      },
+      "profiles": [
+        {
+          "name": "DCS",
+          "applicationIds": ["dcs"],
+          "enabled": true,
+          "settings": {
+            "trackingMode": "eye",
+            "eyeTrackingCorrection": "flip-z",
+            "focusHorizontalSizePercent": 34.0,
+            "focusVerticalSizePercent": 30.0,
+            "focusScale": 1.2,
+            "peripheralScale": 0.4,
+            "foveateSharpness": 60.0,
+            "transitionThicknessPercent": 25.0,
+            "horizontalOffsetDegrees": 1.5,
+            "verticalOffsetDegrees": -2.0,
+            "gazeSmoothing": 0.1,
+            "gazeDeadzoneDegrees": 0.8
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid Quadviews config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(resolved.quadviews.enabled, "Quadviews module enable was not resolved");
+    Expect(resolved.quadviews.eye_tracking_correction == "flip-z", "Quadviews correction profile override lost");
+    Expect(depthxr::ResolveRuntimeConfig(result.document, "other.exe").quadviews.eye_tracking_correction == "default",
+           "Legacy Quadviews settings must retain full-direction correction");
+    std::string invalid_correction = json;
+    invalid_correction.replace(invalid_correction.find("flip-z"), 6, "invalid");
+    Expect(!depthxr::ParseConfig(invalid_correction).ok, "Invalid eye tracking correction accepted");
+    Expect(resolved.quadviews.diagnostic_visualization_binding.type == depthxr::InputBindingType::Keyboard &&
+               resolved.quadviews.diagnostic_visualization_binding.chord.size() == 2,
+           "Quadviews diagnostic visualization binding mismatch");
+    Expect(resolved.quadviews.tracking_mode == depthxr::QuadViewsTrackingMode::Eye,
+           "Quadviews profile tracking mode mismatch");
+    Expect(std::abs(resolved.quadviews.focus_horizontal_size_percent - 34.0) < 0.0001,
+           "Quadviews focus horizontal size mismatch");
+    Expect(std::abs(resolved.quadviews.peripheral_scale - 0.4) < 0.0001,
+           "Quadviews peripheral scale mismatch");
+    Expect(std::abs(resolved.quadviews.foveate_sharpness - 60.0) < 0.0001,
+           "Quadviews foveate sharpness mismatch");
+    Expect(std::abs(resolved.quadviews.transition_thickness_percent - 25.0) < 0.0001,
+           "Quadviews transition thickness mismatch");
+    Expect(std::abs(resolved.quadviews.vertical_offset_degrees + 2.0) < 0.0001,
+           "Quadviews vertical offset mismatch");
+
+    const depthxr::ResolvedRuntimeConfig resolved_other = depthxr::ResolveRuntimeConfig(result.document, "other.exe");
+    Expect(resolved_other.quadviews.tracking_mode == depthxr::QuadViewsTrackingMode::Eye,
+           "Quadviews default tracking mode mismatch");
+    Expect(std::abs(resolved_other.quadviews.focus_horizontal_size_percent - 32.0) < 0.0001,
+           "Quadviews default focus size mismatch");
+}
+
+void TestEnabledProfileOverridesDisabledDefault() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [
+    { "id": "msfs", "name": "MSFS", "enabled": true, "match": { "exe": "FlightSimulator2024.exe" } }
+  ],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.1,
+        "convergence": 0.02
+      },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": [
+        {
+          "name": "MSFS",
+          "applicationIds": ["msfs"],
+          "enabled": true,
+          "settings": {
+            "stereoBoost": 1.25,
+            "convergence": 0.08
+          }
+        }
+      ]
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": [
+        {
+          "name": "MSFS",
+          "applicationIds": ["msfs"],
+          "enabled": true,
+          "activationMode": "hold",
+          "activationBinding": { "type": "keyboard", "chord": ["F9"] },
+          "settings": {
+            "rotationMultiplier": 2.1,
+            "smoothing": 0.1,
+            "deadzoneDegrees": 4.0,
+            "maxExtraYawDegrees": 45.0,
+            "pitchRotationMultiplier": 1.3,
+            "pitchSmoothing": 0.12,
+            "pitchDeadzoneDegrees": 6.0,
+            "maxExtraPitchDegrees": 25.0
+          }
+        }
+      ]
+    },
+    "quadviews": {
+      "enabled": false,
+      "defaults": {
+        "trackingMode": "eye",
+        "focusHorizontalSizePercent": 32.0,
+        "focusVerticalSizePercent": 32.0,
+        "focusScale": 1.1,
+        "peripheralScale": 0.45,
+        "foveateSharpness": 0.0,
+        "transitionThicknessPercent": 25.0,
+        "horizontalOffsetDegrees": 0.0,
+        "verticalOffsetDegrees": 0.0,
+        "gazeSmoothing": 0.15,
+        "gazeDeadzoneDegrees": 1.5
+      },
+      "profiles": [
+        {
+          "name": "MSFS",
+          "applicationIds": ["msfs"],
+          "enabled": true,
+          "settings": {
+            "trackingMode": "head",
+            "focusHorizontalSizePercent": 40.0,
+            "focusVerticalSizePercent": 36.0,
+            "focusScale": 1.0,
+            "peripheralScale": 0.5,
+            "foveateSharpness": 25.0,
+            "transitionThicknessPercent": 20.0,
+            "horizontalOffsetDegrees": 1.0,
+            "verticalOffsetDegrees": -1.0,
+            "gazeSmoothing": 0.2,
+            "gazeDeadzoneDegrees": 2.0
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected opt-in profile config: " + result.error);
+
+    const depthxr::ResolvedRuntimeConfig resolved = depthxr::ResolveRuntimeConfig(result.document, "FlightSimulator2024.exe");
+    Expect(resolved.depthxr.enabled, "Enabled custom profile should turn DepthXR on when default is off");
+    Expect(std::abs(resolved.depthxr.stereo_boost - 1.25) < 0.0001,
+           "DepthXR custom profile should override disabled default");
+    Expect(resolved.pivotxr.enabled, "Enabled custom profile should turn PivotXR on when default is off");
+    Expect(resolved.pivotxr.profiles.size() == 1, "PivotXR opt-in candidate count mismatch");
+    Expect(!resolved.pivotxr.profiles[0].always_active && resolved.pivotxr.profiles[0].activation_bindings[0].behavior == depthxr::PivotActivationBehavior::Hold,
+           "PivotXR custom profile activation mode mismatch");
+    Expect(std::abs(resolved.pivotxr.profiles[0].yaw_rotation_multiplier - 2.1) < 0.0001,
+           "PivotXR custom profile should override disabled default");
+    Expect(resolved.quadviews.enabled, "Enabled custom profile should turn Quadviews on when default is off");
+    Expect(resolved.quadviews.tracking_mode == depthxr::QuadViewsTrackingMode::Head,
+           "Quadviews custom profile should override disabled default");
+
+    // Unmatched applications still follow the default profile enabled flag.
+    const depthxr::ResolvedRuntimeConfig resolved_other = depthxr::ResolveRuntimeConfig(result.document, "DCS.exe");
+    Expect(!resolved_other.depthxr.enabled, "DepthXR default-off profile should not apply to unmatched applications");
+    Expect(!resolved_other.pivotxr.enabled, "PivotXR default-off profile should not apply to unmatched applications");
+    Expect(!resolved_other.quadviews.enabled, "Quadviews default-off profile should not apply to unmatched applications");
+
+    // A disabled custom profile is inert: defaults apply again.
+    depthxr::ConfigDocument inert = result.document;
+    inert.quadviews.profiles[0].enabled = false;
+    const depthxr::ResolvedRuntimeConfig resolved_inert = depthxr::ResolveRuntimeConfig(inert, "FlightSimulator2024.exe");
+    Expect(!resolved_inert.quadviews.enabled, "Inactive custom profile should fall back to disabled default");
+}
+
+void TestInvalidPivotActivationBindingRejected() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": {
+    "enabled": true,
+    "logLevel": "info",
+    "logRetentionFiles": 7
+  },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.05,
+        "convergence": 0.0
+      },
+      "bindings": {
+        "toggleEnabled": { "type": "none" }
+      },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": true,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": [
+        {
+          "name": "Game",
+          "applicationIds": [],
+          "enabled": true,
+          "activationBinding": {
+            "type": "keyboard",
+            "chord": ["Mouse4"]
+          },
+          "settings": {
+            "rotationMultiplier": 1.5,
+            "smoothing": 0.2,
+            "deadzoneDegrees": 8.0,
+            "maxExtraYawDegrees": 25.0,
+            "pitchRotationMultiplier": 1.0,
+            "pitchSmoothing": 0.2,
+            "pitchDeadzoneDegrees": 12.0,
+            "maxExtraPitchDegrees": 20.0
+          }
+        }
+      ]
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(!result.ok, "Config parser accepted an unsupported PivotXR activation binding");
+}
+
+void TestNoneBindingParsed() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": true,
+      "defaults": {
+        "stereoBoostEnabled": true,
+        "convergenceEnabled": true,
+        "stereoBoost": 1.0,
+        "convergence": 0.0
+      },
+      "bindings": { "toggleEnabled": { "type": "none" } },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": false,
+      "defaults": {
+        "rotationMultiplier": 1.5,
+        "smoothing": 0.2,
+        "deadzoneDegrees": 8.0,
+        "maxExtraYawDegrees": 25.0,
+        "pitchRotationMultiplier": 1.0,
+        "pitchSmoothing": 0.2,
+        "pitchDeadzoneDegrees": 12.0,
+        "maxExtraPitchDegrees": 20.0
+      },
+      "profiles": []
+    }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid config with none binding: " + result.error);
+    Expect(result.document.depthxr.bindings.toggle_enabled_bindings.empty(),
+           "DepthXR toggle binding should be None");
+    Expect(result.warnings.empty(), "A none binding with only its type must not warn");
+
+    // A none binding has only its type: anything beside it is ignored with a
+    // warning, as on the other bindings.
+    const depthxr::ParseResult extra = depthxr::ParseConfig(R"json(
+{
+  "version": 3,
+  "core": { "enabled": true },
+  "applications": [],
+  "modules": {
+    "depthxr": { "enabled": true, "bindings": { "toggleEnabled": { "type": "none", "chord": ["F8"] } } },
+    "pivotxr": { "enabled": false },
+    "turbo": { "enabled": true, "toggleBindings": [{ "type": "none", "sound": { "enabled": true } }] }
+  }
+}
+)json");
+    std::string reported;
+    for (const std::string& warning : extra.warnings) reported += "\n  " + warning;
+    Expect(extra.ok && extra.document.depthxr.bindings.toggle_enabled_bindings.empty() &&
+               extra.document.turbo.toggle_bindings.empty(),
+           "None bindings with extra keys must still parse as None: " + extra.error);
+    Expect(extra.warnings == std::vector<std::string>{"Unknown field ignored: modules.depthxr.bindings.toggleEnabled.chord",
+                                                      "Unknown field ignored: modules.turbo.toggleBindings[0].sound"},
+           "Keys beside a none binding's type were not reported by their path:" + reported);
+}
+
+void TestDeviceBindingMetadataParsed() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "bindings": {
+        "toggleEnabled": {
+          "type": "device",
+          "deviceGuid": "{11111111-2222-3333-4444-555555555555}",
+          "productGuid": "{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee}",
+          "deviceName": "VKB Gladiator",
+          "inputPath": "button-12",
+          "inputLabel": "Button 12"
+        }
+      }
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid device binding metadata: " + result.error);
+    Expect(result.document.depthxr.bindings.toggle_enabled_bindings.size() == 1, "Device binding was dropped");
+    const depthxr::InputBinding& binding = result.document.depthxr.bindings.toggle_enabled_bindings.front();
+    Expect(binding.type == depthxr::InputBindingType::Device, "Device binding type mismatch");
+    Expect(binding.device_guid == "{11111111-2222-3333-4444-555555555555}", "Device GUID metadata mismatch");
+    Expect(binding.product_guid == "{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee}", "Product GUID metadata mismatch");
+    Expect(binding.device_name == "VKB Gladiator", "Device name metadata mismatch");
+    Expect(binding.input_path == "button-12", "Device input path mismatch");
+    Expect(binding.input_label == "Button 12", "Device input label metadata mismatch");
+}
+
+void TestBindingSoundFeedbackParsed() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "bindings": {
+        "toggleEnabled": {
+          "type": "keyboard",
+          "chord": ["F8"],
+          "sound": {
+            "enabled": true,
+            "activateSound": "C:\\sounds\\on.wav",
+            "deactivateSound": ""
+          }
+        }
+      }
+    },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected valid binding sound feedback: " + result.error);
+    const depthxr::SoundFeedback& sound = FirstBinding(result.document.depthxr.bindings.toggle_enabled_bindings).sound;
+    Expect(sound.enabled, "Binding sound feedback should be enabled");
+    Expect(sound.activate_sound == "C:\\sounds\\on.wav", "Activate sound path mismatch");
+    Expect(sound.deactivate_sound.empty(), "Deactivate sound should default to bundled (empty)");
+}
+
+void TestBindingWithoutSoundDefaultsDisabled() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7 },
+  "applications": [],
+  "modules": {
+    "depthxr": { "bindings": { "toggleEnabled": { "type": "keyboard", "chord": ["F8"] } } },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected binding without sound: " + result.error);
+    Expect(!FirstBinding(result.document.depthxr.bindings.toggle_enabled_bindings).sound.enabled,
+           "Binding without sound block should default to disabled feedback");
+}
+
+// A toggle may have several bindings, one per device (a HOTAS's and a
+// HOSAS's): every toggle takes a list under its plural key, and still reads
+// its single legacy binding.
+void TestToggleBindingLists() {
+    const auto config = [](const std::string& osd, const std::string& depth_bindings, const std::string& turbo) {
+        return depthxr::ParseConfig(
+            R"({"version":3,"core":{"enabled":true,"logLevel":"info","osd":)" + osd +
+            R"(},"applications":[],"modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":)" +
+            depth_bindings + R"(,"profiles":[]},"pivotxr":{"enabled":false,"defaults":{},"profiles":[]},"turbo":)" + turbo + "}}");
+    };
+    const std::string hotas = R"({"type":"device","deviceGuid":"{11111111-0000-0000-0000-000000000001}","inputPath":"button-23"})";
+    const std::string hosas = R"({"type":"device","deviceGuid":"{22222222-0000-0000-0000-000000000002}","inputPath":"button-5"})";
+    const std::string pair = "[" + hotas + "," + hosas + "]";
+    const auto lists = config(R"({"toggleBindings":)" + pair + R"(,"cycleBindings":)" + pair + "}",
+                              R"({"toggleEnabledBindings":)" + pair + R"(,"toggleAnchorBindings":)" + pair + "}",
+                              R"({"enabled":false,"toggleBindings":)" + pair + R"(,"metricsBindings":)" + pair + "}");
+    Expect(lists.ok, "Toggle binding lists were rejected: " + lists.error);
+    const auto& document = lists.document;
+    for (const auto* bindings : {&document.core.osd.toggle_bindings, &document.core.osd.cycle_bindings,
+                                 &document.depthxr.bindings.toggle_enabled_bindings,
+                                 &document.depthxr.bindings.toggle_anchor_bindings, &document.turbo.toggle_bindings,
+                                 &document.turbo.metrics_bindings}) {
+        Expect(bindings->size() == 2 && (*bindings)[0].input_path == "button-23" && (*bindings)[1].input_path == "button-5",
+               "A toggle's binding list was not kept in order");
+    }
+    const auto resolved = depthxr::ResolveRuntimeConfig(document, "any.exe");
+    Expect(resolved.turbo.toggle_bindings.size() == 2 && resolved.turbo.metrics_bindings.size() == 2,
+           "Toggle binding lists did not resolve through");
+
+    // Configs written before lists, and by the app for a single binding.
+    const auto legacy = config(R"({"toggleBinding":)" + hotas + R"(,"cycleBinding":{"type":"none"}})",
+                               R"({"toggleEnabled":)" + hotas + R"(,"toggleAnchor":{"type":"none"}})",
+                               R"({"enabled":false,"toggleBinding":)" + hotas + "}");
+    Expect(legacy.ok, "Single legacy bindings were rejected: " + legacy.error);
+    Expect(legacy.document.core.osd.toggle_bindings.size() == 1 && legacy.document.core.osd.cycle_bindings.empty() &&
+               legacy.document.depthxr.bindings.toggle_enabled_bindings.size() == 1 &&
+               legacy.document.depthxr.bindings.toggle_anchor_bindings.empty() &&
+               legacy.document.turbo.toggle_bindings.size() == 1 && legacy.document.turbo.metrics_bindings.empty(),
+           "Single legacy bindings did not become one-binding lists");
+
+    // An OSD without either key keeps its default keyboard bindings.
+    const auto defaults = config("{}", R"({"toggleEnabled":{"type":"none"}})", R"({"enabled":false})");
+    Expect(defaults.ok && FirstChordKey(defaults.document.core.osd.toggle_bindings, "Ctrl") &&
+               FirstChordKey(defaults.document.core.osd.cycle_bindings, "Ctrl"),
+           "The OSD's default bindings were lost: " + defaults.error);
+
+    // A list and a legacy binding for the same toggle are ambiguous.
+    const auto both = config(R"({"toggleBinding":)" + hotas + R"(,"toggleBindings":)" + pair + "}",
+                             R"({"toggleEnabled":{"type":"none"}})", R"({"enabled":false})");
+    Expect(!both.ok, "A toggle with both a list and a legacy binding was accepted");
+    Expect(!config(R"({"customPresets":[{"name":"Bad","settings":{"toggleBindings":[]}}]})",
+                   R"({"toggleEnabled":{"type":"none"}})", R"({"enabled":false})").ok,
+           "An OSD preset with bindings was accepted");
+    // Depth still requires one of its toggle's keys.
+    Expect(!config("{}", R"({"toggleAnchorBindings":[]})", R"({"enabled":false})").ok,
+           "Depth bindings without the toggle were accepted");
+}
+
+void TestCoreSoundVolumeParsedAndClamped() {
+    const std::string json = R"json(
+{
+  "version": 3,
+  "core": { "enabled": true, "logLevel": "info", "logRetentionFiles": 7, "sound": { "volume": 150 } },
+  "applications": [],
+  "modules": {
+    "depthxr": { "bindings": { "toggleEnabled": { "type": "none" } } },
+    "pivotxr": { "enabled": false, "defaults": {}, "profiles": [] }
+  }
+}
+)json";
+
+    const depthxr::ParseResult result = depthxr::ParseConfig(json);
+    Expect(result.ok, "Config parser rejected core sound volume: " + result.error);
+    Expect(result.document.core.sound_volume == 100, "Core sound volume should clamp to 100");
+}
+
+void TestExeMatch() {
+    Expect(depthxr::ExeNameMatches("DCS.exe", "dcs.exe"), "Case-insensitive exe match failed");
+    Expect(depthxr::ExeNameMatches("C:\\Games\\DCS.exe", "dcs.exe"), "Basename exe match failed");
+}
+
+void TestSeenAppObservationRecording() {
+    const std::filesystem::path test_directory =
+        std::filesystem::current_path() / "build" / "vectorxr-test-seen-app-observations";
+    std::error_code error;
+    std::filesystem::remove_all(test_directory, error);
+    error.clear();
+    std::filesystem::create_directories(test_directory, error);
+    Expect(!error, "Failed to create seen-apps test directory: " + error.message());
+
+    const std::filesystem::path path = test_directory / "seen-apps.json";
+    std::string record_error;
+    Expect(depthxr::RecordSeenAppObservation(path, "DCS.exe", 100, &record_error),
+           "Failed to record first seen app observation: " + record_error);
+    Expect(depthxr::RecordSeenAppObservation(path, "c:\\Games\\dcs.exe", 140, &record_error),
+           "Failed to merge second seen app observation: " + record_error);
+
+    std::ifstream stream(path);
+    Expect(stream.good(), "Failed to open seen-apps test output");
+
+    std::ostringstream contents;
+    contents << stream.rdbuf();
+    const std::string text = contents.str();
+    Expect(text.find("\"exe\": \"DCS.exe\"") != std::string::npos, "Seen app display exe was not preserved");
+    Expect(text.find("\"firstSeenUnixSeconds\": 100") != std::string::npos, "Seen app first-seen timestamp mismatch");
+    Expect(text.find("\"lastSeenUnixSeconds\": 140") != std::string::npos, "Seen app last-seen timestamp mismatch");
+    Expect(text.find("\"launchCount\": 2") != std::string::npos, "Seen app launch count did not merge");
+
+    std::filesystem::remove_all(test_directory, error);
+}
+
+void TestRuntimePacingObservationRoundTrip() {
+    const std::filesystem::path test_directory =
+        std::filesystem::current_path() / "build" / "vectorxr-test-runtime-pacing";
+    std::error_code error;
+    std::filesystem::remove_all(test_directory, error);
+    error.clear();
+    std::filesystem::create_directories(test_directory, error);
+    Expect(!error, "Failed to create runtime-pacing test directory: " + error.message());
+
+    const std::filesystem::path path = test_directory / "runtime-pacing.json";
+    std::string record_error;
+
+    depthxr::RuntimePacingObservation first;
+    first.test_started_at = 1000;
+    first.runtime_name = "Oculus";
+    first.runtime_version = "1.205.0";
+    first.system_name = "Quest 3";
+    first.vendor_id = 1;
+    first.graphics_api = "D3D11";
+    first.mode = depthxr::TurboPacingMode::kSequenced;
+    first.source = "discovered";
+    first.layer_version = "0.13.0";
+    first.last_used_unix_seconds = 100;
+    first.probe_timeouts = 3;
+    first.stable_seconds = 60;
+    bool recorded = depthxr::RecordRuntimePacingObservation(path, first, &record_error);
+    Expect(recorded, "Failed to record first runtime pacing observation: " + record_error);
+
+    depthxr::RuntimePacingObservation second;
+    second.test_started_at = 1000;
+    second.runtime_name = "SteamVR/OpenXR";
+    second.mode = depthxr::TurboPacingMode::kAsync;
+    second.source = "preset";
+    second.last_used_unix_seconds = 200;
+    recorded = depthxr::RecordRuntimePacingObservation(path, second, &record_error);
+    Expect(recorded, "Failed to record second runtime pacing observation: " + record_error);
+
+    depthxr::RuntimePacingObservation second_oculus_system = first;
+    second_oculus_system.system_name = "Crystal";
+    second_oculus_system.vendor_id = 2;
+    second_oculus_system.mode = depthxr::TurboPacingMode::kAsync;
+    second_oculus_system.last_used_unix_seconds = 250;
+    recorded = depthxr::RecordRuntimePacingObservation(path, second_oculus_system, &record_error);
+    Expect(recorded, "Failed to record second headset fingerprint for one runtime: " + record_error);
+
+    // Upsert: a later verdict for the same runtime replaces the mode but
+    // preserves first-used.
+    first.mode = depthxr::TurboPacingMode::kAsync;
+    first.last_used_unix_seconds = 300;
+    recorded = depthxr::RecordRuntimePacingObservation(path, first, &record_error);
+    Expect(recorded, "Failed to upsert runtime pacing observation: " + record_error);
+
+    const auto observations = depthxr::ReadRuntimePacingObservations(path);
+    Expect(observations.size() == 3, "Runtime pacing observation fingerprint count mismatch");
+
+    const auto oculus = depthxr::FindRuntimePacingObservation(path, "Oculus");
+    Expect(oculus.has_value(), "Oculus runtime pacing observation missing");
+    Expect(oculus->mode == depthxr::TurboPacingMode::kAsync, "Upserted mode was not applied");
+    Expect(oculus->first_used_unix_seconds == 100, "First-used timestamp was not preserved on upsert");
+    Expect(oculus->last_used_unix_seconds == 300, "Last-used timestamp was not updated on upsert");
+    Expect(oculus->runtime_version == "1.205.0", "Runtime version mismatch");
+    Expect(oculus->source == "discovered", "Source mismatch");
+
+    const auto quest = depthxr::FindRuntimePacingObservation(path, "Oculus", "Quest 3", 1, "D3D11");
+    Expect(quest.has_value(), "Exact runtime/headset/graphics fingerprint was not found");
+    Expect(quest->mode == depthxr::TurboPacingMode::kAsync, "Exact fingerprint upsert mode mismatch");
+    const auto crystal = depthxr::FindRuntimePacingObservation(path, "Oculus", "Crystal", 2, "D3D11");
+    Expect(crystal.has_value(), "Second headset fingerprint was collapsed into the first");
+
+    const auto steam = depthxr::FindRuntimePacingObservation(path, "SteamVR/OpenXR");
+    Expect(!steam.has_value(), "Legacy presets must not influence Auto");
+    const auto reset_dir = test_directory / "runtime-pacing-resets";
+    std::filesystem::create_directories(reset_dir);
+    std::ofstream(reset_dir / "4f63756c7573.txt") << "2000";
+    Expect(!depthxr::FindRuntimePacingObservation(path, "Oculus"), "A cleared decision must not be reused");
+    first.last_used_unix_seconds = 400;
+    Expect(depthxr::RecordRuntimePacingObservation(path, first, &record_error), "Stale writes should be ignored cleanly");
+    Expect(!depthxr::FindRuntimePacingObservation(path, "Oculus"), "A running session must not undo a reset");
+    first.test_started_at = 3000;
+    Expect(depthxr::RecordRuntimePacingObservation(path, first, &record_error), "Fresh retest should persist");
+    Expect(depthxr::FindRuntimePacingObservation(path, "Oculus").has_value(), "A fresh successful retest should be reusable");
+
+    Expect(!depthxr::FindRuntimePacingObservation(path, "Varjo").has_value(),
+           "Unknown runtime should have no observation");
+
+    std::filesystem::remove_all(test_directory, error);
+}
+
+void TestRuntimeRelayControlAndStatusRoundTrip() {
+    const std::filesystem::path test_directory =
+        std::filesystem::current_path() / "build" / "vectorxr-test-runtime-relay";
+    std::error_code filesystem_error;
+    std::filesystem::remove_all(test_directory, filesystem_error);
+    std::filesystem::create_directories(test_directory / "control", filesystem_error);
+    Expect(!filesystem_error, "Failed to create runtime-relay test directory");
+
+    const std::string session_id = "4242-1000-1";
+    const std::filesystem::path control_path = depthxr::RuntimeControlPath(test_directory, session_id);
+    {
+        std::ofstream stream(control_path, std::ios::trunc);
+        stream << "{\n"
+               << "  \"protocolVersion\": 1,\n"
+               << "  \"targetSessionId\": \"" << session_id << "\",\n"
+               << "  \"revision\": 17,\n"
+               << "  \"expiresAtUnixMilliseconds\": 9999999999999,\n"
+               << "  \"desired\": { \"quadviewsDiagnosticVisualization\": true }\n"
+               << "}\n";
+    }
+
+    depthxr::RuntimeControlDocument control;
+    std::string relay_error;
+    Expect(depthxr::ReadRuntimeControl(control_path, &control, &relay_error),
+           "Failed to parse runtime control: " + relay_error);
+    Expect(control.target_session_id == session_id, "Runtime control session target mismatch");
+    Expect(control.revision == 17, "Runtime control revision mismatch");
+    Expect(control.quadviews_diagnostic_visualization.value_or(false),
+           "Runtime control desired state mismatch");
+
+    depthxr::RuntimeStatusDocument status;
+    status.session_id = session_id;
+    status.process_id = 4242;
+    status.application = "DCS.exe";
+    status.updated_at_unix_milliseconds = 1000;
+    status.acknowledged_revision = 17;
+    status.quadviews_diagnostic_visualization_available = true;
+    status.quadviews_diagnostic_visualization_enabled = true;
+    const std::filesystem::path status_path = depthxr::RuntimeStatusPath(test_directory, session_id);
+    Expect(depthxr::WriteRuntimeStatus(status_path, status, &relay_error),
+           "Failed to write runtime status: " + relay_error);
+    std::ifstream status_stream(status_path);
+    std::ostringstream status_content;
+    status_content << status_stream.rdbuf();
+    Expect(status_content.str().find("\"acknowledgedRevision\": 17") != std::string::npos,
+           "Runtime status acknowledgement was not serialized");
+    Expect(status_content.str().find("\"framegen\":") == std::string::npos,
+           "Runtime status wrote Frame Generation rates for a session without it");
+    status_stream.close(); // an open reader keeps the atomic replace from taking the file
+
+    // Frame Generation's rates as numbers: a game slower than a fixed 2x hold.
+    depthxr::RuntimeFrameGenRates rates;
+    rates.mode = "extrapolate";
+    rates.frame_rate = "2x";
+    rates.generating = true;
+    rates.multiplier = 2;
+    rates.refresh_hz = 80.0;
+    rates.hold_fps = 40.0;
+    rates.app_fps = 34.14;
+    rates.output_fps = 80.0;
+    rates.distinct_fps = 79.56;
+    status.framegen_rates = rates;
+    Expect(depthxr::WriteRuntimeStatus(status_path, status, &relay_error),
+           "Failed to write runtime status with Frame Generation rates: " + relay_error);
+    std::ifstream rates_stream(status_path);
+    std::ostringstream rates_content;
+    rates_content << rates_stream.rdbuf();
+    Expect(rates_content.str().find("\"framegen\": { \"mode\": \"extrapolate\", \"frameRate\": \"2x\", "
+                                    "\"generating\": true, \"multiplier\": 2, \"refreshHz\": 80.0, \"holdFps\": 40.0, "
+                                    "\"appFps\": 34.1, \"outputFps\": 80.0, \"distinctFps\": 79.6 },") != std::string::npos,
+           "Runtime status did not serialize Frame Generation's rates");
+    Expect(rates_content.str().find("\"quadviewsDimensionsAt\": 0,") != std::string::npos,
+           "Runtime status lost the fields after Frame Generation's rates");
+    std::filesystem::remove_all(test_directory, filesystem_error);
+}
+
+void TestQuadViewStereoBoostKeepsInsetViewsInSync() {
+    depthxr::ViewAdjustmentData views[4] = {
+        {{-0.03, 0.0, 0.01}, {-1.0, 0.8, 0.9, -0.9}},
+        {{0.03, 0.0, -0.01}, {-0.8, 1.0, 0.9, -0.9}},
+        {{-0.03, 0.0, 0.01}, {-0.4, 0.2, 0.3, -0.3}},
+        {{0.03, 0.0, -0.01}, {-0.2, 0.4, 0.3, -0.3}},
+    };
+
+    depthxr::ApplyStereoBoost(views, 1.4, depthxr::ViewLayout::kStereoWithFoveatedInset);
+
+    Expect(std::abs(views[0].position.x - views[2].position.x) < 0.0001,
+           "Left outer/inset positions diverged under quad-view stereo boost");
+    Expect(std::abs(views[1].position.x - views[3].position.x) < 0.0001,
+           "Right outer/inset positions diverged under quad-view stereo boost");
+    Expect(std::abs(views[0].position.z - views[2].position.z) < 0.0001,
+           "Left outer/inset depth positions diverged under quad-view stereo boost");
+    Expect(std::abs(views[1].position.z - views[3].position.z) < 0.0001,
+           "Right outer/inset depth positions diverged under quad-view stereo boost");
+    Expect(std::abs(views[0].position.x + 0.042) < 0.0001, "Left eye stereo boost value mismatch");
+    Expect(std::abs(views[1].position.x - 0.042) < 0.0001, "Right eye stereo boost value mismatch");
+    Expect(std::abs(views[0].position.z - 0.014) < 0.0001, "Left eye stereo boost depth-axis value mismatch");
+    Expect(std::abs(views[1].position.z + 0.014) < 0.0001, "Right eye stereo boost depth-axis value mismatch");
+}
+
+void TestStereoBoostScalesRotatedEyeBaseline() {
+    depthxr::ViewAdjustmentData views[2] = {
+        {{-0.02, 0.0, 0.02}, {-1.0, 0.8, 0.9, -0.9}},
+        {{0.02, 0.0, -0.02}, {-0.8, 1.0, 0.9, -0.9}},
+    };
+
+    depthxr::ApplyStereoBoost(views, 1.5, depthxr::ViewLayout::kStereo);
+
+    Expect(std::abs(views[0].position.x + 0.03) < 0.0001, "Left eye rotated baseline x mismatch");
+    Expect(std::abs(views[0].position.z - 0.03) < 0.0001, "Left eye rotated baseline z mismatch");
+    Expect(std::abs(views[1].position.x - 0.03) < 0.0001, "Right eye rotated baseline x mismatch");
+    Expect(std::abs(views[1].position.z + 0.03) < 0.0001, "Right eye rotated baseline z mismatch");
+}
+
+void TestQuadViewConvergenceKeepsInsetOffsetsAligned() {
+    depthxr::ViewAdjustmentData views[4] = {
+        {{-0.03, 0.0, 0.0}, {-1.0, 0.8, 0.9, -0.9}},
+        {{0.03, 0.0, 0.0}, {-0.8, 1.0, 0.9, -0.9}},
+        {{-0.03, 0.0, 0.0}, {-0.4, 0.2, 0.3, -0.3}},
+        {{0.03, 0.0, 0.0}, {-0.2, 0.4, 0.3, -0.3}},
+    };
+
+    const double original_left_outer_span =
+        std::tan(views[0].fov.angle_right) - std::tan(views[0].fov.angle_left);
+    const double original_left_inset_span =
+        std::tan(views[2].fov.angle_right) - std::tan(views[2].fov.angle_left);
+
+    depthxr::ApplyConvergence(views, 0.07, depthxr::ViewLayout::kStereoWithFoveatedInset);
+
+    Expect(std::abs((std::tan(views[0].fov.angle_left) - std::tan(views[2].fov.angle_left)) -
+                        ((std::tan(-1.0)) - std::tan(-0.4))) < 0.0001,
+           "Left outer/inset horizontal relationship changed under convergence");
+    Expect(std::abs((std::tan(views[1].fov.angle_right) - std::tan(views[3].fov.angle_right)) -
+                        (std::tan(1.0) - std::tan(0.4))) < 0.0001,
+           "Right outer/inset horizontal relationship changed under convergence");
+    Expect(std::abs((std::tan(views[0].fov.angle_right) - std::tan(views[0].fov.angle_left)) -
+                    original_left_outer_span) < 0.0001,
+           "Outer horizontal FoV span changed under convergence");
+    Expect(std::abs((std::tan(views[2].fov.angle_right) - std::tan(views[2].fov.angle_left)) -
+                    original_left_inset_span) < 0.0001,
+           "Inset horizontal FoV span changed under convergence");
+}
+
+void TestDepthSubmissionRestorePreservesApplicationDeltas() {
+    const depthxr::ViewAdjustmentData native_views[2] = {
+        {{-0.032, 0.0, 0.0}, {-1.0, 0.8, 0.9, -0.9}},
+        {{0.032, 0.0, 0.0}, {-0.8, 1.0, 0.9, -0.9}},
+    };
+    depthxr::ViewAdjustmentData render_views[2] = {native_views[0], native_views[1]};
+    depthxr::ApplyStereoBoost(render_views, 1.25, depthxr::ViewLayout::kStereo);
+    depthxr::ApplyConvergence(render_views, 0.03, depthxr::ViewLayout::kStereo);
+
+    depthxr::ViewAdjustmentData submitted = render_views[0];
+    constexpr double kApplicationPositionDelta = 0.004;
+    constexpr double kApplicationProjectionDelta = 0.012;
+    submitted.position.x += kApplicationPositionDelta;
+    submitted.fov.angle_left =
+        std::atan(std::tan(submitted.fov.angle_left) + kApplicationProjectionDelta);
+    submitted.fov.angle_right =
+        std::atan(std::tan(submitted.fov.angle_right) + kApplicationProjectionDelta);
+
+    depthxr::RestoreDepthSubmissionView(submitted, native_views[0], render_views[0]);
+
+    Expect(std::abs(submitted.position.x -
+                    (native_views[0].position.x + kApplicationPositionDelta)) < 0.000001,
+           "Depth submission restore did not recover native eye position");
+    Expect(std::abs((std::tan(submitted.fov.angle_left) -
+                     std::tan(native_views[0].fov.angle_left)) -
+                    kApplicationProjectionDelta) < 0.000001,
+           "Depth submission restore lost the app's left projection delta");
+    Expect(std::abs((std::tan(submitted.fov.angle_right) -
+                     std::tan(native_views[0].fov.angle_right)) -
+                    kApplicationProjectionDelta) < 0.000001,
+           "Depth submission restore lost the app's right projection delta");
+    Expect(std::abs(submitted.fov.angle_up - native_views[0].fov.angle_up) < 0.000001,
+           "Depth submission restore changed an untouched vertical FOV boundary");
+
+    depthxr::ViewAdjustmentData already_native = native_views[0];
+    depthxr::RestoreDepthSubmissionView(already_native, native_views[0], render_views[0]);
+    Expect(std::abs(already_native.position.x - native_views[0].position.x) < 0.000001,
+           "Depth submission restore double-corrected an already-native eye position");
+    Expect(std::abs(already_native.fov.angle_left - native_views[0].fov.angle_left) < 0.000001,
+           "Depth submission restore double-corrected an already-native FOV");
+}
+
+double ExtractYaw(const depthxr::ViewOrientation& orientation) {
+    return std::atan2(
+        2.0 * (orientation.w * orientation.y + orientation.x * orientation.z),
+        1.0 - 2.0 * (orientation.y * orientation.y + orientation.x * orientation.x));
+}
+
+depthxr::ViewOrientation YawOrientation(double yaw_radians) {
+    return {0.0, std::sin(yaw_radians * 0.5), 0.0, std::cos(yaw_radians * 0.5)};
+}
+
+void TestPivotYawAmplifiesBeyondDeadzone() {
+    depthxr::ViewAdjustmentData views[2] = {
+        {{-0.03, 0.0, 0.0}, {-1.0, 0.8, 0.9, -0.9}, YawOrientation(30.0 * 3.14159265358979323846 / 180.0)},
+        {{0.03, 0.0, 0.0}, {-0.8, 1.0, 0.9, -0.9}, YawOrientation(30.0 * 3.14159265358979323846 / 180.0)},
+    };
+
+    double smoothed_extra_yaw = 0.0;
+    depthxr::ApplyPivotYaw(views, 1.5, 10.0, 0.0, depthxr::ViewLayout::kStereo, smoothed_extra_yaw);
+
+    const double left_yaw = ExtractYaw(views[0].orientation) * 180.0 / 3.14159265358979323846;
+    const double right_yaw = ExtractYaw(views[1].orientation) * 180.0 / 3.14159265358979323846;
+
+    Expect(std::abs(left_yaw - 40.0) < 0.2, "PivotXR yaw amplification did not reach the expected left-eye yaw");
+    Expect(std::abs(right_yaw - 40.0) < 0.2, "PivotXR yaw amplification did not reach the expected right-eye yaw");
+    Expect(std::abs(views[0].position.x + 0.03) < 0.0001, "PivotXR should keep the left-eye position unchanged");
+    Expect(std::abs(views[1].position.x - 0.03) < 0.0001, "PivotXR should keep the right-eye position unchanged");
+    Expect(smoothed_extra_yaw > 0.0, "PivotXR should accumulate positive extra yaw beyond the deadzone");
+}
+
+void TestPivotYawNoOpInsideDeadzone() {
+    depthxr::ViewAdjustmentData views[2] = {
+        {{-0.03, 0.0, 0.0}, {-1.0, 0.8, 0.9, -0.9}, YawOrientation(5.0 * 3.14159265358979323846 / 180.0)},
+        {{0.03, 0.0, 0.0}, {-0.8, 1.0, 0.9, -0.9}, YawOrientation(5.0 * 3.14159265358979323846 / 180.0)},
+    };
+
+    double smoothed_extra_yaw = 0.0;
+    depthxr::ApplyPivotYaw(views, 1.7, 10.0, 0.0, depthxr::ViewLayout::kStereo, smoothed_extra_yaw);
+
+    const double left_yaw = ExtractYaw(views[0].orientation) * 180.0 / 3.14159265358979323846;
+    Expect(std::abs(left_yaw - 5.0) < 0.2, "PivotXR should leave yaw unchanged inside the deadzone");
+    Expect(std::abs(smoothed_extra_yaw) < 0.0001, "PivotXR should not accumulate extra yaw inside the deadzone");
+}
+
+void TestTurboTraceContinuousAndDrained() {
+    const auto directory = std::filesystem::current_path() / "build" / "vectorxr-test-turbo-trace";
+    std::filesystem::create_directories(directory);
+    std::filesystem::path log_path;
+    {
+        depthxr::Logger logger;
+        logger.Initialize(directory / "trace.log");
+        logger.SetLevel(depthxr::LogLevel::Debug);
+        log_path = logger.ActiveLogPath();
+        depthxr::TurboTimingTrace trace;
+        trace.Record("disabled");
+        Expect(!trace.Enabled() && trace.NextId() == 0, "Disabled trace must be inert");
+        trace.Start(logger);
+        trace.Record("test.first", trace.NextId(), 11, 22, 33);
+        for (int i = 0; i < 40000; ++i) {
+            if (i % 1000 == 0) trace.Burst();
+            if (i % 128 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            trace.Record("test.event", trace.NextId(), i);
+        }
+        trace.Stop();
+        Expect(!trace.Enabled(), "Stopping trace left it active");
+        trace.Record("after.stop");
+        trace.SetDebugEnabled(logger, true);
+        Expect(!trace.Enabled(), "Log-level update restarted an ended session");
+    }
+    std::ifstream input(log_path);
+    std::string line;
+    std::size_t events = 0;
+    bool first = false;
+    while (std::getline(input, line)) {
+        if (line.find("Turbo-trace ns=") != std::string::npos) ++events;
+        first = first || line.find("event=test.first a=11 b=22 c=33") != std::string::npos;
+        Expect(line.find("event=disabled") == std::string::npos && line.find("event=after.stop") == std::string::npos,
+               "Disabled tracing wrote events");
+    }
+    Expect(first && events > 30000, "Trace stopped at the old lifetime budget or failed to drain");
+    input.close();
+    std::filesystem::remove(log_path);
+    for (unsigned part = 0; part < 2; ++part)
+        std::filesystem::remove(depthxr::TurboTimingTrace::RecorderPath(log_path, part));
+}
+
+void TestTurboTraceFollowsDebugLevel() {
+    const auto directory = std::filesystem::current_path() / "build" / "vectorxr-test-turbo-trace";
+    std::filesystem::create_directories(directory);
+    std::filesystem::path log_path;
+    {
+        depthxr::Logger logger;
+        logger.Initialize(directory / "level.log");
+        log_path = logger.ActiveLogPath();
+        depthxr::TurboTimingTrace trace;
+        trace.Start(logger);
+        Expect(!trace.Enabled(), "Info logging unexpectedly enabled detailed timing");
+        trace.Record("info.only");
+        logger.SetLevel(depthxr::LogLevel::Debug);
+        trace.SetDebugEnabled(logger, true);
+        Expect(trace.Enabled(), "Debug did not enable detailed timing in the live session");
+        const auto first_id = trace.NextId();
+        logger.SetLevel(depthxr::LogLevel::Info);
+        trace.SetDebugEnabled(logger, false);
+        Expect(!trace.Enabled() && !trace.Capturing(), "Info did not pause detailed timing");
+        trace.Record("info.paused");
+        logger.SetLevel(depthxr::LogLevel::Debug);
+        trace.SetDebugEnabled(logger, true);
+        Expect(trace.NextId() > first_id, "Resuming Debug reset the session correlation IDs");
+        trace.Record("debug.resumed");
+        trace.Stop();
+    }
+    std::ifstream input(log_path);
+    std::string line;
+    bool resumed = false;
+    while (std::getline(input, line)) {
+        resumed = resumed || line.find("event=debug.resumed") != std::string::npos;
+        Expect(line.find("event=info.") == std::string::npos, "Info interval leaked detailed timing");
+        if (line.find("Turbo-trace ns=") != std::string::npos) {
+            Expect(line.find("[debug]") != std::string::npos, "Timing trace was not a Debug-level record");
+        }
+    }
+    Expect(resumed, "Resumed Debug trace did not drain");
+    input.close();
+    std::filesystem::remove(log_path);
+    for (unsigned part = 0; part < 2; ++part)
+        std::filesystem::remove(depthxr::TurboTimingTrace::RecorderPath(log_path, part));
+}
+
+void TestLoggerCollapsesDuplicateMessages() {
+    const std::filesystem::path test_directory =
+        std::filesystem::current_path() / "build" / "vectorxr-test-logger-duplicate-collapse";
+    std::error_code error;
+    std::filesystem::remove_all(test_directory, error);
+    error.clear();
+    std::filesystem::create_directories(test_directory, error);
+    Expect(!error, "Failed to create logger test directory: " + error.message());
+
+    const std::filesystem::path log_base_path = test_directory / "vectorxr-test.log";
+    std::filesystem::path active_log_path;
+    {
+        depthxr::Logger logger;
+        logger.Initialize(log_base_path);
+        logger.SetLevel(depthxr::LogLevel::Debug);
+        active_log_path = logger.ActiveLogPath();
+        logger.Error("Repeated failure");
+        logger.Error("Repeated failure");
+        logger.Error("Repeated failure");
+        logger.Info("Different message");
+    }
+
+    std::ifstream stream(active_log_path);
+    Expect(stream.good(), "Failed to open logger test output");
+
+    std::ostringstream contents;
+    contents << stream.rdbuf();
+    const std::string text = contents.str();
+    Expect(text.find("Repeated failure") != std::string::npos, "Logger omitted the original repeated message");
+    Expect(text.find("Previous error message repeated 2 additional times") != std::string::npos,
+           "Logger did not summarize repeated duplicate errors");
+    Expect(text.find("Different message") != std::string::npos,
+           "Logger did not continue writing after collapsing duplicates");
+
+    std::filesystem::remove_all(test_directory, error);
+}
+
+#ifdef _WIN32
+std::string ExtractRawShaderSource(const std::string& source_file, const std::string& function_marker) {
+    const size_t function_position = source_file.find(function_marker);
+    Expect(function_position != std::string::npos, "Shader function marker is missing: " + function_marker);
+    const std::string raw_start_marker = std::string("return R") + static_cast<char>(34) + "(";
+    const size_t raw_start = source_file.find(raw_start_marker, function_position);
+    Expect(raw_start != std::string::npos, "Shader raw string start is missing: " + function_marker);
+    const size_t source_start = raw_start + raw_start_marker.size();
+    const std::string raw_end_marker = std::string(")") + static_cast<char>(34) + ";";
+    const size_t source_end = source_file.find(raw_end_marker, source_start);
+    Expect(source_end != std::string::npos, "Shader raw string end is missing: " + function_marker);
+    return source_file.substr(source_start, source_end - source_start);
+}
+
+void ExpectShaderCompiles(const std::string& source,
+                          const char* entry_point,
+                          const char* target,
+                          const std::string& label) {
+    ID3DBlob* bytecode = nullptr;
+    ID3DBlob* errors = nullptr;
+    const HRESULT result = D3DCompile(source.data(),
+                                     source.size(),
+                                     label.c_str(),
+                                     nullptr,
+                                     nullptr,
+                                     entry_point,
+                                     target,
+                                     0,
+                                     0,
+                                     &bytecode,
+                                     &errors);
+    std::string diagnostic;
+    if (errors) {
+        diagnostic.assign(static_cast<const char*>(errors->GetBufferPointer()), errors->GetBufferSize());
+        errors->Release();
+    }
+    if (bytecode) {
+        bytecode->Release();
+    }
+    Expect(SUCCEEDED(result), label + " failed to compile: " + diagnostic);
+}
+
+void TestD3D11SharpenShaderRegression() {
+    const std::filesystem::path source_path =
+        std::filesystem::path(OPENGRIDXR_ENHANCEMENTS_SOURCE_DIR) / "layer" / "src" / "openxr_layer.cpp";
+    std::ifstream stream(source_path, std::ios::binary);
+    Expect(stream.good(), "Failed to open the D3D11 shader source for regression testing");
+    const std::string source_file((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+
+    const std::string compositor = depthxr::QuadViewsD3D11ShaderSource();
+    const std::array<std::pair<std::string, std::string>, 2> shaders{{
+        {"QuadViewsD3D11ShaderSource()", compositor},
+        {"D3D11FocusSharpenShaderSource()",
+         ExtractRawShaderSource(source_file, "const char* D3D11FocusSharpenShaderSource()")},
+    }};
+    for (const auto& [label, shader] : shaders) {
+        Expect(shader.find("focus.rgb = saturate(focus.rgb + detail);") != std::string::npos,
+               label + " lost the extrema-preserving sharpen output");
+        Expect(shader.find("focus.rgb = clamp(sharpened, lo, hi);") == std::string::npos,
+               label + " regressed to the clamp that cancelled sharpening at extrema");
+        ExpectShaderCompiles(shader, "VSMain", "vs_5_0", label + " vertex shader");
+        ExpectShaderCompiles(shader, "PSMain", "ps_5_0", label + " pixel shader");
+    }
+
+    Expect(compositor.find("saturate(blendParams.z) * edgeAlpha") != std::string::npos,
+           "Quadviews compositor sharpening no longer ramps with the focus feather");
+    Expect(compositor.find("diagnosticParams.x < 0.5") != std::string::npos &&
+               compositor.find("rawGazeMarker") != std::string::npos,
+           "Quadviews compositor diagnostic visualization is missing");
+}
+#endif
+
+void TestEyeGazeExtensionCompatibilityPolicy() {
+    using depthxr::EyeGazeProbeState;
+    using depthxr::EyeGazeRequestPolicyInput;
+    using depthxr::EyeGazeRequestReason;
+
+    Expect(depthxr::IsEyeGazeExtensionProbeKnownUnreliable(
+               R"(C:\Program Files (x86)\Steam\steamapps\common\SteamVR\steamxr_win64.json)"),
+           "SteamVR manifests should retain the false-negative eye-gaze probe workaround");
+    Expect(depthxr::IsEyeGazeExtensionProbeKnownUnreliable(
+               R"(C:\Program Files\PimaxXR\pimax-openxr.json)"),
+           "PimaxXR manifests should use the false-negative eye-gaze probe workaround");
+    Expect(!depthxr::IsEyeGazeExtensionProbeKnownUnreliable(
+               R"(C:\Program Files\Virtual Desktop Streamer\OpenXR\virtualdesktop-openxr.json)"),
+           "VDXR should use the generic indeterminate-probe policy instead of a manifest exception");
+
+    const std::string_view d3d11_only[] = {"XR_KHR_D3D11_enable"};
+    const std::string_view ordinary_forwarded[] = {
+        "XR_KHR_D3D11_enable",
+        "XR_KHR_visibility_mask",
+        "XR_EXT_hand_tracking",
+    };
+    const std::string_view complete_advertisement[] = {
+        "XR_KHR_D3D11_enable",
+        "XR_KHR_visibility_mask",
+        "XR_EXT_hand_tracking",
+        "XR_EXT_debug_utils",
+    };
+    Expect(depthxr::IsRuntimeExtensionProbeStructurallyUnreliable(
+               true, std::span<const std::string_view>{}, ordinary_forwarded),
+           "A completed empty Pimax-style extension scan must be treated as structurally unreliable");
+    Expect(depthxr::IsRuntimeExtensionProbeStructurallyUnreliable(
+               true, d3d11_only, ordinary_forwarded),
+           "A partial scan missing extensions already being forwarded must be treated as unreliable");
+    Expect(!depthxr::IsRuntimeExtensionProbeStructurallyUnreliable(
+               true, complete_advertisement, ordinary_forwarded),
+           "A completed scan containing every forwarded extension should remain credible");
+    Expect(!depthxr::IsRuntimeExtensionProbeStructurallyUnreliable(
+               false, std::span<const std::string_view>{}, ordinary_forwarded),
+           "An incomplete scan is indeterminate and should not also be labeled structurally unreliable");
+
+    Expect(depthxr::ClassifyEyeGazeProbe(false, false) == EyeGazeProbeState::kIndeterminate,
+           "An extension scan that could not complete must remain indeterminate");
+    Expect(depthxr::ClassifyEyeGazeProbe(false, true) == EyeGazeProbeState::kIndeterminate,
+           "An incomplete scan must not expose partial extension evidence as authoritative");
+    Expect(depthxr::ClassifyEyeGazeProbe(true, true) == EyeGazeProbeState::kPresent,
+           "A completed scan that advertises gaze must classify it as present");
+    Expect(depthxr::ClassifyEyeGazeProbe(true, false) == EyeGazeProbeState::kAbsent,
+           "Only a completed scan may classify gaze as absent");
+
+    auto expect_decision = [](const EyeGazeRequestPolicyInput& input,
+                              bool expected_injection,
+                              EyeGazeRequestReason expected_reason,
+                              const std::string& message) {
+        const depthxr::EyeGazeRequestDecision decision = depthxr::DecideEyeGazeExtensionRequest(input);
+        Expect(decision.inject_extension == expected_injection, message + " (injection)");
+        Expect(decision.reason == expected_reason, message + " (reason)");
+    };
+
+    EyeGazeRequestPolicyInput input;
+    input.app_requested_layer_owned_quadviews = true;
+
+    input.pre_instance_probe = EyeGazeProbeState::kPresent;
+    expect_decision(input, true, EyeGazeRequestReason::kRuntimeAdvertised,
+                    "An advertised gaze extension should be injected for synthesized quadviews");
+
+    input.pre_instance_probe = EyeGazeProbeState::kIndeterminate;
+    expect_decision(input, true, EyeGazeRequestReason::kProbeIndeterminate,
+                    "An unavailable VDXR-style probe should optimistically request gaze");
+
+    input.pre_instance_probe = EyeGazeProbeState::kAbsent;
+    expect_decision(input, false, EyeGazeRequestReason::kReliableNegative,
+                    "A completed negative probe on an ordinary runtime should be trusted");
+
+    input.pre_instance_probe_structurally_unreliable = true;
+    expect_decision(input, true, EyeGazeRequestReason::kProbeInconsistent,
+                    "A structurally inconsistent negative should optimistically request gaze");
+
+    input.pre_instance_probe_structurally_unreliable = false;
+    input.pre_instance_probe_known_unreliable = true;
+    expect_decision(input, true, EyeGazeRequestReason::kRuntimeWorkaround,
+                    "A completed false-negative on a known runtime should retain the workaround");
+
+    input.pre_instance_probe_known_unreliable = false;
+    input.forwarding_native_quadviews = true;
+    input.pre_instance_probe = EyeGazeProbeState::kIndeterminate;
+    expect_decision(input, false, EyeGazeRequestReason::kNativeQuadviews,
+                    "Native Varjo quadviews should retain its runtime-owned gaze contract");
+
+    input.forwarding_native_quadviews = false;
+    input.downstream_already_has_eye_gaze = true;
+    expect_decision(input, false, EyeGazeRequestReason::kApplicationRequested,
+                    "The layer must not duplicate an application-requested gaze extension");
+
+    input.downstream_already_has_eye_gaze = false;
+    input.app_requested_layer_owned_quadviews = false;
+    expect_decision(input, false, EyeGazeRequestReason::kQuadviewsNotRequested,
+                    "Applications without layer-owned quadviews should not receive an injected extension");
+
+    Expect(depthxr::EyeGazeProbeStateName(EyeGazeProbeState::kPresent) == "present" &&
+               depthxr::EyeGazeProbeStateName(EyeGazeProbeState::kAbsent) == "absent" &&
+               depthxr::EyeGazeProbeStateName(EyeGazeProbeState::kIndeterminate) == "indeterminate",
+           "Probe state names must remain stable for startup diagnostics");
+    Expect(depthxr::EyeGazeRequestReasonName(EyeGazeRequestReason::kProbeIndeterminate) ==
+               "probe-indeterminate" &&
+               depthxr::EyeGazeRequestReasonName(EyeGazeRequestReason::kProbeInconsistent) ==
+                   "probe-inconsistent" &&
+               depthxr::EyeGazeRequestReasonName(EyeGazeRequestReason::kRuntimeWorkaround) ==
+                   "runtime-workaround" &&
+               depthxr::EyeGazeRequestReasonName(EyeGazeRequestReason::kReliableNegative) ==
+                   "reliable-negative",
+           "Request reason names must remain stable for startup diagnostics");
+
+    Expect(depthxr::ShouldRetryWithoutInjectedEyeGaze(true, true),
+           "An injected gaze extension rejected by a runtime should use the safe retry");
+    Expect(!depthxr::ShouldRetryWithoutInjectedEyeGaze(true, false),
+           "Unrelated instance failures must not be hidden by the gaze retry");
+    Expect(!depthxr::ShouldRetryWithoutInjectedEyeGaze(false, true),
+           "Application-owned extension failures must not be retried behind its back");
+}
+
+
+void TestQuadViewsSessionActivationPolicy() {
+    Expect(depthxr::ResolveQuadViewsSessionActive(true, std::nullopt),
+           "Quadviews should follow enabled config before a session is latched");
+    Expect(!depthxr::ResolveQuadViewsSessionActive(false, std::nullopt),
+           "Quadviews should follow disabled config before a session is latched");
+    Expect(depthxr::ResolveQuadViewsSessionActive(false, true),
+           "A live enabled Quadviews session must ignore a mid-session disable");
+    Expect(!depthxr::ResolveQuadViewsSessionActive(true, false),
+           "A live stereo session must ignore a mid-session Quadviews enable");
+}
+
+void TestQuadViewsRecoveryStabilizationPolicy() {
+    Expect(depthxr::QuadViewsRecoveryStabilizationDelay("VirtualDesktopXR").count() == 250,
+           "VDXR recovery should wait for focus and reference-space events to settle");
+    Expect(depthxr::QuadViewsRecoveryStabilizationDelay("virtualdesktopxr").count() == 250,
+           "VDXR runtime matching should be case-insensitive");
+    Expect(depthxr::QuadViewsRecoveryStabilizationDelay("SteamVR/OpenXR").count() == 0,
+           "Other runtimes must retain the immediate recovery path");
+}
+
+void TestQuadViewsRecoveryStabilizer() {
+    using namespace std::chrono_literals;
+    using Stabilizer = depthxr::QuadViewsRecoveryStabilizer;
+
+    Stabilizer stabilizer;
+    const Stabilizer::TimePoint start{};
+    stabilizer.Schedule(start, 250ms);
+    Expect(stabilizer.Pending(), "A recovered gaze sample should schedule compositor recovery");
+    Expect(!stabilizer.Ready(start + 249ms), "Recovery must wait for the full stabilization window");
+
+    stabilizer.NoteUnstable(start + 200ms);
+    Expect(!stabilizer.Ready(start + 449ms),
+           "A renewed tracking failure must restart the stabilization window");
+    Expect(stabilizer.Ready(start + 450ms),
+           "Recovery should become ready after 250 ms of continuous stability");
+
+    stabilizer.Reset();
+    Expect(!stabilizer.Pending(), "Reset must cancel a pending compositor recovery");
+    stabilizer.Schedule(start, 0ms);
+    Expect(stabilizer.Ready(start), "Other runtimes must retain immediate recovery");
+}
+
+void TestQuadViewsFrameCacheKeepsGazeWithLocatedFrame() {
+    struct Frame {
+        bool gaze_valid{false};
+        double raw_yaw{0.0};
+        double smoothed_yaw{0.0};
+    };
+
+    depthxr::QuadViewsFrameCache<Frame> cache;
+    cache.Store(1'000, Frame{true, 0.10, 0.08}, 180);
+    // A later locate must not replace the gaze diagnostics associated with an
+    // older frame that the application submits afterward.
+    cache.Store(2'000, Frame{false, 0.40, 0.30}, 180);
+
+    Frame selected;
+    std::int64_t matched_time = 0;
+    Expect(cache.FindNearest(1'000, 100, &selected, &matched_time),
+           "Exact Quadviews frame-cache lookup should succeed");
+    Expect(matched_time == 1'000 && selected.gaze_valid &&
+               std::abs(selected.raw_yaw - 0.10) < 0.0001 &&
+               std::abs(selected.smoothed_yaw - 0.08) < 0.0001,
+           "Quadviews frame cache must return the gaze snapshot stored with the submitted frame");
+
+    Expect(cache.FindNearest(1'040, 50, &selected, &matched_time) && matched_time == 1'000 &&
+               selected.gaze_valid,
+           "Nearest Quadviews frame lookup should preserve the matched frame's gaze validity");
+    Expect(!cache.FindNearest(1'500, 100, &selected, &matched_time) && matched_time == 1'000,
+           "Quadviews frame lookup should reject a nearest frame outside the match window");
+
+    cache.Store(3'000, Frame{true, 0.50, 0.45}, 2);
+    Expect(cache.Size() == 2,
+           "Quadviews frame cache should enforce its bounded retention count");
+    Expect(!cache.FindNearest(1'000, 0, &selected, &matched_time),
+           "Quadviews frame cache should discard the oldest frame when retention is exceeded");
+
+    cache.PruneThrough(2'000);
+    Expect(cache.Size() == 1 && cache.FindNearest(3'000, 0, &selected, &matched_time),
+           "Quadviews frame cache should prune submitted frames while keeping future frames");
+}
+
+void TestPivotLocateViewsRouting() {
+    Expect(depthxr::ShouldDrivePivotFromLocateViews(true, false),
+           "A world-space xrLocateViews query must drive Pivot frame state");
+    Expect(!depthxr::ShouldDrivePivotFromLocateViews(true, true),
+           "A VIEW-relative xrLocateViews query must remain pass-through");
+    Expect(!depthxr::ShouldDrivePivotFromLocateViews(false, false),
+           "A missing locate request must not drive Pivot frame state");
+
+    using Time = std::int64_t;
+    std::map<Time, int> pose_deltas;
+    auto record_locate_result = [&](bool base_is_view, Time time, int pose_delta) {
+        if (depthxr::ShouldDrivePivotFromLocateViews(true, base_is_view)) {
+            depthxr::CachePivotPoseDeltaValue(pose_deltas, time, pose_delta);
+        }
+    };
+    auto expect_delta = [&](Time time, int expected, const std::string& message) {
+        int pose_delta = 0;
+        Time matched_time = 0;
+        const bool found = depthxr::FindPivotPoseDeltaValue(
+            pose_deltas, time, 0, &pose_delta, &matched_time);
+        Expect(found && matched_time == time && pose_delta == expected, message);
+    };
+
+    record_locate_result(false, 100, 42);
+    record_locate_result(false, 100, 99);
+    record_locate_result(true, 100, 0);
+    expect_delta(100, 42,
+                 "Repeated same-time queries must reuse the first logical Pivot frame delta");
+
+    pose_deltas.clear();
+    record_locate_result(true, 200, 0);
+    record_locate_result(false, 200, 84);
+    expect_delta(200, 84,
+                 "A world-space query must drive the frame after an earlier VIEW-relative query");
+
+    depthxr::PrunePivotPoseDeltaValues(pose_deltas, static_cast<Time>(200));
+    record_locate_result(true, 300, 0);
+    int pose_delta = -1;
+    Time matched_time = -1;
+    Expect(!depthxr::FindPivotPoseDeltaValue(
+               pose_deltas, static_cast<Time>(300), 0, &pose_delta, &matched_time) &&
+               pose_delta == 0 && matched_time == 0,
+           "A VIEW-only frame must not reuse a pruned pose delta");
+
+    const Time frame = 1'000'000'000;
+    pose_deltas.clear();
+    depthxr::CachePivotPoseDeltaValue(pose_deltas, frame, 42);
+    std::optional<int> held_pose_delta;
+    std::size_t consecutive_misses = 0;
+    Expect(depthxr::ResolvePivotPoseDeltaValue(
+               pose_deltas, frame, 0, true, &held_pose_delta,
+               &consecutive_misses, &pose_delta, &matched_time) ==
+               depthxr::PivotPoseDeltaSelection::Matched &&
+               pose_delta == 42 && held_pose_delta == 42 && consecutive_misses == 0,
+           "A matched Pivot delta must arm one-frame continuity");
+
+    const Time missed_frame = frame + depthxr::kPivotPoseDeltaMatchWindow + 1;
+    Expect(depthxr::ResolvePivotPoseDeltaValue(
+               pose_deltas, missed_frame, 0, true, &held_pose_delta,
+               &consecutive_misses, &pose_delta, &matched_time) ==
+               depthxr::PivotPoseDeltaSelection::HeldPrevious &&
+               pose_delta == 42 && consecutive_misses == 1,
+           "The first cache miss must reuse the last matched Pivot delta");
+    Expect(depthxr::ResolvePivotPoseDeltaValue(
+               pose_deltas, missed_frame + 1, 0, true, &held_pose_delta,
+               &consecutive_misses, &pose_delta, &matched_time) ==
+               depthxr::PivotPoseDeltaSelection::None &&
+               pose_delta == 0 && consecutive_misses == 2,
+           "A repeated cache miss must stop holding a stale Pivot delta");
+
+    depthxr::CachePivotPoseDeltaValue(pose_deltas, missed_frame + 2, 84);
+    Expect(depthxr::ResolvePivotPoseDeltaValue(
+               pose_deltas, missed_frame + 2, 0, true, &held_pose_delta,
+               &consecutive_misses, &pose_delta, &matched_time) ==
+               depthxr::PivotPoseDeltaSelection::Matched &&
+               pose_delta == 84 && consecutive_misses == 0,
+           "A recovered match must reset the continuity miss budget");
+    Expect(depthxr::ResolvePivotPoseDeltaValue(
+               pose_deltas, missed_frame + 3, 0, false, &held_pose_delta,
+               &consecutive_misses, &pose_delta, &matched_time) ==
+               depthxr::PivotPoseDeltaSelection::Matched &&
+               !held_pose_delta.has_value() && consecutive_misses == 0,
+           "Inactive Pivot routing must disarm the held correction");
+}
+
+void TestPivotPoseDeltaSpaceReexpression() {
+    using Matrix = std::array<double, 9>;
+    using Vector = std::array<double, 3>;
+    const auto multiply = [](const Matrix& lhs, const Matrix& rhs) {
+        Matrix result{};
+        for (size_t row = 0; row < 3; ++row) {
+            for (size_t column = 0; column < 3; ++column) {
+                for (size_t inner = 0; inner < 3; ++inner) {
+                    result[row * 3 + column] +=
+                        lhs[row * 3 + inner] * rhs[inner * 3 + column];
+                }
+            }
+        }
+        return result;
+    };
+    const auto inverse_rotation = [](const Matrix& matrix) {
+        return Matrix{
+            matrix[0], matrix[3], matrix[6],
+            matrix[1], matrix[4], matrix[7],
+            matrix[2], matrix[5], matrix[8],
+        };
+    };
+    const auto transform = [](const Matrix& matrix, const Vector& vector) {
+        return Vector{
+            matrix[0] * vector[0] + matrix[1] * vector[1] + matrix[2] * vector[2],
+            matrix[3] * vector[0] + matrix[4] * vector[1] + matrix[5] * vector[2],
+            matrix[6] * vector[0] + matrix[7] * vector[1] + matrix[8] * vector[2],
+        };
+    };
+    const auto nearly_equal = [](const Vector& lhs, const Vector& rhs) {
+        for (size_t index = 0; index < lhs.size(); ++index) {
+            if (std::abs(lhs[index] - rhs[index]) > 0.000001) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const auto yaw = [](double radians) {
+        const double cosine = std::cos(radians);
+        const double sine = std::sin(radians);
+        return Matrix{
+            cosine, 0.0, sine,
+            0.0, 1.0, 0.0,
+            -sine, 0.0, cosine,
+        };
+    };
+    const auto pitch = [](double radians) {
+        const double cosine = std::cos(radians);
+        const double sine = std::sin(radians);
+        return Matrix{
+            1.0, 0.0, 0.0,
+            0.0, cosine, -sine,
+            0.0, sine, cosine,
+        };
+    };
+
+    constexpr double kPi = 3.14159265358979323846;
+    const Matrix source_in_target = yaw(-112.0 * kPi / 180.0);
+    const Matrix source_pitch_delta = pitch(30.0 * kPi / 180.0);
+    const Matrix target_delta = depthxr::ReexpressPivotPoseDelta(
+        source_pitch_delta, source_in_target, multiply, inverse_rotation);
+    const Vector source_vector{0.2, 0.7, -0.4};
+
+    // Conjugation must make applying the delta before or after the coordinate
+    // change equivalent. A raw source-space pitch fails this property when the
+    // spaces differ by yaw (the IL-2 diagonal-roll signature).
+    const Vector expected = transform(
+        source_in_target, transform(source_pitch_delta, source_vector));
+    const Vector converted = transform(
+        target_delta, transform(source_in_target, source_vector));
+    const Vector unconverted = transform(
+        source_pitch_delta, transform(source_in_target, source_vector));
+    Expect(nearly_equal(converted, expected),
+           "A Pivot delta must be conjugated into the projection layer's space");
+    Expect(!nearly_equal(unconverted, expected),
+           "Applying an unconverted pitch across yawed spaces must expose the regression test");
+
+    // Repeat the group property with a homogeneous 2D rigid transform so the
+    // positional part of a Pivot/neck offset is covered as well as rotation.
+    const auto rigid_2d = [](double radians, double x, double y) {
+        const double cosine = std::cos(radians);
+        const double sine = std::sin(radians);
+        return Matrix{
+            cosine, -sine, x,
+            sine, cosine, y,
+            0.0, 0.0, 1.0,
+        };
+    };
+    const auto inverse_rigid_2d = [](const Matrix& matrix) {
+        const double inverse_x = -(matrix[0] * matrix[2] + matrix[3] * matrix[5]);
+        const double inverse_y = -(matrix[1] * matrix[2] + matrix[4] * matrix[5]);
+        return Matrix{
+            matrix[0], matrix[3], inverse_x,
+            matrix[1], matrix[4], inverse_y,
+            0.0, 0.0, 1.0,
+        };
+    };
+    const Matrix source_pose_in_target = rigid_2d(-1.2, 1.4, -0.6);
+    const Matrix source_rigid_delta = rigid_2d(0.4, 0.25, -0.1);
+    const Matrix target_rigid_delta = depthxr::ReexpressPivotPoseDelta(
+        source_rigid_delta, source_pose_in_target, multiply, inverse_rigid_2d);
+    const Vector source_point{0.3, -0.8, 1.0};
+    const Vector rigid_expected = transform(
+        source_pose_in_target, transform(source_rigid_delta, source_point));
+    const Vector rigid_converted = transform(
+        target_rigid_delta, transform(source_pose_in_target, source_point));
+    Expect(nearly_equal(rigid_converted, rigid_expected),
+           "A full rigid Pivot delta must preserve rotation and translation across spaces");
+}
+
+void TestNumpadActivationKeys() {
+    Expect(depthxr::ParseActivationKey("numpad0") == std::optional<std::string>("Numpad0"),
+           "Numpad 0 should normalize to the canonical binding name");
+    Expect(depthxr::ParseActivationKey("Numpad5") == std::optional<std::string>("Numpad5"),
+           "Numpad 5 should be accepted as a keyboard binding");
+    Expect(depthxr::ParseActivationKey("NUMPAD9") == std::optional<std::string>("Numpad9"),
+           "Numpad 9 should parse case-insensitively");
+    Expect(!depthxr::ParseActivationKey("Numpad10").has_value(),
+           "Multi-digit numpad names must remain unsupported");
+}
+
+void TestDeviceInputPathsAndHatDirections() {
+    const std::optional<depthxr::DeviceInputPath> button =
+        depthxr::ParseDeviceInputPath("button-12");
+    Expect(button.has_value() &&
+               button->kind == depthxr::DeviceInputKind::Button &&
+               button->index == 11,
+           "Button input paths must retain their one-based serialized index");
+
+    const std::optional<depthxr::DeviceInputPath> hat =
+        depthxr::ParseDeviceInputPath("hat-1-left");
+    Expect(hat.has_value() &&
+               hat->kind == depthxr::DeviceInputKind::Hat &&
+               hat->index == 0 &&
+               hat->direction == 6,
+           "HAT input paths must parse the switch index and direction");
+
+    Expect(!depthxr::ParseDeviceInputPath("hat-5-up").has_value(),
+           "DirectInput exposes at most four HAT switches");
+    Expect(!depthxr::ParseDeviceInputPath("hat-1-forward").has_value(),
+           "Unknown HAT direction names must be rejected");
+    Expect(!depthxr::ParseDeviceInputPath("button-129").has_value(),
+           "Out-of-range button paths must be rejected");
+
+    Expect(depthxr::DirectInputHatDirection(0) == std::optional<std::size_t>(0),
+           "DirectInput HAT up must normalize to the up octant");
+    Expect(depthxr::DirectInputHatDirection(4'500) == std::optional<std::size_t>(1),
+           "DirectInput diagonal HAT positions must remain bindable");
+    Expect(depthxr::DirectInputHatDirection(27'000) == std::optional<std::size_t>(6),
+           "DirectInput HAT left must normalize to the left octant");
+    Expect(depthxr::DirectInputHatDirection(35'999) == std::optional<std::size_t>(0),
+           "HAT values near 360 degrees must wrap to up");
+    Expect(!depthxr::DirectInputHatDirection(UINT32_MAX).has_value(),
+           "A centered HAT must not report a pressed direction");
+    Expect(!depthxr::DirectInputHatDirection(0x0000FFFFu).has_value(),
+           "A HAT whose driver reports centered as 0xFFFF must not read as up-left");
+
+    Expect(std::string(depthxr::ToString(depthxr::InputBindingPollStage::SetCooperativeLevel)) ==
+               "set-cooperative-level",
+           "Input diagnostics must retain the failing DirectInput setup stage");
+    Expect(std::string(depthxr::ToString(depthxr::InputBindingPollStage::GetDeviceState)) ==
+               "get-device-state",
+           "Input diagnostics must distinguish device-state reads from acquisition failures");
+
+    const depthxr::InputBindingPollResult inactive = depthxr::PollInputBinding(depthxr::InputBinding{});
+    Expect(!inactive.down && !inactive.device_poll_attempted,
+           "An unbound input must not be reported as a DirectInput polling attempt");
+
+#if defined(_WIN32)
+    depthxr::InputBinding invalid_device_binding;
+    invalid_device_binding.type = depthxr::InputBindingType::Device;
+    invalid_device_binding.device_guid = "{11111111-2222-3333-4444-555555555555}";
+    invalid_device_binding.input_path = "button-129";
+    const depthxr::InputBindingPollResult invalid_device =
+        depthxr::PollInputBinding(invalid_device_binding);
+    Expect(invalid_device.device_poll_attempted &&
+               invalid_device.diagnostic_stage == depthxr::InputBindingPollStage::ParseInputPath,
+           "Invalid device bindings must report their failing stage before touching DirectInput");
+
+    depthxr::InputBinding missing_device_binding;
+    missing_device_binding.type = depthxr::InputBindingType::Device;
+    missing_device_binding.device_guid = "{11111111-2222-3333-4444-555555555555}";
+    missing_device_binding.input_path = "button-1";
+    const depthxr::InputBindingPollResult connecting_missing_device =
+        depthxr::PollInputBinding(missing_device_binding);
+    Expect(connecting_missing_device.device_poll_attempted &&
+               connecting_missing_device.device_connect_pending &&
+               !connecting_missing_device.down &&
+               connecting_missing_device.diagnostic_stage == depthxr::InputBindingPollStage::None,
+           "Device setup must be handed to the background connector, never run on the polling thread");
+    depthxr::DrainInputDeviceWork(std::chrono::seconds(5));
+    const depthxr::InputBindingPollResult first_missing_device =
+        depthxr::PollInputBinding(missing_device_binding);
+    const depthxr::InputBindingPollResult repeated_missing_device =
+        depthxr::PollInputBinding(missing_device_binding);
+    Expect(first_missing_device.device_poll_attempted &&
+               !first_missing_device.device_retry_deferred &&
+               !first_missing_device.device_connect_pending &&
+               first_missing_device.diagnostic_stage != depthxr::InputBindingPollStage::None &&
+               first_missing_device.device_retry_delay_ms > 0 &&
+               first_missing_device.device_retry_delay_ms <= 250,
+           "A background setup failure must surface once as a real attempt with a reconnect deadline");
+    Expect(repeated_missing_device.device_retry_deferred &&
+               repeated_missing_device.diagnostic_stage == first_missing_device.diagnostic_stage &&
+               repeated_missing_device.result_code == first_missing_device.result_code,
+           "A repeated missing-device binding must reuse the failure without touching DirectInput");
+#endif
+}
+
+// An input held when a device (re)connects must not look like a press: the
+// callers primed their edge detectors while the connector was still running.
+void TestInputConnectPriming() {
+    depthxr::InputConnectPriming priming;
+    const std::wstring hotas = L"{hotas-guid}";
+    Expect(priming.Filter(hotas, "button:1", true), "Unpublished devices must pass state through");
+    priming.DeviceConnected(hotas);
+    Expect(!priming.Filter(hotas, "button:1", true), "A switch held at connect must read released");
+    Expect(!priming.Filter(hotas, "button:1", true), "A held switch must stay released until it is released once");
+    Expect(!priming.Filter(hotas, "button:1", false), "A released switch must read released");
+    Expect(priming.Filter(hotas, "button:1", true), "A press after release must register");
+    Expect(!priming.Filter(hotas, "button:2", false) && priming.Filter(hotas, "button:2", true),
+           "An input released at connect must register its first press");
+    priming.DeviceConnected(hotas);
+    Expect(!priming.Filter(hotas, "button:1", true), "A reconnect must re-prime held inputs");
+    Expect(!priming.Filter(hotas, "button:2", false) && priming.Filter(hotas, "button:2", true),
+           "Released inputs must work immediately after a reconnect");
+}
+
+// A bound device that is not connected (DirectInput: not registered). In a
+// session it makes no timed attempts: each attempt stalled the game (Star
+// Citizen's frames, 48-70 ms every 2.07 s, 2026-10-18). It is tried once per
+// rescan (a device's arrival, Rescan inputs, a session's start); outside a
+// session the reconnect timer still runs, and a device that is there but
+// failing keeps the timer in a session too.
+void TestInputDeviceAbsentWaitsForRescan() {
+    using Backoff = depthxr::InputDeviceRetryBackoff;
+    using namespace std::chrono_literals;
+    const std::wstring stecs = L"{stecs-guid}";
+    const std::wstring vkb = L"{vkb-guid}";
+    const Backoff::TimePoint start{};
+
+    Backoff backoff(100ms, 400ms);
+    backoff.SetSessionActive(true);
+    backoff.RecordAbsent(stecs, start);
+    Expect(backoff.WaitsForRescan(stecs) && !backoff.ShouldAttempt(stecs, start + 10min) &&
+               backoff.RetryDelayRemaining(stecs, start + 10min) == 0ms,
+           "In a session, an absent device must make no timed attempts, however long it waits");
+    backoff.Rescan();
+    Expect(!backoff.WaitsForRescan(stecs) && backoff.ShouldAttempt(stecs, start + 10min),
+           "A rescan must let an absent device be tried once");
+    backoff.RecordAbsent(stecs, start + 10min);
+    Expect(backoff.WaitsForRescan(stecs) && !backoff.ShouldAttempt(stecs, start + 20min),
+           "Still absent after its rescan attempt, the device must wait for the next rescan");
+
+    backoff.RecordFailure(vkb, start);
+    Expect(!backoff.WaitsForRescan(vkb) && !backoff.ShouldAttempt(vkb, start + 99ms) &&
+               backoff.ShouldAttempt(vkb, start + 100ms),
+           "A device that is there but failing must keep the reconnect timer in a session");
+
+    backoff.SetSessionActive(false);
+    Expect(!backoff.WaitsForRescan(stecs) && backoff.ShouldAttempt(stecs, start + 20min),
+           "Outside a session, an absent device must retry on the reconnect timer");
+    backoff.SetSessionActive(true);
+    Expect(backoff.WaitsForRescan(stecs), "Back in a session, the absent device must wait for a rescan again");
+
+    backoff.Rescan();
+    backoff.RecordSuccess(stecs);
+    Expect(!backoff.WaitsForRescan(stecs) && backoff.ShouldAttempt(stecs, start + 20min) &&
+               backoff.ConsecutiveFailures(stecs) == 0,
+           "A device found on a rescan must clear its absent state");
+    backoff.RecordAbsent(stecs, start + 21min);
+    backoff.RecordFailure(stecs, start + 21min);
+    Expect(!backoff.WaitsForRescan(stecs) && backoff.ShouldAttempt(stecs, start + 21min + 400ms),
+           "A device that is there again after being absent must use the reconnect timer");
+
+    // Ten minutes in a session with ten bindings on an unplugged throttle,
+    // polled every 30 ms, and one device arrival (another controller plugged
+    // in) after five: the session's start and that arrival are the only
+    // attempts. On the timer alone it was one every 2 s (300).
+    Backoff production_policy;
+    production_policy.SetSessionActive(true);
+    production_policy.Rescan(); // the session's start
+    std::size_t attempts = 0;
+    for (int tick = 0; tick <= 20'000; ++tick) {
+        const Backoff::TimePoint now = start + tick * 30ms;
+        if (tick == 10'000) production_policy.Rescan();
+        for (int binding = 0; binding < 10; ++binding) {
+            if (production_policy.ShouldAttempt(stecs, now)) {
+                ++attempts;
+                production_policy.RecordAbsent(stecs, now);
+            }
+        }
+    }
+    Expect(attempts == 2, "An unplugged device in a ten-minute session must be tried only at the session's start "
+                          "and on the one device arrival");
+}
+
+// The connector looks for a device off the frame thread (CreateDevice, 13-70
+// ms) while the frame thread keeps counting arrivals. A controller whose HID
+// collections arrive one after another starts an attempt on the first and
+// may still be unknown to DirectInput at it: the second arrival, during the
+// attempt, must get it tried again, or its bindings stay dead for the session
+// (on the 2 s timer of 0.19.2 the next attempt found it).
+void TestInputDeviceArrivalDuringAttemptIsKept() {
+    using Backoff = depthxr::InputDeviceRetryBackoff;
+    using namespace std::chrono_literals;
+    const std::wstring stecs = L"{stecs-guid}";
+    const Backoff::TimePoint start{};
+
+    Backoff backoff(100ms, 400ms);
+    backoff.SetSessionActive(true);
+    backoff.RecordAbsent(stecs, start);
+    backoff.Rescan(); // the controller's first collection arrives
+    Expect(backoff.ShouldAttempt(stecs, start + 1s), "An arrival must let the absent device be tried");
+    const std::uint64_t attempted_after = backoff.Rescans(); // the connector takes the attempt
+    backoff.Rescan();                                        // the joystick's collection arrives meanwhile
+    backoff.RecordAbsent(stecs, start + 1s, attempted_after); // DirectInput did not know it yet
+    Expect(!backoff.WaitsForRescan(stecs) && backoff.ShouldAttempt(stecs, start + 1s),
+           "An arrival while an attempt ran must let the device be tried once more");
+    const std::uint64_t retried_after = backoff.Rescans();
+    backoff.RecordAbsent(stecs, start + 2s, retried_after);
+    Expect(backoff.WaitsForRescan(stecs) && !backoff.ShouldAttempt(stecs, start + 10min),
+           "With no arrival during its attempt, an absent device must wait for the next rescan");
+
+    // An attempt the frame thread makes itself (a read under the poller's
+    // lock, so no rescan between its start and its end) waits as before.
+    backoff.Rescan();
+    backoff.RecordAbsent(stecs, start + 11min);
+    Expect(backoff.WaitsForRescan(stecs), "An absent result with no rescan since must wait for the next rescan");
+}
+
+void TestInputDeviceRetryBackoff() {
+    using Backoff = depthxr::InputDeviceRetryBackoff;
+    using namespace std::chrono_literals;
+
+    Backoff backoff(100ms, 400ms);
+    const std::wstring foxtrot = L"{foxtrot-guid}";
+    const std::wstring throttle = L"{throttle-guid}";
+    const Backoff::TimePoint start{};
+
+    Expect(backoff.ShouldAttempt(foxtrot, start),
+           "A device with no failure history must be polled immediately");
+    Expect(backoff.RecordFailure(foxtrot, start) == 100ms &&
+               backoff.ConsecutiveFailures(foxtrot) == 1,
+           "The first unavailable-device retry must use the initial delay");
+    Expect(!backoff.ShouldAttempt(foxtrot, start + 99ms) &&
+               backoff.RetryDelayRemaining(foxtrot, start + 40ms) == 60ms,
+           "Bindings for one unavailable device must share its retry window");
+    Expect(backoff.ShouldAttempt(foxtrot, start + 100ms),
+           "An unavailable device must become eligible at its reconnect deadline");
+    Expect(backoff.ShouldAttempt(throttle, start + 50ms),
+           "One unavailable device must not delay a different device");
+
+    Expect(backoff.RecordFailure(foxtrot, start + 100ms) == 200ms &&
+               backoff.RecordFailure(foxtrot, start + 300ms) == 400ms &&
+               backoff.RecordFailure(foxtrot, start + 700ms) == 400ms,
+           "Repeated reconnect failures must double to, but never exceed, the cap");
+    Expect(!backoff.ShouldAttempt(foxtrot, start + 1099ms) &&
+               backoff.ShouldAttempt(foxtrot, start + 1100ms),
+           "The capped retry window must remain deterministic");
+
+    backoff.RecordSuccess(foxtrot);
+    Expect(backoff.ShouldAttempt(foxtrot, start + 701ms) &&
+               backoff.ConsecutiveFailures(foxtrot) == 0 &&
+               backoff.RetryDelayRemaining(foxtrot, start + 701ms) == 0ms,
+           "A successful device read must clear reconnect backoff immediately");
+
+    Backoff clamped(0ms, 0ms);
+    Expect(clamped.RecordFailure(foxtrot, start) == 1ms,
+           "A misconfigured reconnect policy must retain a nonzero retry delay");
+
+    // Model ten Pivot bindings sharing one unplugged controller at the layer's
+    // 30ms polling interval. Before the negative cache this produced roughly
+    // 3,340 DirectInput setup attempts in ten seconds; the production policy
+    // should permit only the bounded reconnect probes.
+    Backoff production_policy;
+    std::size_t device_attempts = 0;
+    std::size_t deferred_bindings = 0;
+    for (int tick = 0; tick <= 333; ++tick) {
+        const Backoff::TimePoint now = start + tick * 30ms;
+        for (int binding = 0; binding < 10; ++binding) {
+            if (production_policy.ShouldAttempt(foxtrot, now)) {
+                ++device_attempts;
+                production_policy.RecordFailure(foxtrot, now);
+            } else {
+                ++deferred_bindings;
+            }
+        }
+    }
+    Expect(device_attempts <= 8 && deferred_bindings > 3'300,
+           "Reconnect backoff must collapse an unplugged multi-binding input storm");
+}
+
+void TestQuadViewsCanvasDimensionsMatchCompositionDensity() {
+    const depthxr::QuadViewsCanvasDimensions supersampled =
+        depthxr::ComputeQuadViewsCanvasDimensions(6240, 6280, 16384, 16384, 1.1);
+    Expect(supersampled.width == 6864 && supersampled.height == 6908,
+           "Quadviews prewarm dimensions did not match the density-scaled composition canvas");
+    Expect(std::abs(supersampled.density - 1.1) < 0.0001,
+           "Quadviews canvas density did not retain focus supersampling");
+
+    const depthxr::QuadViewsCanvasDimensions fallback_maximum =
+        depthxr::ComputeQuadViewsCanvasDimensions(6240, 6280, 0, 0, 1.1);
+    Expect(fallback_maximum.width == 6864 && fallback_maximum.height == 6908,
+           "Quadviews canvas fallback maximum unexpectedly clamped the scaled dimensions");
+
+    const depthxr::QuadViewsCanvasDimensions native =
+        depthxr::ComputeQuadViewsCanvasDimensions(6240, 6280, 16384, 16384, 0.8);
+    Expect(native.width == 6240 && native.height == 6280 && std::abs(native.density - 1.0) < 0.0001,
+           "Quadviews canvas dropped below runtime-native density");
+
+    const depthxr::QuadViewsCanvasDimensions clamped =
+        depthxr::ComputeQuadViewsCanvasDimensions(1000, 900, 1050, 920, 1.2);
+    Expect(clamped.width == 1050 && clamped.height == 920,
+           "Quadviews canvas dimensions exceeded the runtime maximum");
+}
+
+depthxr::FrameGenFov FovFromTangents(double left, double right, double up, double down) {
+    return {static_cast<float>(std::atan(left)), static_cast<float>(std::atan(right)),
+            static_cast<float>(std::atan(up)), static_cast<float>(std::atan(down))};
+}
+
+void TestFrameGenComposeEye() {
+    const auto close_to = [](float value, double expected) {
+        return std::abs(value - expected) <= 1e-5 * (std::max)(1.0, std::abs(expected));
+    };
+    const auto relative = [](float value, double expected) {
+        return std::abs(value - expected) <= 1e-4 * std::abs(expected);
+    };
+    const depthxr::FrameGenFov full = FovFromTangents(-1.0, 1.0, 1.0, -1.0);
+    const depthxr::FrameGenFov focus = FovFromTangents(-0.5, 0.25, 0.5, -0.25);
+
+    const depthxr::FrameGenComposeEye eye =
+        depthxr::BuildFrameGenComposeEye(full, focus, {2000, 1000}, {1200, 900}, 10.0, 50.0);
+    Expect(eye.peripheral == 0 && eye.focus == 0, "The compose builder should leave the view indices to the caller");
+    Expect(close_to(eye.focus_rect[0], 0.25) && close_to(eye.focus_rect[1], 0.25) &&
+               close_to(eye.focus_rect[2], 0.625) && close_to(eye.focus_rect[3], 0.625),
+           "The focus rectangle should lie where the focus view's tangents fall in the full view's");
+    Expect(close_to(eye.feather[0], 0.0375) && close_to(eye.feather[1], 0.0375),
+           "The blend band should be the transition's share of the focus rectangle");
+    Expect(eye.sharpen == 0.5f, "Sharpness 50 should sharpen by half");
+    Expect(eye.focus_texel[0] == 1.0f / 1200.0f && eye.focus_texel[1] == 1.0f / 900.0f,
+           "The focus texel should be one over the focus view's extent");
+    Expect(relative(eye.output_pixel_in_focus[0], (1.0 / 2000.0) / 0.375) &&
+               relative(eye.output_pixel_in_focus[1], (1.0 / 1000.0) / 0.375),
+           "One output pixel should be expressed in focus uv");
+
+    // A focus view reaching past the full view's left and bottom edges.
+    const depthxr::FrameGenComposeEye edge = depthxr::BuildFrameGenComposeEye(
+        full, FovFromTangents(-1.5, 0.5, 0.5, -2.0), {2000, 1000}, {1200, 900}, 10.0, 50.0);
+    Expect(edge.focus_rect[0] == 0.0f && edge.focus_rect[3] == 1.0f && close_to(edge.focus_rect[1], 0.25) &&
+               close_to(edge.focus_rect[2], 0.75),
+           "The focus rectangle should be clamped at the full view's edges");
+    Expect(close_to(edge.feather[0], 0.075) && close_to(edge.feather[1], 0.075),
+           "The blend band should follow the clamped focus rectangle");
+
+    // The blend band is never under one output pixel.
+    for (const double transition : {0.0, -20.0, 0.01}) {
+        const depthxr::FrameGenComposeEye hard =
+            depthxr::BuildFrameGenComposeEye(full, focus, {2000, 1000}, {1200, 900}, transition, 50.0);
+        Expect(hard.feather[0] == static_cast<float>(1.0 / 2000.0) &&
+                   hard.feather[1] == static_cast<float>(1.0 / 1000.0),
+               "A transition under one output pixel should keep a one-pixel blend band");
+    }
+    const depthxr::FrameGenComposeEye empty = depthxr::BuildFrameGenComposeEye(full, focus, {0, 0}, {0, 0}, 0.0, 50.0);
+    Expect(empty.feather[0] == 1.0f && empty.feather[1] == 1.0f && empty.focus_texel[0] == 1.0f &&
+               empty.focus_texel[1] == 1.0f,
+           "Empty extents should count as one pixel");
+    const depthxr::FrameGenComposeEye wide =
+        depthxr::BuildFrameGenComposeEye(full, focus, {2000, 1000}, {1200, 900}, 250.0, 50.0);
+    Expect(close_to(wide.feather[0], 0.375) && close_to(wide.feather[1], 0.375),
+           "A transition over 100% should blend across the whole focus rectangle");
+
+    const std::array<std::pair<double, float>, 5> sharpness{{
+        {-10.0, 0.0f},
+        {0.0, 0.0f},
+        {37.0, static_cast<float>(37.0 / 100.0)},
+        {100.0, 1.0f},
+        {250.0, 1.0f},
+    }};
+    for (const auto& [percent, expected] : sharpness) {
+        Expect(depthxr::BuildFrameGenComposeEye(full, focus, {2000, 1000}, {1200, 900}, 10.0, percent).sharpen ==
+                   expected,
+               "Sharpness should be clamped to 0-100 and scaled to 0-1");
+    }
+
+    const depthxr::FrameGenConstants constants = depthxr::BuildFrameGenComposeConstants(eye, {2000, 1000});
+    Expect(constants.fov_current == eye.focus_rect, "The compose constants should carry the focus rectangle");
+    Expect(constants.fov_previous == std::array<float, 4>{eye.feather[0], eye.feather[1], eye.sharpen, 0.0f},
+           "The compose constants should carry the blend band and sharpening");
+    Expect(constants.rot0 == std::array<float, 4>{eye.focus_texel[0], eye.focus_texel[1], eye.output_pixel_in_focus[0],
+                                                  eye.output_pixel_in_focus[1]},
+           "The compose constants should carry the focus texel and one output pixel in focus uv");
+    Expect(constants.size == std::array<std::uint32_t, 4>{2000, 1000, 0, 0},
+           "The compose constants should carry the output extent");
+    Expect(constants.options == std::array<std::uint32_t, 4>{} && constants.rot1 == std::array<float, 4>{} &&
+               constants.rot2 == std::array<float, 4>{} && constants.tuning == std::array<float, 4>{},
+           "The compose constants' other fields should be zero");
+
+    // The diagnostic overlay: its flags, markers and the output pixel the
+    // Direct3D 11 compositor computes (1 / the extent, in float).
+    depthxr::FrameGenComposeEye overlaid = eye;
+    overlaid.overlay.gaze_markers = {0.4f, 0.45f, 0.42f, 0.46f};
+    overlaid.overlay.reference_markers = {0.5f, 0.5f, 0.55f, 0.48f};
+    Expect(depthxr::BuildFrameGenComposeConstants(overlaid, {2000, 1000}).options == std::array<std::uint32_t, 4>{},
+           "An overlay that is not shown should leave the compose constants as they are");
+    overlaid.overlay.shown = true;
+    const struct {
+        bool eye_tracking, gaze;
+        std::uint32_t flags;
+    } overlay_cases[] = {
+        {false, false, depthxr::kFrameGenComposeOverlay},
+        {true, false, depthxr::kFrameGenComposeOverlay | depthxr::kFrameGenComposeOverlayEyeTracking},
+        {true, true,
+         depthxr::kFrameGenComposeOverlay | depthxr::kFrameGenComposeOverlayEyeTracking |
+             depthxr::kFrameGenComposeOverlayGaze},
+    };
+    for (const auto& overlay_case : overlay_cases) {
+        overlaid.overlay.eye_tracking = overlay_case.eye_tracking;
+        overlaid.overlay.gaze = overlay_case.gaze;
+        const depthxr::FrameGenConstants shown = depthxr::BuildFrameGenComposeConstants(overlaid, {2000, 1000});
+        Expect(shown.options == std::array<std::uint32_t, 4>{overlay_case.flags, 0, 0, 0},
+               "The compose constants should carry the overlay's flags");
+        Expect(shown.rot1 == overlaid.overlay.gaze_markers && shown.rot2 == overlaid.overlay.reference_markers,
+               "The compose constants should carry the overlay's markers");
+        Expect(shown.tuning == std::array<float, 4>{1.0f / 2000.0f, 1.0f / 1000.0f, 0.0f, 0.0f},
+               "The compose constants should carry one output pixel for the overlay's shapes");
+        Expect(shown.fov_current == constants.fov_current && shown.fov_previous == constants.fov_previous &&
+                   shown.rot0 == constants.rot0 && shown.size == constants.size,
+               "The overlay should leave the compose itself as it is");
+    }
+}
+
+// The quad views compositor's focus rectangle arithmetic before the shared
+// builder: focus_rect, blend_params and focus_texel, 4 floats each.
+std::array<float, 12> ReferenceFocusRectConstants(const depthxr::FrameGenFov& full_fov,
+                                                  const depthxr::FrameGenFov& focus_fov,
+                                                  std::uint32_t width,
+                                                  std::uint32_t height,
+                                                  std::uint32_t focus_width,
+                                                  std::uint32_t focus_height,
+                                                  double transition_thickness_percent,
+                                                  double foveate_sharpness) {
+    const auto clamp = [](double value, double min_value, double max_value) {
+        return (std::max)(min_value, (std::min)(max_value, value));
+    };
+    const double full_left = std::tan(full_fov.left);
+    const double full_right = std::tan(full_fov.right);
+    const double full_down = std::tan(full_fov.down);
+    const double full_up = std::tan(full_fov.up);
+    const double focus_left = std::tan(focus_fov.left);
+    const double focus_right = std::tan(focus_fov.right);
+    const double focus_down = std::tan(focus_fov.down);
+    const double focus_up = std::tan(focus_fov.up);
+    const double full_width = (std::max)(0.0001, full_right - full_left);
+    const double full_height = (std::max)(0.0001, full_up - full_down);
+
+    std::array<float, 12> constants{};
+    float* focus_rect = constants.data();
+    float* blend_params = constants.data() + 4;
+    float* focus_texel = constants.data() + 8;
+    focus_rect[0] = static_cast<float>(clamp((focus_left - full_left) / full_width, 0.0, 1.0));
+    focus_rect[2] = static_cast<float>(clamp((focus_right - full_left) / full_width, 0.0, 1.0));
+    focus_rect[1] = static_cast<float>(clamp((full_up - focus_up) / full_height, 0.0, 1.0));
+    focus_rect[3] = static_cast<float>(clamp((full_up - focus_down) / full_height, 0.0, 1.0));
+
+    const double focus_rect_width = (std::max)(0.0001, static_cast<double>(focus_rect[2]) - focus_rect[0]);
+    const double focus_rect_height = (std::max)(0.0001, static_cast<double>(focus_rect[3]) - focus_rect[1]);
+    const double transition_fraction = clamp(transition_thickness_percent, 0.0, 100.0) / 100.0;
+    blend_params[0] =
+        static_cast<float>((std::max)(1.0 / std::max<std::uint32_t>(1, width), focus_rect_width * transition_fraction));
+    blend_params[1] = static_cast<float>(
+        (std::max)(1.0 / std::max<std::uint32_t>(1, height), focus_rect_height * transition_fraction));
+    blend_params[2] = static_cast<float>(clamp(foveate_sharpness, 0.0, 100.0) / 100.0);
+    blend_params[3] = 0.0f;
+    focus_texel[0] = 1.0f / static_cast<float>(std::max<std::uint32_t>(1, focus_width));
+    focus_texel[1] = 1.0f / static_cast<float>(std::max<std::uint32_t>(1, focus_height));
+    focus_texel[2] = static_cast<float>((1.0 / std::max<std::uint32_t>(1, width)) / focus_rect_width);
+    focus_texel[3] = static_cast<float>((1.0 / std::max<std::uint32_t>(1, height)) / focus_rect_height);
+    return constants;
+}
+
+void TestFrameGenComposeEyeMatchesCompositor() {
+    // A fixed-seed generator, so every run checks the same 50 pairs.
+    std::uint64_t state = 0x5EED0F0CA1ULL;
+    const auto random = [&state](double low, double high) {
+        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+        return low + (high - low) * static_cast<double>(state >> 11) / 9007199254740992.0;
+    };
+    int clamped = 0;
+    for (int pair = 0; pair < 50; ++pair) {
+        const depthxr::FrameGenFov full{static_cast<float>(random(-1.2, -0.5)), static_cast<float>(random(0.5, 1.2)),
+                                        static_cast<float>(random(0.5, 1.1)), static_cast<float>(random(-1.2, -0.5))};
+        // Some focus views reach past the full view's edges.
+        const double center_x = random(-0.6, 0.6);
+        const double center_y = random(-0.5, 0.5);
+        const double half_width = random(0.1, 0.7);
+        const double half_height = random(0.1, 0.7);
+        const depthxr::FrameGenFov focus{
+            static_cast<float>(center_x - half_width), static_cast<float>(center_x + half_width),
+            static_cast<float>(center_y + half_height), static_cast<float>(center_y - half_height)};
+        const auto width = static_cast<std::uint32_t>(random(500.0, 4000.0));
+        const auto height = static_cast<std::uint32_t>(random(500.0, 4000.0));
+        const auto focus_width = static_cast<std::uint32_t>(random(400.0, 3000.0));
+        const auto focus_height = static_cast<std::uint32_t>(random(400.0, 3000.0));
+        const double transition = random(-10.0, 110.0);
+        const double sharpness = random(-10.0, 110.0);
+
+        const depthxr::FrameGenComposeEye eye = depthxr::BuildFrameGenComposeEye(
+            full, focus, {width, height}, {focus_width, focus_height}, transition, sharpness);
+        const std::array<float, 12> shared{
+            eye.focus_rect[0], eye.focus_rect[1], eye.focus_rect[2], eye.focus_rect[3],
+            eye.feather[0], eye.feather[1], eye.sharpen, 0.0f,
+            eye.focus_texel[0], eye.focus_texel[1], eye.output_pixel_in_focus[0], eye.output_pixel_in_focus[1]};
+        const std::array<float, 12> reference = ReferenceFocusRectConstants(
+            full, focus, width, height, focus_width, focus_height, transition, sharpness);
+        for (std::size_t value = 0; value < shared.size(); ++value) {
+            Expect(std::bit_cast<std::uint32_t>(shared[value]) == std::bit_cast<std::uint32_t>(reference[value]),
+                   "The compose builder should match the quadviews compositor bit for bit (pair " +
+                       std::to_string(pair) + ", value " + std::to_string(value) + ")");
+        }
+        if (std::any_of(eye.focus_rect.begin(), eye.focus_rect.end(),
+                        [](float edge) { return edge == 0.0f || edge == 1.0f; })) {
+            ++clamped;
+        }
+    }
+    Expect(clamped > 0, "The compose builder comparison should include focus views clamped at an edge");
+}
+
+void TestSwapchainImageQueuePreservesFifo() {
+    depthxr::SwapchainImageQueue queue;
+    queue.Acquire(2);
+    queue.Acquire(0);
+    Expect(queue.Size() == 2, "Swapchain queue did not retain both acquired images");
+
+    Expect(queue.WaitOldest() == 2, "First wait did not target the oldest acquired image");
+    Expect(queue.WaitOldest() == 0, "Second wait did not advance to the next acquired image");
+    Expect(!queue.WaitOldest().has_value(), "Wait succeeded without an un-waited acquired image");
+
+    Expect(queue.ReleaseOldest() == 2, "First app release did not target the oldest waited image");
+    Expect(queue.ReleaseOldest() == 0, "Second app release did not preserve FIFO order");
+    Expect(queue.PendingDownstreamReleases() == 2,
+           "Deferred downstream release count did not retain both app releases");
+
+    Expect(queue.ReleaseDownstreamOldest() == 2,
+           "First downstream release did not target the oldest app-released image");
+    Expect(queue.Size() == 1, "Completed FIFO prefix was not retired");
+    Expect(queue.ReleaseDownstreamOldest() == 0,
+           "Second downstream release did not target the remaining image");
+    Expect(queue.Size() == 0, "Fully released queue was not emptied");
+}
+
+constexpr double kRadiansPerDegree = 3.14159265358979323846 / 180.0;
+
+// Extra yaw in degrees for a x2 multiplier, 8-degree deadzone and the given
+// Deadzone Transition width.
+double SoftDeadzoneExtraDegrees(double angle_degrees, double transition_degrees) {
+    return depthxr::ComputePivotContinuousExtra(angle_degrees * kRadiansPerDegree, 2.0, 8.0, transition_degrees,
+                                                180.0) /
+           kRadiansPerDegree;
+}
+
+void TestPivotSoftDeadzoneKeepsOneToOneInsideTheDeadzone() {
+    Expect(SoftDeadzoneExtraDegrees(7.0, 4.0) == 0.0 && SoftDeadzoneExtraDegrees(8.0, 4.0) == 0.0,
+           "Soft deadzone must stay 1:1 up to the deadzone");
+}
+
+void TestPivotSoftDeadzoneIntegratesSmoothstepSensitivity() {
+    Expect(std::abs(SoftDeadzoneExtraDegrees(12.0, 4.0) - 2.0) < 1e-9,
+           "Soft deadzone must add half the transition's linear extra at the transition's far edge");
+    Expect(std::abs(SoftDeadzoneExtraDegrees(20.0, 4.0) - 10.0) < 1e-9,
+           "Beyond the transition the soft deadzone must give up transition/2 x (gain - 1) of reach");
+    Expect(std::abs(SoftDeadzoneExtraDegrees(20.0, 0.0) - 12.0) < 1e-9,
+           "A zero transition must reproduce the legacy hard deadzone");
+    Expect(std::abs(SoftDeadzoneExtraDegrees(-20.0, 4.0) + SoftDeadzoneExtraDegrees(20.0, 4.0)) < 1e-9,
+           "Soft deadzone must be symmetric for left and right");
+}
+
+void TestPivotSoftDeadzoneIsMonotonicAndSmooth() {
+    double previous = 0.0;
+    for (double angle = 8.0; angle < 180.0; angle += 0.1) {
+        const double next = SoftDeadzoneExtraDegrees(angle, 4.0);
+        Expect(next >= previous, "Soft deadzone extra must never decrease as the head turns further");
+        previous = next;
+    }
+    constexpr double kStep = 0.0001;
+    const double entry_slope =
+        (SoftDeadzoneExtraDegrees(8.0 + kStep, 4.0) - SoftDeadzoneExtraDegrees(8.0, 4.0)) / kStep;
+    Expect(std::abs(entry_slope) < 0.001, "Sensitivity must not step up where the transition starts");
+    const double exit_slope =
+        (SoftDeadzoneExtraDegrees(12.0 + kStep, 4.0) - SoftDeadzoneExtraDegrees(12.0 - kStep, 4.0)) / (2.0 * kStep);
+    Expect(std::abs(exit_slope - 1.0) < 0.001, "Sensitivity must reach the full multiplier smoothly");
+}
+
+void TestPivotPositionAssistBasicCurve() {
+    depthxr::PivotPositionAssist assist;
+    assist.enabled = true;
+    assist.yaw = {10.0, 4.0, -2.0, 0.0, 90.0};
+    Expect(depthxr::PivotViewOffsetNearlyZero(depthxr::ComputePivotPositionAssist(0.0, 0.0, assist)),
+           "Position Assist must not move the view at neutral");
+    const depthxr::PivotViewOffset half = depthxr::ComputePivotPositionAssist(-45.0 * kRadiansPerDegree, 0.0, assist);
+    Expect(std::abs(half.right_meters - 0.05) < 1e-9 && std::abs(half.up_meters - 0.02) < 1e-9,
+           "Position Assist must ease to half its offsets midway between the start and full angles");
+    const depthxr::PivotViewOffset full = depthxr::ComputePivotPositionAssist(-150.0 * kRadiansPerDegree, 0.0, assist);
+    Expect(std::abs(full.right_meters - 0.1) < 1e-9 && std::abs(full.forward_meters + 0.02) < 1e-9,
+           "Position Assist must hold its configured offsets beyond the full angle");
+    const depthxr::PivotViewOffset left = depthxr::ComputePivotPositionAssist(45.0 * kRadiansPerDegree, 0.0, assist);
+    Expect(std::abs(left.right_meters + 0.05) < 1e-9, "Basic sideways lean must mirror between left and right turns");
+}
+
+void TestPivotPositionAssistAdvancedDirectionsCompose() {
+    depthxr::PivotPositionAssist assist;
+    assist.enabled = true;
+    assist.advanced_directions = true;
+    assist.yaw_left = {-12.0, 2.0, 0.0, 0.0, 45.0};
+    assist.pitch_up = {0.0, 8.0, 3.0, 0.0, 30.0};
+    const depthxr::PivotViewOffset combined =
+        depthxr::ComputePivotPositionAssist(45.0 * kRadiansPerDegree, 30.0 * kRadiansPerDegree, assist);
+    Expect(std::abs(combined.right_meters + 0.12) < 1e-9 && std::abs(combined.up_meters - 0.1) < 1e-9,
+           "Advanced Position Assist directions must add together");
+}
+
+void TestExpandedPivotSettingsResolve() {
+    const depthxr::ParseResult parsed = depthxr::ParseConfig(R"json(
+{
+  "version": 3,
+  "core": {},
+  "applications": [],
+  "modules": {
+    "depthxr": {},
+    "pivotxr": {
+      "enabled": true,
+      "defaults": {
+        "applyMotionToSnapViews": true,
+        "deadzoneTransitionDegrees": 4,
+        "pitchDeadzoneTransitionDegrees": 2,
+        "positionAssist": {
+          "enabled": true,
+          "yaw": { "rightCm": 10, "upCm": 4, "startAngleDegrees": 0, "fullAngleDegrees": 90 }
+        }
+      }
+    }
+  }
+}
+)json");
+    Expect(parsed.ok, "Expanded Pivot settings must parse: " + parsed.error);
+    const depthxr::PivotXrResolvedProfile profile =
+        depthxr::ResolveRuntimeConfig(parsed.document, "FlightSimulator.exe").pivotxr.profiles[0];
+    Expect(profile.apply_motion_to_snap_views, "Apply Enhanced Motion to Snap Views must resolve");
+    Expect(profile.position_assist.enabled && std::abs(profile.position_assist.yaw.right_cm - 10.0) < 1e-9,
+           "Position Assist must resolve");
+    Expect(profile.yaw_positive.deadzone_transition_degrees == 4.0 &&
+               profile.yaw_negative.deadzone_transition_degrees == 4.0,
+           "The basic yaw Deadzone Transition must apply to both yaw directions");
+    Expect(profile.pitch_positive.deadzone_transition_degrees == 2.0 &&
+               profile.pitch_negative.deadzone_transition_degrees == 2.0,
+           "The basic pitch Deadzone Transition must apply to both pitch directions");
+}
+
+void TestPerDirectionDeadzoneTransitionParsing() {
+    const depthxr::ParseResult parsed = depthxr::ParseConfig(R"json(
+{
+  "version": 3,
+  "core": {},
+  "applications": [],
+  "modules": {
+    "depthxr": {},
+    "pivotxr": {
+      "enabled": true,
+      "defaults": {
+        "advancedAxes": true,
+        "deadzoneTransitionDegrees": 9,
+        "yawLeft": { "deadzoneTransitionDegrees": 1 },
+        "yawRight": { "deadzoneTransitionDegrees": 2 },
+        "pitchUp": { "deadzoneTransitionDegrees": 3 },
+        "pitchDown": { "deadzoneTransitionDegrees": 4 }
+      }
+    }
+  }
+}
+)json");
+    Expect(parsed.ok, "Per-direction Deadzone Transition must parse: " + parsed.error);
+    const depthxr::PivotXrResolvedProfile profile =
+        depthxr::ResolveRuntimeConfig(parsed.document, "FlightSimulator.exe").pivotxr.profiles[0];
+    Expect(profile.yaw_positive.deadzone_transition_degrees == 1.0, "Yaw Left Deadzone Transition was not parsed");
+    Expect(profile.yaw_negative.deadzone_transition_degrees == 2.0, "Yaw Right Deadzone Transition was not parsed");
+    Expect(profile.pitch_positive.deadzone_transition_degrees == 3.0, "Pitch Up Deadzone Transition was not parsed");
+    Expect(profile.pitch_negative.deadzone_transition_degrees == 4.0, "Pitch Down Deadzone Transition was not parsed");
+
+    const depthxr::ParseResult out_of_range = depthxr::ParseConfig(
+        R"({"version":3,"core":{},"applications":[],"modules":{"depthxr":{},"pivotxr":{"defaults":{"advancedAxes":true,"pitchDown":{"deadzoneTransitionDegrees":181}}}}})");
+    Expect(!out_of_range.ok && out_of_range.error.find("pitchDown") != std::string::npos,
+           "An out-of-range per-direction Deadzone Transition must be rejected and name its direction");
+}
+
+void TestInvertedPositionAssistRangeRejected() {
+    const depthxr::ParseResult parsed = depthxr::ParseConfig(
+        R"({"version":3,"core":{},"applications":[],"modules":{"depthxr":{},"pivotxr":{"defaults":{"positionAssist":{"yaw":{"startAngleDegrees":60,"fullAngleDegrees":20}}}}}})");
+    Expect(!parsed.ok, "A Position Assist full angle below its start angle must be rejected");
+}
+
+// DXGI's user-mode driver version: a.b.c.d in four 16-bit fields.
+std::uint64_t UserModeDriverVersion(std::uint64_t a, std::uint64_t b, std::uint64_t c, std::uint64_t d) {
+    return (a << 48) | (b << 32) | (c << 16) | d;
+}
+
+void TestSessionGraphicsDriverVersions() {
+    using depthxr::DxgiDriverVersionText;
+    using depthxr::VulkanDriverVersionText;
+    constexpr std::uint32_t kNvidia = 0x10de;
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(32, 0, 15, 8142), kNvidia) == "581.42 (32.0.15.8142)",
+           "NVIDIA's DXGI driver version must read as NVIDIA shows it: " +
+               DxgiDriverVersionText(UserModeDriverVersion(32, 0, 15, 8142), kNvidia));
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(31, 0, 15, 5222), kNvidia) == "552.22 (31.0.15.5222)",
+           "NVIDIA 552.22 must decode from 31.0.15.5222");
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(27, 21, 14, 5671), kNvidia) == "456.71 (27.21.14.5671)",
+           "NVIDIA 456.71 must decode from 27.21.14.5671");
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(32, 0, 16, 5), kNvidia) == "600.05 (32.0.16.5)",
+           "NVIDIA's hundredths must keep their leading zero: " +
+               DxgiDriverVersionText(UserModeDriverVersion(32, 0, 16, 5), kNvidia));
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(32, 0, 15, 8142), 0x1002u) == "32.0.15.8142",
+           "Other vendors' DXGI driver versions must read as DXGI has them");
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(10, 0, 26100, 4061), 0x1414u) == "10.0.26100.4061",
+           "WARP's DXGI driver version must read as DXGI has it, with fields above 9999");
+    Expect(DxgiDriverVersionText(UserModeDriverVersion(32, 0, 15, 8142), std::nullopt) == "32.0.15.8142",
+           "An unknown vendor's DXGI driver version must not be read as NVIDIA's");
+
+    // NVIDIA packs Vulkan's driverVersion as 10 bits major, 8 bits minor.
+    constexpr std::uint32_t kVulkan58142 = (581u << 22) | (42u << 14);
+    Expect(VulkanDriverVersionText(kVulkan58142, kNvidia) == "581.42 (0x914a8000)",
+           "NVIDIA's Vulkan driver version must read as NVIDIA shows it: " +
+               VulkanDriverVersionText(kVulkan58142, kNvidia));
+    Expect(VulkanDriverVersionText((551u << 22) | (6u << 14) | (3u << 6) | 1u, kNvidia) == "551.06 (0x89c180c1)",
+           "NVIDIA's Vulkan minor version must keep its leading zero: " +
+               VulkanDriverVersionText((551u << 22) | (6u << 14) | (3u << 6) | 1u, kNvidia));
+    Expect(VulkanDriverVersionText(0x00801234u, 0x1002u) == "0x00801234",
+           "Other vendors' Vulkan driver versions must stay raw, in eight hex digits");
+}
+
+void TestSessionGraphicsVideoMemory() {
+    using depthxr::VideoMemoryText;
+    constexpr std::uint64_t kMiB = 1ull << 20;
+    constexpr std::uint64_t kGiB = 1ull << 30;
+    Expect(VideoMemoryText(0) == "0 MiB", "No dedicated video memory (WARP) must read 0 MiB");
+    Expect(VideoMemoryText(512 * kMiB) == "512 MiB", "Video memory below 1 GiB must read in MiB");
+    Expect(VideoMemoryText(kGiB) == "1.0 GiB", "1 GiB must read 1.0 GiB");
+    Expect(VideoMemoryText(kGiB - kMiB / 4) == "1.0 GiB",
+           "Just under 1 GiB rounds to 1024 MiB and must read 1.0 GiB: " + VideoMemoryText(kGiB - kMiB / 4));
+    Expect(VideoMemoryText(kGiB - kMiB / 2 - 1) == "1023 MiB",
+           "What rounds below 1024 MiB must stay in MiB: " + VideoMemoryText(kGiB - kMiB / 2 - 1));
+    Expect(VideoMemoryText(32607 * kMiB) == "31.8 GiB",
+           "32607 MiB must read 31.8 GiB: " + VideoMemoryText(32607 * kMiB));
+    Expect(VideoMemoryText(kGiB + kGiB * 96 / 100) == "2.0 GiB",
+           "Rounding must carry into the whole GiB: " + VideoMemoryText(kGiB + kGiB * 96 / 100));
+}
+
+void TestSessionGraphicsLine() {
+    constexpr std::uint64_t kGiB = 1ull << 30;
+    depthxr::SessionGraphics d3d12;
+    d3d12.api = "Direct3D 12";
+    d3d12.adapter = "NVIDIA GeForce RTX 5090";
+    d3d12.vendor_id = 0x10de;
+    d3d12.driver_version = UserModeDriverVersion(32, 0, 15, 8142);
+    d3d12.dedicated_video_memory = 32607ull << 20;
+    d3d12.budget = 29 * kGiB + kGiB * 6 / 10;
+    d3d12.usage = kGiB + kGiB * 2 / 10;
+    std::string line = depthxr::FormatSessionGraphics(d3d12, "PimaxXR", "1.2.3");
+    Expect(line == "Session graphics: api=Direct3D 12, adapter=\"NVIDIA GeForce RTX 5090\", vendor=0x10de, "
+                   "driver=581.42 (32.0.15.8142), dedicatedVideoMemory=31.8 GiB, budget=29.6 GiB "
+                   "(process uses 1.2 GiB), runtime=\"PimaxXR\" 1.2.3",
+           "A Direct3D 12 session's graphics line must name everything found: " + line);
+
+    // A Vulkan device whose LUID could not be read, its adapter matched by
+    // PCI IDs: DXGI's figures, and how the adapter was found.
+    depthxr::SessionGraphics matched = d3d12;
+    matched.api = "Vulkan";
+    matched.vulkan_driver_version = (581u << 22) | (42u << 14);
+    matched.problem = depthxr::AdapterIdMatchText(depthxr::AdapterIdMatch{std::size_t{0}, 1},
+                                                  "the Vulkan device names no adapter LUID");
+    line = depthxr::FormatSessionGraphics(matched, "SteamVR/OpenXR", "2.7.4");
+    Expect(line == "Session graphics: api=Vulkan, adapter=\"NVIDIA GeForce RTX 5090\", vendor=0x10de, "
+                   "driver=581.42 (32.0.15.8142), vulkanDriver=581.42 (0x914a8000), dedicatedVideoMemory=31.8 GiB, "
+                   "budget=29.6 GiB (process uses 1.2 GiB), runtime=\"SteamVR/OpenXR\" 2.7.4; adapter matched by "
+                   "PCI vendor and device ID, not by LUID: the Vulkan device names no adapter LUID",
+           "A Vulkan session's graphics line must say when its adapter was matched by PCI IDs: " + line);
+
+    // Neither the LUID nor the IDs: Vulkan's own figures, and why DXGI's are
+    // missing.
+    depthxr::SessionGraphics vulkan;
+    vulkan.api = "Vulkan";
+    vulkan.adapter = "NVIDIA GeForce RTX 5090";
+    vulkan.vendor_id = 0x10de;
+    vulkan.vulkan_driver_version = (581u << 22) | (42u << 14);
+    vulkan.problem = depthxr::AdapterIdMatchText({}, "the Vulkan device names no adapter LUID");
+    line = depthxr::FormatSessionGraphics(vulkan, "SteamVR/OpenXR", "2.7.4");
+    Expect(line == "Session graphics: api=Vulkan, adapter=\"NVIDIA GeForce RTX 5090\", vendor=0x10de, driver=unknown, "
+                   "vulkanDriver=581.42 (0x914a8000), dedicatedVideoMemory=unknown, budget=unknown, "
+                   "runtime=\"SteamVR/OpenXR\" 2.7.4; DXGI has no adapter with the Vulkan device's PCI vendor and "
+                   "device ID, and its LUID is unknown: the Vulkan device names no adapter LUID",
+           "A Vulkan session's graphics line must say what is missing and why: " + line);
+
+    // WARP: no dedicated video memory, a budget without its usage.
+    depthxr::SessionGraphics warp;
+    warp.api = "Direct3D 12 (Frame Generation's Direct3D 11 bridge)";
+    warp.adapter = "Microsoft Basic Render Driver";
+    warp.vendor_id = 0x1414;
+    warp.dedicated_video_memory = 0;
+    warp.budget = 512ull << 20;
+    line = depthxr::FormatSessionGraphics(warp, "VectorXR stand-in runtime", "");
+    Expect(line == "Session graphics: api=Direct3D 12 (Frame Generation's Direct3D 11 bridge), "
+                   "adapter=\"Microsoft Basic Render Driver\", vendor=0x1414, driver=unknown, "
+                   "dedicatedVideoMemory=0 MiB, budget=512 MiB, runtime=\"VectorXR stand-in runtime\"",
+           "A bridge's graphics line must name the bridge, and a runtime without a version: " + line);
+
+    // Nothing known, not even the runtime.
+    depthxr::SessionGraphics none;
+    none.api = "none";
+    none.problem = "the session has no Direct3D 11, Direct3D 12 or Vulkan binding";
+    line = depthxr::FormatSessionGraphics(none, "", "");
+    Expect(line == "Session graphics: api=none, adapter=unknown, vendor=unknown, driver=unknown, "
+                   "dedicatedVideoMemory=unknown, budget=unknown, runtime=unknown; the session has no "
+                   "Direct3D 11, Direct3D 12 or Vulkan binding",
+           "A session without a known binding must still get a graphics line: " + line);
+}
+
+// A Vulkan device whose LUID cannot be read safely: DXGI's first adapter with
+// its PCI vendor and device ID, and how many have them.
+void TestSessionGraphicsAdapterIds() {
+    using depthxr::AdapterIdMatchText;
+    using depthxr::MatchAdapterByIds;
+    const std::vector<depthxr::PciIds> adapters{
+        {0x10de, 0x2b85}, {0x1002, 0x13c0}, {0x1414, 0x008c}, {0x10de, 0x2b85}};
+    depthxr::AdapterIdMatch match = MatchAdapterByIds(adapters, {0x1002, 0x13c0});
+    Expect(match.first == std::size_t{1} && match.count == 1, "The one adapter with a device's IDs must be matched");
+    match = MatchAdapterByIds(adapters, {0x10de, 0x2b85});
+    Expect(match.first == std::size_t{0} && match.count == 2,
+           "Of two adapters with a device's IDs, the first in DXGI's order must be matched, and both counted");
+    match = MatchAdapterByIds(adapters, {0x10de, 0x2684});
+    Expect(!match.first && match.count == 0, "The vendor's ID alone must not match an adapter");
+    match = MatchAdapterByIds(adapters, {0x13c0, 0x1002});
+    Expect(!match.first && match.count == 0, "A vendor ID must not match a device ID");
+    match = MatchAdapterByIds({}, {0x10de, 0x2b85});
+    Expect(!match.first && match.count == 0, "No adapters must match nothing");
+
+    const std::string why = "the Vulkan device names no adapter LUID";
+    std::string text = AdapterIdMatchText(depthxr::AdapterIdMatch{std::size_t{1}, 1}, why);
+    Expect(text == "adapter matched by PCI vendor and device ID, not by LUID: " + why,
+           "An adapter matched by PCI IDs must say so and why: " + text);
+    text = AdapterIdMatchText(depthxr::AdapterIdMatch{std::size_t{0}, 2}, why);
+    Expect(text == "adapter matched by PCI vendor and device ID (the first of 2 adapters with them), not by LUID: " +
+                       why,
+           "An adapter matched among several must say how many there were: " + text);
+    text = AdapterIdMatchText({}, why);
+    Expect(text == "DXGI has no adapter with the Vulkan device's PCI vendor and device ID, and its LUID is unknown: " +
+                       why,
+           "No adapter with a device's IDs must say so and why: " + text);
+}
+
+} // namespace
+
+int main() {
+    TestPivotSoftDeadzoneKeepsOneToOneInsideTheDeadzone();
+    TestPivotSoftDeadzoneIntegratesSmoothstepSensitivity();
+    TestPivotSoftDeadzoneIsMonotonicAndSmooth();
+    TestPivotPositionAssistBasicCurve();
+    TestPivotPositionAssistAdvancedDirectionsCompose();
+    TestExpandedPivotSettingsResolve();
+    TestPerDirectionDeadzoneTransitionParsing();
+    TestInvertedPositionAssistRangeRejected();
+    TestOsdConfig();
+    TestTurboExperimentalConfig();
+    TestUnknownKeysAreIgnoredWithWarnings();
+    TestLegacySingularViewControlBindings();
+    TestParseConfig();
+    TestPivotActivationBindingModel();
+    TestLogLevelCompatibility();
+    TestResolveRuntimeConfig();
+    TestDisabledProfileFallsBackToDefaults();
+    TestPivotProfileResolution();
+    TestPivotMultiProfileResolution();
+    TestPivotResponseModeAndAdvancedAxes();
+    TestPivotViewControlsParsingAndResolution();
+    TestPivotViewTransitionMath();
+    TestPivotSteppedGlideMath();
+    TestTurboModuleResolution();
+    TestTurboPacingModeParsing();
+    TestTurboModuleOptional();
+    TestFrameGenModuleOptional();
+    TestFrameGenProfileResolution();
+    TestFrameGenInvalidSettingsRejected();
+    TestFrameGenToggleBindingList();
+    TestFrameGenOsdRows();
+    TestOsdPerformanceRow();
+    TestFrameGenPlan();
+    TestFrameGenHistoryState();
+    TestTurboMetricsSettingsParsing();
+    TestTurboMetricsSessionRoundTrip();
+    TestQuadViewsProfileResolution();
+    TestEnabledProfileOverridesDisabledDefault();
+    TestInvalidPivotActivationBindingRejected();
+    TestNoneBindingParsed();
+    TestDeviceBindingMetadataParsed();
+    TestBindingSoundFeedbackParsed();
+    TestBindingWithoutSoundDefaultsDisabled();
+    TestToggleBindingLists();
+    TestCoreSoundVolumeParsedAndClamped();
+    TestExeMatch();
+    TestSeenAppObservationRecording();
+    TestRuntimePacingObservationRoundTrip();
+    TestRuntimeRelayControlAndStatusRoundTrip();
+    TestSessionGraphicsDriverVersions();
+    TestSessionGraphicsVideoMemory();
+    TestSessionGraphicsLine();
+    TestSessionGraphicsAdapterIds();
+    TestQuadViewStereoBoostKeepsInsetViewsInSync();
+    TestStereoBoostScalesRotatedEyeBaseline();
+    TestQuadViewConvergenceKeepsInsetOffsetsAligned();
+    TestDepthSubmissionRestorePreservesApplicationDeltas();
+    TestPivotYawAmplifiesBeyondDeadzone();
+    TestPivotYawNoOpInsideDeadzone();
+    TestSwapchainImageQueuePreservesFifo();
+    TestLoggerCollapsesDuplicateMessages();
+    TestTurboTraceContinuousAndDrained();
+    TestTurboTraceFollowsDebugLevel();
+    TestEyeGazeExtensionCompatibilityPolicy();
+    TestQuadViewsSessionActivationPolicy();
+    TestQuadViewsRecoveryStabilizationPolicy();
+    TestQuadViewsRecoveryStabilizer();
+    TestQuadViewsFrameCacheKeepsGazeWithLocatedFrame();
+    TestQuadViewsCanvasDimensionsMatchCompositionDensity();
+    TestFrameGenComposeEye();
+    TestFrameGenComposeEyeMatchesCompositor();
+    TestPivotLocateViewsRouting();
+    TestPivotPoseDeltaSpaceReexpression();
+    TestNumpadActivationKeys();
+    TestDeviceInputPathsAndHatDirections();
+    TestInputDeviceRetryBackoff();
+    TestInputDeviceAbsentWaitsForRescan();
+    TestInputDeviceArrivalDuringAttemptIsKept();
+    TestInputConnectPriming();
+#ifdef _WIN32
+    TestD3D11SharpenShaderRegression();
+#endif
+    std::cout << "depthxr_layer_tests passed\n";
+    return 0;
+}

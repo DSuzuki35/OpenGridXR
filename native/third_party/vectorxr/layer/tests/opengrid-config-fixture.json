@@ -1,0 +1,125 @@
+{
+  "version": 3,
+  "core": {
+    "enabled": true,
+    "logLevel": "info",
+    "logRetentionFiles": 3,
+    "trackSeenApps": false,
+    "sound": {
+      "volume": 0
+    },
+    "osd": {
+      "enabled": true,
+      "visibleOnStart": true,
+      "compact": false,
+      "horizontalDegrees": 20,
+      "verticalDegrees": -12,
+      "distanceMeters": 1.2,
+      "scale": 100,
+      "opacity": 90,
+      "updateHz": 5,
+      "showGraph": true,
+      "showRuntime": true,
+      "showBrand": true,
+      "showApp": true,
+      "showClock": false,
+      "showPerformance": true,
+      "showFramegen": true,
+      "showFramegenFps": true,
+      "showModules": true,
+      "showTurbo": false,
+      "showPivot": false,
+      "compactShowRuntime": true,
+      "compactShowBrand": true,
+      "compactShowApp": true,
+      "compactShowClock": false,
+      "compactShowPerformance": true,
+      "compactShowFramegen": true,
+      "compactShowTurbo": false,
+      "compactShowPivot": false,
+      "compactMetrics": "all",
+      "clockFormat": "24",
+      "accent": "violet",
+      "customColor": "#8e70f2",
+      "rowOrder": [
+        "graph",
+        "performance",
+        "framegen",
+        "modules",
+        "turbo",
+        "pivot"
+      ],
+      "toolkitSummary": "Configured: driving | SS 100% | Crop 0/0/0/0%",
+      "toggleBinding": {
+        "type": "keyboard",
+        "chord": [
+          "Ctrl",
+          "Alt",
+          "F10"
+        ]
+      },
+      "cycleBinding": {
+        "type": "keyboard",
+        "chord": [
+          "Ctrl",
+          "Alt",
+          "F11"
+        ]
+      }
+    }
+  },
+  "applications": [],
+  "modules": {
+    "depthxr": {
+      "enabled": false,
+      "defaults": {
+        "stereoBoost": 1,
+        "convergence": 0,
+        "depthAnchor": false
+      },
+      "bindings": {
+        "toggleEnabled": {
+          "type": "none"
+        },
+        "toggleAnchor": {
+          "type": "none"
+        }
+      },
+      "profiles": []
+    },
+    "pivotxr": {
+      "enabled": false,
+      "profiles": []
+    },
+    "quadviews": {
+      "enabled": false,
+      "profiles": []
+    },
+    "turbo": {
+      "enabled": false,
+      "profiles": []
+    },
+    "framegen": {
+      "enabled": true,
+      "diagnosticView": "off",
+      "toggleBinding": {
+        "type": "keyboard",
+        "chord": [
+          "Ctrl",
+          "Alt",
+          "F9"
+        ]
+      },
+      "profiles": [],
+      "defaults": {
+        "synthesisMode": "interpolate",
+        "flowQuality": "balanced",
+        "motionEstimation": "shader",
+        "frameMultiplier": "dynamic",
+        "artifactSuppression": 50,
+        "motionLimitPercent": 10,
+        "extendHeadPrediction": false
+      }
+    }
+  }
+}

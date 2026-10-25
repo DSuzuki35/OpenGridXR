@@ -1,0 +1,661 @@
+#pragma once
+
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace depthxr {
+
+enum class LogLevel {
+    Error,
+    Info,
+    Debug,
+};
+
+enum class ActivationMode {
+    Toggle,
+    Hold,
+    // Engaged automatically whenever no other profile is engaged; the
+    // activation binding (optional) suspends/resumes it.
+    AlwaysOn,
+};
+
+enum class PivotResponseMode {
+    // Extra rotation grows continuously with head angle (multiplier).
+    Continuous,
+    // Extra rotation is added in discrete steps as angle thresholds are
+    // crossed, with hysteresis so the view does not oscillate at a threshold.
+    Stepped,
+};
+
+enum class PivotStepGlideMode {
+    Instant,
+    Glide,
+};
+
+enum class InputBindingType {
+    None,
+    Keyboard,
+    Device,
+};
+
+enum class QuadViewsTrackingMode {
+    Head,
+    Eye,
+};
+
+// Custom profiles override the defaults for their applications. The legacy
+// Disable value is still parsed for older configs but no longer has runtime
+// behavior; a profile's enabled flag controls whether it participates.
+enum class ProfileMode {
+    Custom,
+    Disable,
+};
+
+// Optional audible feedback played when a binding's action activates or
+// deactivates. Paths are absolute; an empty path means "use the bundled
+// default WAV shipped next to the layer DLL". Disabled bindings never play.
+struct SoundFeedback {
+    bool enabled{false};
+    std::string activate_sound;   // empty = bundled default
+    std::string deactivate_sound; // empty = bundled default
+};
+
+struct InputBinding {
+    InputBindingType type{InputBindingType::None};
+    std::vector<std::string> chord;
+    std::string device_guid;
+    std::string input_path{"button-1"};
+    std::string product_guid;
+    std::string device_name;
+    std::string input_label;
+    SoundFeedback sound;
+};
+
+struct OsdSettings {
+    std::string toolkit_summary;
+    bool enabled{false};
+    bool visible_on_start{true};
+    bool compact{false};
+    double horizontal_degrees{20.0};
+    double vertical_degrees{-12.0};
+    double distance_meters{1.2};
+    double scale{100.0};
+    int opacity{90};
+    int update_hz{5};
+    bool show_graph{true};
+    bool show_runtime{true};
+    bool show_brand{true};
+    bool show_app{true};
+    bool show_turbo{true};
+    bool show_modules{true};
+    bool show_clock{true};
+    bool show_pivot{true};
+    bool show_framegen{true};
+    // Beside the FPS counter, in both layouts, in sessions with Frame
+    // Generation on: its state and the frames per second the headset shows.
+    bool show_framegen_fps{true};
+    // The PERFORMANCE row: CPU and GPU headroom against the frame budget and
+    // video memory (performance_monitor.h). Its sampler runs only while a
+    // layout shows it.
+    bool show_performance{true};
+    bool compact_show_runtime{true};
+    bool compact_show_brand{true};
+    bool compact_show_app{true};
+    std::string compact_metrics{"all"};
+    bool compact_show_clock{true};
+    bool compact_show_turbo{false};
+    bool compact_show_pivot{false};
+    bool compact_show_framegen{false};
+    bool compact_show_performance{false};
+    std::string clock_format{"24"};
+    // Saved orders without a row get it appended at the end, so a new row
+    // never reorders an existing layout.
+    std::vector<std::string> body_order{"graph", "performance", "turbo", "framegen", "pivot", "modules"};
+    std::string accent{"teal"};
+    std::string custom_color{"#51ddbd"};
+    // Any one of a list's bindings acts (one per device: a HOTAS's button and
+    // a HOSAS's, say); none means none bound.
+    std::vector<InputBinding> toggle_bindings{InputBinding{InputBindingType::Keyboard, {"Ctrl", "Alt", "F10"}}};
+    std::vector<InputBinding> cycle_bindings{InputBinding{InputBindingType::Keyboard, {"Ctrl", "Alt", "F11"}}};
+};
+
+struct CoreSettings {
+    bool overlays_enabled{false};
+    OsdSettings osd;
+    bool enabled{true};
+    LogLevel log_level{LogLevel::Info};
+    int log_retention_files{7};
+    bool track_seen_apps{true};
+    // Master volume (0-100) for binding activate/deactivate sound feedback.
+    int sound_volume{100};
+};
+
+struct DepthXrSettingsOverride {
+    std::optional<double> stereo_boost;
+    std::optional<double> convergence;
+    std::optional<bool> depth_anchor;
+};
+
+struct DepthXrResolvedSettings {
+    bool enabled{true};
+    // Neutral values (stereo_boost 1.0, convergence 0.0) mean "no effect"; there
+    // is no separate per-effect enable flag.
+    double stereo_boost{1.0};
+    double convergence{0.0};
+    // Render with the adjusted stereo geometry, then restore the runtime's
+    // native eye poses/FOV when the projection layer is submitted.
+    bool depth_anchor{false};
+};
+
+// Any one of a list's bindings toggles; empty: none bound.
+struct DepthXrBindings {
+    std::vector<InputBinding> toggle_enabled_bindings;
+    std::vector<InputBinding> toggle_anchor_bindings;
+};
+
+struct ProfileMatch {
+    std::string exe_name;
+};
+
+struct RegisteredApplication {
+    std::string id;
+    std::string name;
+    bool enabled{true};
+    ProfileMatch match;
+};
+
+struct DepthXrProfile {
+    std::string name;
+    std::vector<std::string> application_ids;
+    bool enabled{true};
+    ProfileMode mode{ProfileMode::Custom};
+    DepthXrSettingsOverride settings;
+};
+
+struct DepthXrModuleConfig {
+    bool enabled{false};
+    DepthXrResolvedSettings defaults;
+    DepthXrBindings bindings;
+    std::vector<DepthXrProfile> profiles;
+};
+
+// Per-direction tuning used when advanced axes are enabled. "Left" and "up"
+// are the positive yaw/pitch directions in OpenXR's right-handed, y-up
+// convention. Defaults match the symmetric yaw/pitch defaults.
+struct PivotAxisTuning {
+    double rotation_multiplier{1.5};
+    double deadzone_degrees{8.0};
+    double max_extra_degrees{120.0};
+    double deadzone_transition_degrees{0.0};
+};
+
+struct PivotStepTuning {
+    double deadzone_degrees{8.0};
+    double trigger_degrees{10.0};
+    double amount_degrees{10.0};
+    double hysteresis_degrees{4.0};
+    double max_extra_degrees{120.0};
+};
+
+// Position Assist offsets reached at full_angle_degrees of physical head
+// rotation, eased in from start_angle_degrees.
+struct PivotPositionDirection {
+    double right_cm{0.0};
+    double up_cm{0.0};
+    double forward_cm{0.0};
+    double start_angle_degrees{15.0};
+    double full_angle_degrees{60.0};
+};
+
+struct PivotPositionAssist {
+    bool enabled{false};
+    // Basic mode uses `yaw` for both turn directions and mirrors the sideways
+    // offset; advanced mode uses the four signed directions independently.
+    bool advanced_directions{false};
+    PivotPositionDirection yaw;
+    PivotPositionDirection yaw_left;
+    PivotPositionDirection yaw_right;
+    PivotPositionDirection pitch_up;
+    PivotPositionDirection pitch_down;
+};
+
+struct PivotXrSettings {
+    // General (apply to both axes).
+    double smoothing{0.2};
+    double activation_ramp_seconds{0.35};
+    bool apply_motion_to_snap_views{false};
+    PivotPositionAssist position_assist;
+    // Yaw.
+    double yaw_rotation_multiplier{1.5};
+    double yaw_deadzone_degrees{8.0};
+    double yaw_deadzone_transition_degrees{0.0};
+    double yaw_max_extra_degrees{120.0};
+    // Pitch (defaults intentionally match yaw for a consistent feel).
+    double pitch_rotation_multiplier{1.5};
+    double pitch_deadzone_degrees{8.0};
+    double pitch_deadzone_transition_degrees{0.0};
+    double pitch_max_extra_degrees{120.0};
+    PivotResponseMode response_mode{PivotResponseMode::Continuous};
+    PivotStepGlideMode step_glide_mode{PivotStepGlideMode::Glide};
+    double step_glide_seconds{0.12};
+    PivotStepTuning yaw_step;
+    PivotStepTuning pitch_step;
+    // Advanced axes applies independently to Continuous and Stepped.
+    bool advanced_axes{false};
+    PivotAxisTuning yaw_left;
+    PivotAxisTuning yaw_right;
+    PivotAxisTuning pitch_up;
+    PivotAxisTuning pitch_down;
+    PivotStepTuning yaw_left_step;
+    PivotStepTuning yaw_right_step;
+    PivotStepTuning pitch_up_step;
+    PivotStepTuning pitch_down_step;
+};
+
+enum class PivotActivationBehavior {
+    Toggle,
+    Hold,
+};
+
+struct PivotActivationBinding {
+    PivotActivationBehavior behavior{PivotActivationBehavior::Toggle};
+    InputBinding binding;
+};
+
+struct PivotNudgeSettings {
+    double yaw_step_degrees{30.0};
+    double pitch_step_degrees{20.0};
+    double transition_seconds{0.12};
+    std::vector<InputBinding> yaw_left_bindings;
+    std::vector<InputBinding> yaw_right_bindings;
+    std::vector<InputBinding> pitch_up_bindings;
+    std::vector<InputBinding> pitch_down_bindings;
+    std::vector<InputBinding> center_bindings;
+};
+
+struct PivotNudgeSet {
+    std::string id;
+    std::string name;
+    bool allow_while_inactive{false};
+    PivotNudgeSettings settings;
+};
+
+enum class PivotProfileBehavior {
+    EnhancedMotion,
+    SnapViews,
+};
+
+struct PivotQuickView {
+    std::string id;
+    std::string name;
+    double yaw_degrees{0.0};
+    double pitch_degrees{0.0};
+    double position_right_cm{0.0};
+    double position_up_cm{0.0};
+    double position_forward_cm{0.0};
+    double transition_seconds{0.18};
+    std::vector<PivotActivationBinding> activation_bindings;
+};
+
+struct PivotViewControls {
+    PivotNudgeSettings nudges;
+    std::vector<PivotQuickView> quick_views;
+};
+
+struct PivotXrProfile {
+    // Stable identifier assigned by the UI; optional in hand-written configs.
+    std::string id;
+    std::string name;
+    bool enabled{true};
+    ProfileMode mode{ProfileMode::Custom};
+    PivotProfileBehavior behavior{PivotProfileBehavior::EnhancedMotion};
+    std::string nudge_set_id;
+    bool allow_inactive_nudges{false};
+    std::vector<std::string> application_ids;
+    bool always_active{false};
+    std::vector<PivotActivationBinding> activation_bindings;
+    // Optional origin bindings. Set-origin captures the current head yaw/pitch
+    // as pivot's neutral forward (bind it to the same button as the game's
+    // recenter so both origins stay 1:1). Release-origin restores the default
+    // HMD/reference-space origin.
+    std::vector<InputBinding> set_origin_bindings;
+    std::vector<InputBinding> release_origin_bindings;
+    PivotXrSettings settings;
+    PivotViewControls view_controls;
+};
+
+struct PivotXrModuleConfig {
+    bool enabled{false};
+    PivotXrSettings defaults;
+    PivotProfileBehavior behavior{PivotProfileBehavior::EnhancedMotion};
+    std::string nudge_set_id;
+    std::vector<PivotNudgeSet> nudge_sets;
+    bool allow_inactive_nudges{false};
+    bool always_active{false};
+    std::vector<PivotActivationBinding> activation_bindings;
+    std::vector<InputBinding> set_origin_bindings;
+    std::vector<InputBinding> release_origin_bindings;
+    PivotViewControls view_controls;
+    std::vector<PivotXrProfile> profiles;
+};
+
+// One activatable pivot behavior for the current executable, flattened from a
+// matched profile (or the module defaults when nothing matches).
+struct PivotXrResolvedProfile {
+    std::string id;
+    std::string name;
+    PivotProfileBehavior behavior{PivotProfileBehavior::EnhancedMotion};
+    std::string nudge_set_id;
+    bool allow_inactive_nudges{false};
+    bool always_active{false};
+    std::vector<PivotActivationBinding> activation_bindings;
+    std::vector<InputBinding> set_origin_bindings;
+    std::vector<InputBinding> release_origin_bindings;
+    PivotViewControls view_controls;
+    double smoothing{0.2};
+    double activation_ramp_seconds{0.35};
+    bool apply_motion_to_snap_views{false};
+    PivotPositionAssist position_assist;
+    double yaw_rotation_multiplier{1.5};
+    double yaw_deadzone_degrees{8.0};
+    double yaw_deadzone_transition_degrees{0.0};
+    double yaw_max_extra_degrees{120.0};
+    double pitch_rotation_multiplier{1.5};
+    double pitch_deadzone_degrees{8.0};
+    double pitch_deadzone_transition_degrees{0.0};
+    double pitch_max_extra_degrees{120.0};
+    PivotResponseMode response_mode{PivotResponseMode::Continuous};
+    PivotStepGlideMode step_glide_mode{PivotStepGlideMode::Glide};
+    double step_glide_seconds{0.12};
+    // Direction-resolved tunings. Positive = yaw left / pitch up.
+    PivotAxisTuning yaw_positive;
+    PivotAxisTuning yaw_negative;
+    PivotAxisTuning pitch_positive;
+    PivotAxisTuning pitch_negative;
+    PivotStepTuning yaw_step_positive;
+    PivotStepTuning yaw_step_negative;
+    PivotStepTuning pitch_step_positive;
+    PivotStepTuning pitch_step_negative;
+};
+
+// Resolved at runtime for a specific executable. Several profiles may target
+// the same application: array order is priority order, and the activation
+// binding pressed selects which profile engages. Later profiles whose binding
+// duplicates an earlier candidate's are pruned at resolve time (the earlier
+// profile owns that binding).
+struct PivotXrResolvedSettings {
+    bool enabled{false};
+    std::vector<PivotXrResolvedProfile> profiles;
+};
+
+struct QuadViewsSettings {
+    std::string eye_tracking_correction{"default"};
+    QuadViewsTrackingMode tracking_mode{QuadViewsTrackingMode::Eye};
+    double focus_horizontal_size_percent{40.0};
+    double focus_vertical_size_percent{40.0};
+    double focus_scale{1.1};
+    double peripheral_scale{0.35};
+    double foveate_sharpness{50.0};
+    double transition_thickness_percent{25.0};
+    double horizontal_offset_degrees{0.0};
+    double vertical_offset_degrees{0.0};
+    double gaze_smoothing{0.15};
+    double gaze_deadzone_degrees{1.5};
+};
+
+struct QuadViewsProfile {
+    std::string name;
+    bool enabled{true};
+    ProfileMode mode{ProfileMode::Custom};
+    std::vector<std::string> application_ids;
+    QuadViewsSettings settings;
+};
+
+struct QuadViewsModuleConfig {
+    bool enabled{false};
+    // Optional in-session toggle for the synthesized-compositor diagnostic view.
+    // The visualization itself always starts hidden for each OpenXR session.
+    InputBinding diagnostic_visualization_binding;
+    QuadViewsSettings defaults;
+    std::vector<QuadViewsProfile> profiles;
+};
+
+struct QuadViewsResolvedSettings : QuadViewsSettings {
+    bool enabled{false};
+    InputBinding diagnostic_visualization_binding;
+};
+
+// Session-latched, profile-scoped experiments. Defaults preserve production timing.
+struct TurboExperimentalSettings {
+    bool enabled{false};
+    std::vector<std::string> application_ids;
+    bool wait_for_submit{false};
+    bool sample_at_entry{false};
+    int prediction_percent{100};
+    int frame_limit{0};
+};
+
+// Turbo mode: overrides runtime frame pacing (one frame of pipelining).
+// First matching enabled profile owns timing choices.
+struct TurboProfile {
+    bool disable_safety{false};
+    std::string id;
+    std::string name;
+    bool enabled{true};
+    ProfileMode mode{ProfileMode::Custom};
+    std::vector<std::string> application_ids;
+    std::optional<TurboExperimentalSettings> experimental;
+};
+
+// How the real xrWaitFrame is sequenced against the frame submit.
+// kAsync: background-thread wait launched after submit, drained at the next
+//   EndFrame — best overlap, but stalls on runtimes that interlock the wait
+//   with submission (Oculus, Varjo, PiOpenXR).
+// kSequenced: wait joined inside EndFrame right after the submit that
+//   unblocks it, then the next frame is pre-begun — safe on interlocking
+//   runtimes at the cost of blocking EndFrame for the pacing wait.
+// kUnsupported: verdict-only value — even sequenced pacing stalled, so turbo
+//   auto-suspends on this runtime until re-armed.
+enum class TurboPacingMode {
+    kAsync,
+    kSequenced,
+    kUnsupported,
+};
+
+// User intent for pacing. kAuto discovers per runtime (seed table, then
+// probe) and records verdicts to the runtime-pacing sidecar; forced modes
+// disable discovery, pins, and verdict writes entirely.
+enum class TurboPacingSetting {
+    kAuto,
+    kAsync,
+    kSequenced,
+};
+
+// When turbo's frame-pacing metrics are captured. kAlways records whenever a
+// session with turbo available is rendering; kBinding records only while the
+// capture binding is armed, so the user can cut loading screens and menus out
+// of the data; kOff disables capture entirely.
+enum class TurboMetricsMode {
+    kOff,
+    kAlways,
+    kBinding,
+};
+
+struct TurboModuleConfig {
+    bool enabled{false};
+    bool interrupted_session_recovery{true};
+    // Optional in-session A/B toggle, mirroring the Depth toggle binding
+    // (any one of the list's bindings).
+    std::vector<InputBinding> toggle_bindings;
+    TurboPacingSetting pacing_mode{TurboPacingSetting::kAuto};
+    // Per-runtime user overrides, keyed by exact xrGetInstanceProperties
+    // runtimeName. Only consulted when pacing_mode is kAuto.
+    std::vector<std::pair<std::string, TurboPacingMode>> runtime_pins;
+    TurboExperimentalSettings experimental;
+    TurboMetricsMode metrics_mode{TurboMetricsMode::kAlways};
+    // Begin/end metric capture while in-game (kBinding mode only).
+    std::vector<InputBinding> metrics_bindings;
+    std::vector<TurboProfile> profiles;
+};
+
+struct TurboResolvedSettings {
+    std::string profile_name;
+    bool enabled{false};
+    bool interrupted_session_recovery{true};
+    std::vector<InputBinding> toggle_bindings;
+    TurboPacingSetting pacing_mode{TurboPacingSetting::kAuto};
+    std::vector<std::pair<std::string, TurboPacingMode>> runtime_pins;
+    TurboExperimentalSettings experimental;
+    TurboMetricsMode metrics_mode{TurboMetricsMode::kAlways};
+    std::vector<InputBinding> metrics_bindings;
+};
+
+// Frame Generation: holds the application at half the runtime refresh rate and
+// presents an optical-flow generated frame between every pair of real frames.
+// Interpolate places the generated frame between the previous and newest real
+// frames (fewer artifacts; the real frame is due one refresh earlier).
+// Extrapolate pushes the newest real frame forward along its motion (the real
+// frame keeps an extra refresh of GPU time; more disocclusion artifacts).
+enum class FrameGenSynthesisMode {
+    kInterpolate,
+    kExtrapolate,
+};
+
+// Optical-flow resolution relative to the eye image: 1/16, 1/8 or 1/4.
+enum class FrameGenFlowQuality {
+    kPerformance,
+    kBalanced,
+    kQuality,
+};
+
+// How motion is measured. Shader: block matching on the GPU's shader cores
+// (any GPU). Hardware: the optical flow accelerator of NVIDIA RTX 20-50 GPUs
+// in Direct3D 12 games (experimental; falls back to shader elsewhere).
+enum class FrameGenMotionEstimation {
+    kShader,
+    kHardware,
+};
+
+// Headset frames per real application frame. Dynamic (the default) holds
+// nothing: the application runs at its own rate and generated frames fill the
+// refreshes between its frames (presented from the presenter thread; where
+// that is unavailable it behaves as Auto). The fixed rates hold the
+// application at a fraction of the runtime refresh rate: 2x at half, 3x at a
+// third, 4x at a quarter. Auto starts at full rate, steps up while the
+// application misses its cadence, probes back down when it keeps up, and
+// passes frames through when it holds full refresh.
+enum class FrameGenMultiplier {
+    kAuto,
+    k2,
+    k3,
+    k4,
+    kDynamic,
+};
+
+// Diagnostic overlays drawn into generated frames only.
+enum class FrameGenDiagnosticView {
+    kOff,
+    kFlow,
+    kConfidence,
+    kTint,
+};
+
+struct FrameGenSettings {
+    FrameGenSynthesisMode synthesis_mode{FrameGenSynthesisMode::kInterpolate};
+    FrameGenFlowQuality flow_quality{FrameGenFlowQuality::kBalanced};
+    FrameGenMotionEstimation motion_estimation{FrameGenMotionEstimation::kShader};
+    FrameGenMultiplier multiplier{FrameGenMultiplier::kDynamic};
+    // 0-100: higher falls back to the real image sooner where motion is uncertain.
+    int artifact_suppression{50};
+    // 2-25: largest content shift, in percent of view width, a generated frame may apply.
+    int motion_limit_percent{10};
+    // Carry the head's rotation over the part of the display time Frame
+    // Generation tells the game that the runtime does not predict (see
+    // head_prediction.h). Off by default.
+    bool extend_head_prediction{false};
+};
+
+struct FrameGenProfile {
+    std::string name;
+    bool enabled{true};
+    ProfileMode mode{ProfileMode::Custom};
+    std::vector<std::string> application_ids;
+    FrameGenSettings settings;
+};
+
+struct FrameGenModuleConfig {
+    bool enabled{false};
+    // Optional in-session A/B toggle (any one of the list's bindings); only
+    // effective in sessions that started with Frame Generation enabled (the
+    // pacing takeover is session-latched).
+    std::vector<InputBinding> toggle_bindings;
+    FrameGenDiagnosticView diagnostic_view{FrameGenDiagnosticView::kOff};
+    FrameGenSettings defaults;
+    std::vector<FrameGenProfile> profiles;
+};
+
+struct FrameGenResolvedSettings : FrameGenSettings {
+    bool enabled{false};
+    std::string profile_name;
+    std::vector<InputBinding> toggle_bindings;
+    FrameGenDiagnosticView diagnostic_view{FrameGenDiagnosticView::kOff};
+};
+
+struct ConfigDocument {
+    int version{3};
+    CoreSettings core;
+    std::vector<RegisteredApplication> applications;
+    DepthXrModuleConfig depthxr;
+    PivotXrModuleConfig pivotxr;
+    QuadViewsModuleConfig quadviews;
+    TurboModuleConfig turbo;
+    FrameGenModuleConfig framegen;
+};
+
+struct ResolvedRuntimeConfig {
+    CoreSettings core;
+    DepthXrResolvedSettings depthxr;
+    DepthXrBindings depthxr_bindings;
+    PivotXrResolvedSettings pivotxr;
+    QuadViewsResolvedSettings quadviews;
+    TurboResolvedSettings turbo;
+    FrameGenResolvedSettings framegen;
+};
+
+const char* ToString(LogLevel level);
+std::optional<LogLevel> ParseLogLevel(const std::string& value);
+
+const char* ToString(TurboPacingMode mode);
+std::optional<TurboPacingMode> ParseTurboPacingMode(const std::string& value);
+const char* ToString(TurboPacingSetting setting);
+std::optional<TurboPacingSetting> ParseTurboPacingSetting(const std::string& value);
+const char* ToString(TurboMetricsMode mode);
+std::optional<TurboMetricsMode> ParseTurboMetricsMode(const std::string& value);
+
+const char* ToString(ActivationMode mode);
+std::optional<ActivationMode> ParseActivationMode(const std::string& value);
+std::optional<std::string> ParseActivationKey(const std::string& value);
+const char* ToString(InputBindingType type);
+std::optional<InputBindingType> ParseInputBindingType(const std::string& value);
+const char* ToString(QuadViewsTrackingMode mode);
+std::optional<QuadViewsTrackingMode> ParseQuadViewsTrackingMode(const std::string& value);
+const char* ToString(FrameGenSynthesisMode mode);
+std::optional<FrameGenSynthesisMode> ParseFrameGenSynthesisMode(const std::string& value);
+const char* ToString(FrameGenFlowQuality quality);
+std::optional<FrameGenFlowQuality> ParseFrameGenFlowQuality(const std::string& value);
+const char* ToString(FrameGenMotionEstimation estimation);
+std::optional<FrameGenMotionEstimation> ParseFrameGenMotionEstimation(const std::string& value);
+const char* ToString(FrameGenDiagnosticView view);
+const char* ToString(FrameGenMultiplier multiplier);
+std::optional<FrameGenMultiplier> ParseFrameGenMultiplier(const std::string& value);
+std::optional<FrameGenDiagnosticView> ParseFrameGenDiagnosticView(const std::string& value);
+const char* ToString(ProfileMode mode);
+std::optional<ProfileMode> ParseProfileMode(const std::string& value);
+const char* ToString(PivotResponseMode mode);
+std::optional<PivotResponseMode> ParsePivotResponseMode(const std::string& value);
+const char* ToString(PivotStepGlideMode mode);
+std::optional<PivotStepGlideMode> ParsePivotStepGlideMode(const std::string& value);
+
+} // namespace depthxr
