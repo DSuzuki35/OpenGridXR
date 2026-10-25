@@ -28,7 +28,7 @@
 - [x] Review integration, malformed inputs, simultaneous frame generation, GPU ownership and process shutdown.
 - [x] Run native suites, profile/backend tests, desktop smoke tests and packaged tests.
 - [x] Update user/build/API documentation and third-party notices. Scan source/docs for unwanted references and private data.
-- [ ] Push a clean public source history to `DSuzuki35/OpenGridXR`, preserving existing local development history separately.
+- [x] Push a clean public source history to `DSuzuki35/OpenGridXR`, preserving existing local development history separately.
 
 ## Review focus
 
