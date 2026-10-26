@@ -285,35 +285,8 @@ button:active:not(:disabled) {
   margin-top: auto;
   padding-top: 28px;
 }
-.free-card {
-  border: 1px solid #30283e;
-  background: linear-gradient(135deg, #211b2b, #1b1821);
-  border-radius: 7px;
-  padding: 15px 11px;
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  color: #a890cc;
-}
-.free-card > svg {
-  stroke-width: 1.4;
-}
-.free-card strong {
-  display: block;
-  font-size: 11px;
-  font-weight: 500;
-  color: #c6b7dc;
-}
-.free-card span:not(.free-spark) {
-  display: block;
-  font-size: 9px;
-  color: #80758d;
-  margin-top: 5px;
-}
-.free-spark {
-  font-size: 17px;
-  margin-left: auto;
-}
+.reserve-details { margin-top: 22px; }
+.reserve-details summary { color: #b8afc8; font-size: 12px; cursor: pointer; margin-bottom: 18px; }
 .help-button {
   width: 100%;
   display: flex;
@@ -2266,16 +2239,6 @@ button:active:not(:disabled) {
   .statusbar {
     padding: 0 25px;
   }
-  .free-card {
-    padding: 13px 9px;
-    gap: 7px;
-  }
-  .free-card strong {
-    font-size: 10px;
-  }
-  .free-card span:not(.free-spark) {
-    font-size: 8px;
-  }
   .help-button {
     font-size: 9px;
   }
@@ -2473,7 +2436,6 @@ button:active:not(:disabled) {
   .byline,
   .nav-section-label,
   .nav-item > span,
-  .free-card,
   .help-button > span,
   .help-button > svg:last-child,
   .sidebar-version {

@@ -1,12 +1,13 @@
 "use strict";
 const fs = require("node:fs/promises");
+const nativeFs = require("node:fs");
 const { createReadStream, constants } = require("node:fs");
 const path = require("node:path");
 const { createHash, randomUUID } = require("node:crypto");
 const { pathToFileURL } = require("node:url");
 const MAX = 2 * 1024 * 1024;
 const digest = (value) => createHash("sha256").update(value).digest("hex");
-async function atomicWrite(file, contents) {
+async function atomicWrite(file, contents, beforeReplace) {
   await fs.mkdir(path.dirname(file), { recursive: true });
   const temp = `${file}.${randomUUID()}.tmp`;
   try {
@@ -20,7 +21,14 @@ async function atomicWrite(file, contents) {
     // Windows readers (including the native config watcher) can briefly omit
     // FILE_SHARE_DELETE. Retry the atomic replacement; never unlink the target.
     for (let attempt=0;;attempt++) {
-      try { await fs.rename(temp,file); break; }
+      // A guarded publication must not yield to editor IPC after checking state.
+      // Recheck on every retry; all preparation and retry waits remain async.
+      if(beforeReplace)beforeReplace();
+      try {
+        if(beforeReplace)nativeFs.renameSync(temp,file);
+        else await fs.rename(temp,file);
+        break;
+      }
       catch(error) {
         if(process.platform!=='win32'||!['EPERM','EACCES','EBUSY'].includes(error.code)||attempt>=6)throw error;
         await new Promise(resolve=>setTimeout(resolve,25*2**attempt));

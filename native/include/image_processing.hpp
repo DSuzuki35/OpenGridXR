@@ -11,6 +11,17 @@ struct SharpeningSettings {
     float strength{50}, clamp{.035f}, radius{1};
     unsigned pattern{2}; // 1=Fast, 2=Normal, 3=Wider, 4=Pyramid.
 };
+struct SceneColorSettings {
+    bool enabled{};
+    float contrast{100}, brightness{100}, saturation{100};
+};
+inline bool sharpening_active(const SharpeningSettings &s) {
+    return s.mode != SharpeningMode::Off && s.strength != 0 &&
+           (s.mode != SharpeningMode::Luma || s.clamp != 0);
+}
+inline bool scene_color_active(const SceneColorSettings &s) {
+    return s.enabled && (s.contrast != 100 || s.brightness != 100 || s.saturation != 100);
+}
 struct ImageRegion {
     std::uint32_t arraySlice{}, x{}, y{}, width{}, height{};
 };
@@ -32,7 +43,8 @@ public:
     ImageProcessor(const ImageProcessor &) = delete;
     ImageProcessor &operator=(const ImageProcessor &) = delete;
     ImageProcessResult process(ID3D11Texture2D *, DXGI_FORMAT typedFormat,
-                               const std::vector<ImageRegion> &, const SharpeningSettings &);
+                               const std::vector<ImageRegion> &, const SharpeningSettings &,
+                               const SceneColorSettings & = {});
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { isSimplePolygon, polygonArea, contourPreset } from "../model.mjs";
 import { Button, Segmented } from "./Controls.jsx";
-import { BindingButton, useInputBindings } from "./InputBindings.jsx";
 
 const box = { x: 42, y: 38, w: 716, h: 370 };
 const coord = (point) =>
@@ -158,7 +157,6 @@ export default function ContourEditor({
   onMaskChange,
   compact = false,
 }) {
-  const bindings = useInputBindings();
   const [eye, setEye] = useState("left");
   const [selected, setSelected] = useState(0);
   const [guides, setGuides] = useState(true);
@@ -427,26 +425,21 @@ export default function ContourEditor({
         <button
           className={`link-button ${profile.mask.linked ? "active" : ""}`}
           onClick={() =>
-            bindings
-              ? bindings.toggle("mask.linked")
-              : onMaskChange({
-                  linked: !profile.mask.linked,
-                  ...(!profile.mask.linked
-                    ? {
-                        [eye === "left" ? "right" : "left"]: points.map(
-                          (p) => ({
-                            ...p,
-                          }),
-                        ),
-                      }
-                    : {}),
-                })
+            onMaskChange({
+              linked: !profile.mask.linked,
+              ...(!profile.mask.linked
+                ? {
+                    [eye === "left" ? "right" : "left"]: points.map(
+                      (p) => ({ ...p }),
+                    ),
+                  }
+                : {}),
+            })
           }
         >
           {profile.mask.linked ? <Link2 size={14} /> : <Unlink2 size={14} />}{" "}
           {profile.mask.linked ? "Eyes linked" : "Independent eyes"}
         </button>
-        <BindingButton actionId="mask.linked" />
         <span className="points-count">{points.length} POINTS</span>
       </div>
       <div className="scene-container">

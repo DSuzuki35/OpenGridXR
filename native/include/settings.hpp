@@ -20,6 +20,7 @@ struct Config {
     Edges crop{}, reserve{};
     std::array<std::vector<Point>, 2> contours;
     SharpeningSettings sharpening;
+    SceneColorSettings visorColor;
 };
 struct Projection {
     double left{-1}, right{1}, up{1}, down{-1};

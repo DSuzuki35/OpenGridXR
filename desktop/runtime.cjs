@@ -99,7 +99,7 @@ function assertSavedOutputProfile(doc, profile) {
   if (selected?.id !== profile.id)
     throw new Error("Save the selected profile before opening Clean Output.");
 }
-function createRuntime({ sourceDir, runtimeDir, testMode = false }) {
+function createRuntime({ sourceDir, runtimeDir, testMode = false, prepareAssets = async () => {} }) {
   const manifest = path.join(runtimeDir, "OpenGridXR.json");
   let output = null;
   async function queryRegistration() {
@@ -203,6 +203,7 @@ function createRuntime({ sourceDir, runtimeDir, testMode = false }) {
       );
   }
   async function writeConfig(doc) {
+    await prepareAssets(doc);
     for (const game of ["iracing", "lmu"]) {
       await atomicWrite(
         path.join(runtimeDir, `OpenGridXR-enhancements-${game}.json`),

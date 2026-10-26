@@ -1577,7 +1577,7 @@ constexpr std::chrono::seconds kQuadViewsInsetMotionSummaryInterval{30};
 // Hot-path throttles. xrLocateSpace/xrLocateViews/xrEndFrame run multiple
 // times per frame; filesystem stats, input-device polls, and downstream
 // helper calls must not.
-constexpr std::chrono::milliseconds kConfigCheckInterval{500};
+constexpr std::chrono::milliseconds kConfigCheckInterval{250};
 constexpr std::chrono::milliseconds kInputBindingPollInterval{30};
 constexpr std::chrono::milliseconds kAppActionSyncFreshWindow{100};
 
@@ -2427,6 +2427,7 @@ XrResult OpenXrLayer::DestroyInstance(XrInstance instance) {
     if (!framegen_.PresenterAbandoned()) {
         osd_.Shutdown();
         overlays_.reset();
+        helmet_.reset();
         DestroyEyeGazeResources();
         DestroyVarjoNativeFoveationResources();
         DestroyInternalReferenceSpaces();
@@ -2852,6 +2853,15 @@ XrResult OpenXrLayer::CreateSession(XrInstance instance,
          next_acquire_swapchain_image_,next_wait_swapchain_image_,next_release_swapchain_image_,
          next_destroy_swapchain_,next_create_reference_space_,next_destroy_space_,next_locate_space_},
         ([](std::string exe){std::transform(exe.begin(),exe.end(),exe.begin(),[](unsigned char c){return char(std::tolower(c));});return exe=="le mans ultimate.exe"||exe=="lemansultimate.exe"?"lmu":"iracing";})(current_exe_name_));
+    helmet_.initialize(*session,
+        framegen_queue_.Active()?framegen_queue_.RuntimeChain():(create_info?create_info->next:nullptr),
+        osd_limits?osd_system.graphicsProperties.maxLayerCount:0,
+        {next_enumerate_swapchain_formats_,next_create_swapchain_,next_enumerate_swapchain_images_,
+         next_acquire_swapchain_image_,next_wait_swapchain_image_,next_release_swapchain_image_,
+         next_destroy_swapchain_,next_create_reference_space_,next_destroy_space_,next_locate_space_},
+        next_locate_views_,
+        ([](std::string exe){std::transform(exe.begin(),exe.end(),exe.begin(),[](unsigned char c){return char(std::tolower(c));});return exe=="le mans ultimate.exe"||exe=="lemansultimate.exe"?"lmu":"iracing";})(current_exe_name_),
+        dll_directory_);
     graphics_api_=osd_.GraphicsApi();
     if (d3d11_bridge_.Active()) graphics_api_ = "D3D11-on-D3D12";
     if (vulkan_bridge_.Active()) graphics_api_ = "Vulkan-on-D3D12";
@@ -2879,8 +2889,12 @@ XrResult OpenXrLayer::CreateSession(XrInstance instance,
         std::to_string(RuntimeRelayUnixMilliseconds()) + "-" +
         std::to_string(++runtime_relay_session_sequence_);
     runtime_relay_exit_status_.Arm(RuntimeStatusPath(runtime_relay_root_, runtime_relay_session_id_));
+    benchmark_.Reset(std::chrono::steady_clock::now(),RuntimeRelayUnixMilliseconds());
     runtime_relay_exit_control_.Arm(RuntimeControlPath(runtime_relay_root_, runtime_relay_session_id_));
+    runtime_relay_exit_benchmark_.Arm(RuntimeBenchmarkPath(runtime_relay_root_,runtime_relay_session_id_));
+    runtime_relay_exit_benchmark_request_.Arm(RuntimeBenchmarkRequestPath(runtime_relay_root_,runtime_relay_session_id_));
     quadviews_dimensions_.clear();
+    render_resolution_ = {};
     quadviews_dimensions_at_ = 0;
     runtime_relay_last_applied_revision_ = 0;
     runtime_relay_acknowledged_revision_ = 0;
@@ -2948,6 +2962,7 @@ XrResult OpenXrLayer::DestroySession(XrSession session) {
             if (!framegen_.PresenterAbandoned()) {
                 osd_.Shutdown();
         overlays_.reset();
+        helmet_.reset();
                 DestroyEyeGazeResources();
                 DestroyVarjoNativeFoveationResources();
                 DestroyInternalReferenceSpaces();
@@ -3080,6 +3095,7 @@ XrResult OpenXrLayer::BeginSession(XrSession session, const XrSessionBeginInfo* 
 
     active_primary_view_configuration_type_ = begin_info->primaryViewConfigurationType;
     active_runtime_view_configuration_type_ = downstream_begin_info->primaryViewConfigurationType;
+    helmet_.viewConfiguration(active_runtime_view_configuration_type_);
     has_active_primary_view_configuration_ = true;
     has_logged_quad_view_short_count_ = false;
     depth_view_info_pending_ = true;
@@ -6091,6 +6107,8 @@ XrResult OpenXrLayer::TraceRuntimeEndFrame(XrSession session, const XrFrameEndIn
 }
 
 XrResult OpenXrLayer::SubmitRuntimeFrame(XrSession session, const XrFrameEndInfo* info) {
+    // Count what this call submits, not a possibly newer queued wait's hint.
+    const bool benchmark_rendered=info&&info->layerCount>0;
     if (framegen_queue_.Active() && info) {
         // Releases Frame Generation deferred go before a frame showing their
         // images (passing through, or with Frame Generation stopped).
@@ -6152,6 +6170,7 @@ XrResult OpenXrLayer::SubmitRuntimeFrame(XrSession session, const XrFrameEndInfo
     if(info) {
         if(layers.empty() && info->layerCount && info->layers)layers.assign(info->layers,info->layers+info->layerCount);
         overlays_.append(*info,overlays_monitoring_.load(std::memory_order_relaxed),osd_should_render_.load(std::memory_order_relaxed),layers);
+        helmet_.append(*info,osd_should_render_.load(std::memory_order_relaxed),layers);
         with_osd=*info;with_osd.layerCount=static_cast<uint32_t>(layers.size());with_osd.layers=layers.empty()?nullptr:layers.data();info=&with_osd;
     }
     const auto submit=[&] {
@@ -6161,6 +6180,7 @@ XrResult OpenXrLayer::SubmitRuntimeFrame(XrSession session, const XrFrameEndInfo
             const auto runtime_call = turbo_trace_.Watch("runtime.end");
             result = next_end_frame_(session, info);
         }
+        benchmark_.Submitted(XR_SUCCEEDED(result),benchmark_rendered);
         osd_.RecordSubmit(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-submit_start).count());
         if (osd_added && XR_FAILED(result)) {
             // Never retry xrEndFrame: a failing runtime may already consume it.
@@ -8954,6 +8974,7 @@ XrResult OpenXrLayer::EndFrame(XrSession session, const XrFrameEndInfo* frame_en
     if (!frame_end_info || frame_end_info->type != XR_TYPE_FRAME_END_INFO) {
         return XR_ERROR_VALIDATION_FAILURE;
     }
+    const auto benchmark_entered=std::chrono::steady_clock::now();
     // The game's CPU time for the performance row ends at the entry: what the layer, Frame Generation and the
     // runtime do from here is not the game's.
     if (performance_.Wanted()) {
@@ -8971,6 +8992,7 @@ XrResult OpenXrLayer::EndFrame(XrSession session, const XrFrameEndInfo* frame_en
     // unique_lock because ForwardEndFrame releases it before blocking runtime
     // calls (turbo drain + next_end_frame_).
     std::unique_lock lock(mutex_);
+    if(session==active_session_)benchmark_.Application(benchmark_entered,frame_end_info->layerCount>0);
     if (diag) {
         logger_.Debug("Turbo-diag: xrEndFrame config lock acquired.");
     }
@@ -9065,6 +9087,7 @@ XrResult OpenXrLayer::EndFrame(XrSession session, const XrFrameEndInfo* frame_en
     ReloadConfigIfNeeded();
     RefreshResolvedSettings();
     PollFrameGenToggle();
+    render_resolution_ = SubmittedRenderResolution(frame_end_info);
     PrepareOsd();
     // Capture application-submitted rectangles before synthesized Quadviews
     // rewrites them into two runtime views. Report allocated sizes separately.
@@ -11084,6 +11107,7 @@ void OpenXrLayer::StopConfigWatcher() {
         }
         runtime_relay_exit_status_.Disarm();
         runtime_relay_exit_control_.Disarm();
+        runtime_relay_exit_benchmark_.Disarm();runtime_relay_exit_benchmark_request_.Disarm();
         runtime_relay_last_applied_revision_ = 0;
         runtime_relay_acknowledged_revision_ = 0;
         runtime_relay_status_dirty_.store(false, std::memory_order_release);
@@ -11093,6 +11117,8 @@ void OpenXrLayer::StopConfigWatcher() {
         std::filesystem::remove(RuntimeStatusPath(relay_root, relay_session_id), ec);
         ec.clear();
         std::filesystem::remove(RuntimeControlPath(relay_root, relay_session_id), ec);
+        ec.clear();std::filesystem::remove(RuntimeBenchmarkPath(relay_root,relay_session_id),ec);
+        ec.clear();std::filesystem::remove(RuntimeBenchmarkRequestPath(relay_root,relay_session_id),ec);
     }
 }
 
@@ -11241,6 +11267,7 @@ std::vector<std::string> OpenXrLayer::UnloggedConfigWarningsLocked() {
 
 OsdSnapshot OpenXrLayer::BuildOsdSnapshot() const {
     OsdSnapshot snapshot;
+    snapshot.render_resolution = render_resolution_;
     snapshot.application=current_exe_name_; snapshot.runtime=runtime_name_;
     const bool turbo_enabled=resolved_settings_.turbo.enabled && resolved_settings_.core.enabled;
     snapshot.turbo=turbo_yielded_to_framegen_?"Paused for Frame Generation":
@@ -11268,6 +11295,10 @@ OsdSnapshot OpenXrLayer::BuildOsdSnapshot() const {
     }
     snapshot.framegen_badge=framegen.badge;
     snapshot.framegen_fps=framegen.shown_fps;
+    if(framegen_session_enabled_){
+        const auto actual=framegen_.Status();const auto counters=benchmark_.Snapshot(false).counters;
+        snapshot.framegen_metrics=DescribeFrameGenerationCounters(actual.generated_submitted,counters.submitted,actual.generated_fps);
+    }
     snapshot.modules=resolved_settings_.core.osd.toolkit_summary.empty()?"OpenGrid XR":resolved_settings_.core.osd.toolkit_summary;
     snapshot.pivot="Motion: Disabled";
     snapshot.compact_pivot=snapshot.pivot;
@@ -11790,6 +11821,7 @@ void OpenXrLayer::ResetSessionState() {
     application_action_spaces_.clear();
     osd_.Shutdown();
         overlays_.reset();
+        helmet_.reset();
     osd_monitoring_.store(false);
     osd_should_render_.store(true);
     osd_last_input_poll_.reset();
@@ -11803,6 +11835,7 @@ void OpenXrLayer::ResetSessionState() {
         runtime_relay_session_id_.clear();
         runtime_relay_exit_status_.Disarm();
         runtime_relay_exit_control_.Disarm();
+        runtime_relay_exit_benchmark_.Disarm();runtime_relay_exit_benchmark_request_.Disarm();
         runtime_relay_last_applied_revision_ = 0;
         runtime_relay_acknowledged_revision_ = 0;
         runtime_relay_status_dirty_.store(false, std::memory_order_release);
@@ -16549,6 +16582,8 @@ void OpenXrLayer::PollRuntimeRelay() {
         std::filesystem::remove(RuntimeStatusPath(root, stale_session_id), ec);
         ec.clear();
         std::filesystem::remove(RuntimeControlPath(root, stale_session_id), ec);
+        ec.clear();std::filesystem::remove(RuntimeBenchmarkPath(root,stale_session_id),ec);
+        ec.clear();std::filesystem::remove(RuntimeBenchmarkRequestPath(root,stale_session_id),ec);
         ec.clear();
     }
     if (!root.empty() && !runtime_relay_pruned_) {
@@ -16583,19 +16618,30 @@ void OpenXrLayer::PollRuntimeRelay() {
     const bool has_control = ReadRuntimeControl(RuntimeControlPath(root, session_id), &control, &control_error);
     bool state_changed = false;
     bool command_applied = false;
-    if (has_control && control.target_session_id == session_id &&
-        control.expires_at_unix_milliseconds >= RuntimeRelayUnixMilliseconds()) {
+    if (has_control) {
         std::scoped_lock lock(mutex_);
-        const bool available = runtime_relay_session_id_ == session_id &&
-            active_session_ != XR_NULL_HANDLE && QuadViewsDiagnosticVisualizationAvailable();
-        if (available && control.revision > runtime_relay_last_applied_revision_ &&
-            control.quadviews_diagnostic_visualization.has_value()) {
-            runtime_relay_last_applied_revision_ = control.revision;
+        const bool active = runtime_relay_session_id_ == session_id && active_session_ != XR_NULL_HANDLE;
+        command_applied = active && ApplyRuntimeControl(control, session_id, RuntimeRelayUnixMilliseconds(),
+            &runtime_relay_last_applied_revision_, [&](const RuntimeControlDocument& command) {
+                if (command.driving_action) {
+                    const auto& action = *command.driving_action;
+                    if (action == "framegen.toggle") {
+                        if (!framegen_owns_pacing_.load(std::memory_order_acquire)) return false;
+                        framegen_.Toggle();
+                        return true;
+                    }
+                    if (action == "osd.toggle") return osd_.ApplyControl(OsdControl::ToggleVisibility);
+                    if (action == "osd.cycle") return osd_.ApplyControl(OsdControl::CycleLayout);
+                    return false;
+                }
+                if (!command.quadviews_diagnostic_visualization || !QuadViewsDiagnosticVisualizationAvailable()) return false;
+                const bool desired = *command.quadviews_diagnostic_visualization;
+                state_changed = quadviews_diagnostic_visualization_enabled_ != desired;
+                quadviews_diagnostic_visualization_enabled_ = desired;
+                return true;
+            });
+        if (command_applied) {
             runtime_relay_acknowledged_revision_ = control.revision;
-            const bool desired = *control.quadviews_diagnostic_visualization;
-            state_changed = quadviews_diagnostic_visualization_enabled_ != desired;
-            quadviews_diagnostic_visualization_enabled_ = desired;
-            command_applied = true;
             runtime_relay_status_dirty_.store(true, std::memory_order_release);
         }
     }
@@ -16605,8 +16651,27 @@ void OpenXrLayer::PollRuntimeRelay() {
                      (*control.quadviews_diagnostic_visualization ? "shown" : "hidden") +
                      " via the OpenGrid XR app.");
     }
+    if (command_applied && control.driving_action) {
+        logger_.Info("Driving action " + *control.driving_action + " applied via the OpenGrid XR app.");
+    }
 
     const auto now = std::chrono::steady_clock::now();
+    const auto unix_now=RuntimeRelayUnixMilliseconds();
+    const auto lease=ReadRuntimeBenchmarkLease(RuntimeBenchmarkRequestPath(root,session_id),session_id,unix_now);
+    RuntimeBenchmarkData benchmark;
+    {
+        std::scoped_lock lock(mutex_);
+        if(runtime_relay_session_id_!=session_id||active_session_==XR_NULL_HANDLE)return;
+        benchmark_.Demand(now+std::chrono::milliseconds(lease));
+        if(lease){
+            const auto fg=framegen_.Status();benchmark=benchmark_.Snapshot();benchmark.session_id=session_id;benchmark.timestamp_ms=unix_now;
+            benchmark.counters.generated=fg.generated_submitted;benchmark.counters.repeated=fg.repeated_submitted;
+            benchmark.state=DescribeFrameGen(fg,true).state;benchmark.mode=fg.mode==FrameGenSynthesisMode::kExtrapolate?"extrapolate":"interpolate";
+            benchmark.multiplier=framegen_session_enabled_?fg.multiplier:1;
+            benchmark.refresh_hz=fg.refresh_period_ns>0?1e9/static_cast<double>(fg.refresh_period_ns):0;
+        }
+    }
+    if(lease)WriteRuntimeBenchmark(RuntimeBenchmarkPath(root,session_id),benchmark);
     const bool heartbeat_due = !runtime_relay_last_status_write_.has_value() ||
         now - *runtime_relay_last_status_write_ >= std::chrono::seconds(1);
     if (!heartbeat_due && !runtime_relay_status_dirty_.exchange(false, std::memory_order_acq_rel)) return;
@@ -16627,12 +16692,15 @@ void OpenXrLayer::PollRuntimeRelay() {
             turbo_effective_active_.load() ? (turbo_effective_async_.load() ? "async" : "sequenced") :
             (resolved_settings_.core.enabled && resolved_settings_.turbo.enabled && turbo_toggle_enabled_) ? "waiting" : "off";
         const auto overlay=osd_.Status();
-        status.osd_available=overlay.available; status.osd_visible=overlay.visible;
+        status.osd_available=overlay.available && resolved_settings_.core.osd.enabled; status.osd_visible=overlay.visible;
         status.osd_compact=overlay.compact; status.osd_message=overlay.message;
+        status.framegen_toggle_available=framegen_owns_pacing_.load(std::memory_order_acquire);
         status.turbo_reason = turbo_recovery_.Reason();
         if (turbo_yielded_to_framegen_)
             status.turbo_reason = "Frame Generation owns frame pacing in this session.";
         const FrameGenStatus framegen = framegen_.Status();
+        status.counters=benchmark_.Snapshot(false).counters;
+        status.counters.generated=framegen.generated_submitted;status.counters.repeated=framegen.repeated_submitted;
         const FrameGenOsdText described = DescribeFrameGen(framegen, true);
         status.framegen_state = described.state;
         status.framegen_reason = described.reason;
@@ -16657,6 +16725,7 @@ void OpenXrLayer::PollRuntimeRelay() {
             rates.app_fps = framegen.app_fps;
             rates.output_fps = framegen.output_fps;
             rates.distinct_fps = framegen.distinct_fps;
+            rates.generated_fps = framegen.generated_fps;
             status.framegen_rates = rates;
         }
         if (status.turbo_reason.empty() && turbo_auto_suspended_.load())

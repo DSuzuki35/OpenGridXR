@@ -11,6 +11,37 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+test('helmet-only profiles load the compositor engine without enabling frame generation',()=>{
+  const doc=createDocument(),p=doc.profiles[0];p.helmet.enabled=true;
+  for(const mode of ['driving','streaming']) {
+    p.mode=mode;const engine=runtimeConfig.toEnhancementsConfig(doc,p.game);
+    assert.equal(engine.core.enabled,true);assert.equal(engine.modules.framegen.enabled,false);
+    assert.match(runtimeConfig.toRuntimeIni(doc),/EnhancementsEnabled=1/);
+  }
+});
+test('visor scene adjustments stay neutral for old profiles and follow the headset helmet in both modes',()=>{
+  const doc=createDocument(),p=doc.profiles[0];
+  p.helmet.enabled=true;p.helmet.visorContrast=125;p.helmet.visorBrightness=90;p.helmet.visorSaturation=80;
+  for(const mode of ['driving','streaming']) {
+    p.mode=mode;
+    const ini=runtimeConfig.toRuntimeIni(doc).split('[lmu]')[0];
+    assert.match(ini,/HelmetVisorEnabled=1/);assert.match(ini,/HelmetVisorContrast=125/);
+    assert.match(ini,/HelmetVisorBrightness=90/);assert.match(ini,/HelmetVisorSaturation=80/);
+  }
+  p.helmet.enabled=false;delete p.helmet.visorContrast;delete p.helmet.visorBrightness;delete p.helmet.visorSaturation;
+  const ini=runtimeConfig.toRuntimeIni(doc).split('[lmu]')[0];
+  assert.match(ini,/HelmetVisorEnabled=0/);assert.match(ini,/HelmetVisorContrast=100/);
+  assert.match(ini,/HelmetVisorBrightness=100/);assert.match(ini,/HelmetVisorSaturation=100/);
+});
+test('runtime prepares helmet assets before publishing native settings and propagates failures',async()=>{
+  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-assets-order-'));let called=0;
+  try {
+    const instance=runtime.createRuntime({sourceDir:dir,runtimeDir:dir,testMode:true,prepareAssets:async()=>{called++;throw new Error('Asset preparation fixture error');}});
+    await assert.rejects(instance.writeConfig(createDocument()),/preparation fixture/);assert.equal(called,1);
+    await assert.rejects(fs.access(path.join(dir,'OpenGridXR.ini')));
+  } finally {await fs.rm(dir,{recursive:true,force:true});}
+});
+
 const fg = () => ({
   enabled: false,
   synthesisMode: "interpolate",
@@ -70,11 +101,28 @@ test("invalid enhancement settings cannot reach native configuration", () => {
     ["overlay", "horizontalDegrees", 41],
     ["overlay", "customColor", "#aabbcc;run"],
     ["overlay", "showToolkit", "true"],
+    ["overlay", "showResolution", "true"],
   ]) {
     const p = profile();
     p[group][key] = value;
     assert.throws(() => validateProfile(p), undefined, `${group}.${key}`);
   }
+});
+
+test("resolution HUD carries configured scale separately and supports older profiles", () => {
+  const doc = createDocument();
+  const p = doc.profiles[0];
+  p.view.renderScale = 135;
+  assert.equal(p.overlay.showResolution, true);
+  let config = runtimeConfig.toEnhancementsConfig(doc, "iracing").core.osd;
+  assert.equal(config.showResolution, true);
+  assert.equal(config.configuredRenderScale, 135);
+  assert.equal(config.renderWidth, undefined, "Resolution must come from submitted native images");
+  p.overlay.showResolution = false;
+  assert.equal(runtimeConfig.toEnhancementsConfig(doc, "iracing").core.osd.showResolution, false);
+  delete p.overlay.showResolution;
+  assert.doesNotThrow(() => validateProfile(p));
+  assert.equal(runtimeConfig.toEnhancementsConfig(doc, "iracing").core.osd.showResolution, true);
 });
 test("shortcut collisions are rejected while explicitly unbound keys are allowed", () => {
   const p = profile();

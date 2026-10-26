@@ -16,7 +16,9 @@ function createInputController({createHost,listActions,applyAction,testMode=fals
   const bindings=()=>selected()?.inputBindings;
   function synchronize() {
     const settings=bindings();
-    host.setActive(!closed && (!testMode || testFixture) && (capture.state === "listening" || (settings?.enabled !== false && settings?.bindings?.length > 0)));
+    const allowed=new Set(selected() ? listActions(selected()).filter(action=>!action.disabled).map(action=>action.id) : []);
+    const hasBindings=settings?.enabled !== false && settings?.bindings?.some(binding=>allowed.has(binding.actionId));
+    host.setActive(!closed && (!testMode || testFixture) && (capture.state === "listening" || Boolean(hasBindings)));
   }
   function paused() {
     return closed || applying || editor.dirty || editor.busy || editor.profileId !== document?.selectedProfileId || !["idle","cancelled"].includes(capture.state);

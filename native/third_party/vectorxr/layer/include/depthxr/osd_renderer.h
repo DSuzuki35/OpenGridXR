@@ -67,6 +67,7 @@ struct OsdSnapshot {
     // A second, smaller line under the expanded row (what the game's depth
     // does), empty for none.
     std::string framegen_detail;
+    std::string framegen_metrics;
     // The expanded row is shown only in sessions with Frame Generation on.
     bool framegen_session{false};
     // Beside the FPS counter in those sessions: Frame Generation's state (ON,
@@ -81,7 +82,14 @@ struct OsdSnapshot {
     // The PERFORMANCE row's text (DescribePerformance), filled while a layout
     // shows the row.
     PerformanceOsdText performance;
+    std::array<XrExtent2Di, 2> render_resolution{};
 };
+
+// Current application-submitted stereo image rectangles, before generated
+// frames or composition. Zero means unavailable; never infer from allocation.
+std::array<XrExtent2Di, 2> SubmittedRenderResolution(const XrFrameEndInfo*);
+std::string DescribeRenderResolution(const std::array<XrExtent2Di, 2>&);
+std::string DescribeFrameGenerationCounters(std::uint64_t generated,std::uint64_t submitted,double generated_fps);
 
 struct OsdPresentation {
     bool compact{false}, shown{false};
@@ -117,7 +125,7 @@ struct OsdBitmap {
 };
 
 struct OsdCompactLayout {
-    int width{240}, height{}, header_y{-1}, metrics_y{-1}, status_y{-1}, performance_y{-1}, turbo_y{-1}, framegen_y{-1}, pivot_y{-1};
+    int width{240}, height{}, header_y{-1}, metrics_y{-1}, status_y{-1}, performance_y{-1}, turbo_y{-1}, framegen_y{-1}, pivot_y{-1}, resolution_y{-1};
     int status_value_x{128};
     int frame_time_x{262};
     std::array<int,4> header_x{-1,-1,-1,-1};
@@ -158,6 +166,8 @@ void FeatherOsdPixels(const std::uint32_t* bits, std::uint32_t* pixels, int pane
 // Produces premultiplied sRGB pixels for an sRGB OpenXR swapchain.
 OsdBitmap RasterizeOsd(const OsdSettings&, bool compact, const OsdSnapshot&, const OsdTelemetry&, bool rgba);
 
+enum class OsdControl { ToggleVisibility, CycleLayout };
+
 class OsdRenderer {
   public:
     ~OsdRenderer();
@@ -185,6 +195,9 @@ class OsdRenderer {
     // head location) under the renderer's lock.
     const XrCompositionLayerBaseHeader* Append(const XrFrameEndInfo&, bool should_render);
     OsdStatus Status() const;
+    // Live desktop controls preserve keyboard edge state and saved settings.
+    // Returns false until the configured HUD has a usable session.
+    bool ApplyControl(OsdControl);
     // Places the panel in the world at each frame's head pose, located at
     // that frame's own display time, instead of in the VIEW space. A runtime
     // that draws a VIEW quad at the pose its frame carries, then turns the

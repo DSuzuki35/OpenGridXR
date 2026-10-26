@@ -39,6 +39,18 @@
 using namespace depthxr;
 using namespace std::chrono_literals;
 
+namespace depthxr {
+class TurboFrameTestPeer {
+  public:
+    static std::optional<std::uint64_t> RetireJitSourceDuringWrite(FrameGenPresenter& presenter){
+        std::scoped_lock lock(presenter.mutex_);
+        if(!presenter.jit_content_.valid||!presenter.jit_content_.has_projection||!presenter.generated_submitted_)return {};
+        presenter.jit_frames_.clear();
+        return presenter.generated_submitted_;
+    }
+};
+}
+
 namespace {
 
 void Check(bool ok, const std::string& why) {
@@ -200,6 +212,7 @@ struct GpuLog {
     std::mutex syntheses_mutex;
     std::vector<Synthesis> syntheses;
     std::atomic<int> synthesis_failures{0};
+    std::function<void(FrameGenSynthesisMode,float)> after_synthesis;
     // SynthesizeStale: supported, written, and asked of a motion frame that
     // was not the frame's previous one or not measured yet.
     std::atomic<bool> stale{false};
@@ -575,6 +588,7 @@ class FakeGpu final : public FrameGenGpu {
         // Seen from the eye's position at the frame's time, as the presenter
         // places the views (where depth is used).
         const float eye_time = mode == FrameGenSynthesisMode::kExtrapolate ? fraction : fraction - 1.0f;
+        if(log_->after_synthesis)log_->after_synthesis(mode,fraction);
         std::scoped_lock lock(g_xr_mutex);
         for (std::size_t i = 0; i < analyzed.views.size(); ++i) {
             const auto& view = analyzed.views[i];
@@ -1477,6 +1491,24 @@ void TestInterpolationPacing() {
     Check(!presenter.Started(), "stop releases the session");
 }
 
+void TestSuccessfulSubmissionCounters(){
+    for(auto mode:{FrameGenSynthesisMode::kInterpolate,FrameGenSynthesisMode::kExtrapolate}){
+        FrameGenPresenter presenter;GpuLog gpu;Runtime runtime;StartPresenter(presenter,gpu,mode);App app(presenter,runtime);
+        for(int i=0;i<8;++i)app.Frame();
+        auto before=presenter.Status();
+        Check(before.generated_submitted>0&&before.generated_submitted<before.submitted_success,"Both synthesis modes count actual synthetic submissions, separately from real frames");
+        Check(before.submitted_success==runtime.Submissions()&&before.generated_fps>0,"Successful runtime events drive totals and generated FPS");
+        if(mode==FrameGenSynthesisMode::kExtrapolate)Check(before.repeated_submitted>0,"Repeated real image during extrapolation priming is counted separately");
+        app.Frame(false);auto empty=presenter.Status();
+        Check(empty.submitted_success==before.submitted_success&&empty.generated_submitted==before.generated_submitted,"Empty frame does not inflate actual output counters");
+        for(int i=0;i<6;++i)app.Frame();
+        before=presenter.Status();auto submit=app.calls.submit;app.calls.submit=[submit](XrSession s,const XrFrameEndInfo* info){submit(s,info);return XR_ERROR_RUNTIME_FAILURE;};
+        auto frame=app.Wait();app.Begin();app.Release();Check(XR_FAILED(app.End(frame.predictedDisplayTime)),"Synthetic rejection fixture reaches actual failure");
+        auto failed=presenter.Status();Check(failed.submitted_success==before.submitted_success&&failed.generated_submitted==before.generated_submitted,"Failed runtime submission is not counted as generated or submitted");
+        presenter.Stop();
+    }
+}
+
 // The backend's working memory (a driver query per image it holds) feeds
 // only the log: asked for at most once a second, not on every real frame.
 void TestWorkingMemoryAskedOncePerSecond() {
@@ -1800,6 +1832,7 @@ void TestThreadedExtrapolation() {
           "threaded: a steady app shows a new frame each refresh (" + std::to_string(status.distinct_fps) + " of " +
               std::to_string(status.output_fps) + " fps)");
     Check(gpu.executes > frames / 2, "threaded: frames are generated from the real frames");
+    Check(status.generated_submitted>0&&status.generated_fps>0&&status.generated_submitted<status.submitted_success,"Threaded extrapolation counts distinct successful synthetic submissions");
     const auto stop_start = std::chrono::steady_clock::now();
     presenter.Stop();
     Check(std::chrono::steady_clock::now() - stop_start < 500ms, "threaded: stop ends the presenter thread promptly");
@@ -2264,6 +2297,7 @@ void TestThreadedInterpolation() {
     const FrameGenStatus status = presenter.Status();
     Check(status.threaded && status.state == FrameGenState::kActive && !status.full_rate,
           "threaded interpolation: engages on the presenter thread");
+    Check(status.generated_submitted>0&&status.generated_fps>0&&status.generated_submitted<status.submitted_success,"Threaded interpolation counts distinct successful synthetic submissions");
     Check(frames / elapsed > refresh / 3 * 0.8,
           "threaded interpolation: the app holds a third of the refresh (" + std::to_string(frames / elapsed) + " fps)");
     const auto log = runtime.Snapshot();
@@ -3056,6 +3090,7 @@ void TestJitExtrapolation() {
               std::to_string(status.output_fps) + " fps)");
     Check(gpu.analyzes > frames / 2 && gpu.executes == gpu.analyzes,
           "jit extrapolation: each real frame is measured once, nothing generated with it");
+    Check(status.generated_submitted>0&&status.generated_fps>0&&status.generated_submitted<status.submitted_success,"JIT counts synthesized submissions instead of analysis calls");
     Check(SynthesesWhere(gpu, [](FrameGenSynthesisMode mode, float fraction) {
               return mode == FrameGenSynthesisMode::kExtrapolate && fraction > 0.2f && fraction < 0.9f;
           }) > frames / 2,
@@ -3075,6 +3110,21 @@ void TestJitExtrapolation() {
     CheckOrderedTimes(log, "jit extrapolation");
     presenter.Stop();
     Check(!runtime.ordering_violation && !g_release_violation, "jit extrapolation: calls stayed ordered");
+}
+
+void TestJitRetiredSourceSubmissionCounter(){
+    FrameGenPresenter presenter;GpuLog gpu;Runtime runtime;runtime.paced=true;
+    std::atomic<int> phase{0};std::atomic<std::uint64_t> before{0},after{0};
+    gpu.after_synthesis=[&](FrameGenSynthesisMode mode,float fraction){
+        if(phase==0&&mode==FrameGenSynthesisMode::kExtrapolate&&fraction>0){
+            if(auto count=TurboFrameTestPeer::RetireJitSourceDuringWrite(presenter)){before=*count;phase=1;}
+        }else if(phase==1){after=presenter.Status().generated_submitted;phase=2;}
+    };
+    std::unique_ptr<App> owned;App* app{};StartJit(presenter,gpu,FrameGenSynthesisMode::kExtrapolate,FrameGenMultiplier::k3,app,runtime,owned);
+    for(int i=0;i<40&&phase<2;++i)app->Frame();
+    Check(phase==2,"JIT retirement fixture reaches fallback submission and next synthesis");
+    Check(after==before+1,"A newly written JIT image whose source retired is generated, not a repeated submission");
+    presenter.Stop();
 }
 
 // Interpolate at 3x just in time: the presenter thread shows every refresh,
@@ -10785,12 +10835,18 @@ int main(int argc, char** argv) {
         RunPolicyTests();
         return 0;
     }
+    if(argc>1&&std::string(argv[1])=="--submission-counter-tests"){
+        RUN(TestSuccessfulSubmissionCounters);RUN(TestInterpolationPacing);RUN(TestExtrapolationPacing);
+        RUN(TestThreadedInterpolation);RUN(TestThreadedExtrapolation);RUN(TestJitExtrapolation);RUN(TestJitRetiredSourceSubmissionCounter);
+        std::cout<<"Submission counter integration tests passed\n";return 0;
+    }
     const HANDLE policy = std::getenv("FG_TEST_SERIAL") ? nullptr : StartPolicyTests();
     RUN(TestCompositionExtensions);
     RUN(TestCompositionUnsupportedChains);
     RUN(TestCompositionRefusalSurvivesRuntimeFailure);
     RUN(TestCompositionQuadUnsupportedChains);
     RUN(TestInterpolationPacing);
+    RUN(TestSuccessfulSubmissionCounters);
     RUN(TestWorkingMemoryAskedOncePerSecond);
     RUN(TestExtrapolationPacing);
     RUN(TestTripleInterpolation);
@@ -10808,6 +10864,7 @@ int main(int argc, char** argv) {
     RUN(TestSlowDynamicHorizonJitterReported);
     RUN(TestThreadedInterpolation);
     RUN(TestJitExtrapolation);
+    RUN(TestJitRetiredSourceSubmissionCounter);
     RUN(TestJitEyeShiftReported);
     RUN(TestJitDynamicExtrapolation);
     RUN(TestJitStaleMotion);

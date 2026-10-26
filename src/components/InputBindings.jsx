@@ -34,6 +34,7 @@ export function BindingButton({ actionId, disabled = false }) {
   const context = useInputBindings();
   if (!context || !actionId) return null;
   const action = context.actions.find((item) => item.id === actionId);
+  if (!action) return null;
   const binding = context.settings.bindings.find(
     (item) => item.actionId === actionId,
   );
@@ -64,8 +65,15 @@ export function InputBindingsProvider({
   onToggle,
   children,
 }) {
-  const settings = { ...bindingDefaults(), ...profile.inputBindings };
   const actions = listToggleActions(profile);
+  const savedSettings = { ...bindingDefaults(), ...profile.inputBindings };
+  const settings = {
+    ...savedSettings,
+    bindings: savedSettings.bindings.filter((binding) =>
+      actions.some((action) => action.id === binding.actionId),
+    ),
+  };
+  const inactiveCount = savedSettings.bindings.length - settings.bindings.length;
   const [capture, setCapture] = useState(null);
   const [captureError, setCaptureError] = useState("");
   const current = useRef({ profile, settings, onChange });
@@ -190,6 +198,7 @@ export function InputBindingsProvider({
         profile,
         settings,
         actions,
+        inactiveCount,
         dirty,
         busy,
         learn,
@@ -344,10 +353,16 @@ export function InputBindingsPage() {
           </span>
         </div>
         <p className="panel-description">
-          Bind any saved toggle to a wheel, joystick or buttonbox. Actions work
-          on hidden tabs while OpenGrid XR is running and are paused while the
-          editor has unsaved changes.
+          Bind driving quick actions to a wheel, joystick or buttonbox. Actions
+          work on hidden tabs while OpenGrid XR is running and are paused while
+          the editor has unsaved changes.
         </p>
+        {context.inactiveCount > 0 && (
+          <p className="selection-hint" role="status">
+            {context.inactiveCount} older setup binding(s) are inactive. Editing
+            your bindings removes those assignments; profile settings are kept.
+          </p>
+        )}
         <div className="binding-action-list">
           {actions.map((action) => {
             const bound = settings.bindings.filter(
@@ -420,8 +435,8 @@ export function InputBindingsPage() {
             when there are no active bindings or capture requests.
           </p>
           <p className="binding-restart-note">
-            Frame generation and HUD settings may require restarting the XR
-            session. Fullscreen applies when the output window opens.
+            HUD and frame generation bindings control the running XR session.
+            Enable these features in your saved profile before starting the game.
             Physical-device operation must be checked with your own hardware.
           </p>
         </section>

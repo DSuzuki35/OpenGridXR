@@ -1,4 +1,5 @@
 #include "overlay_renderer.hpp"
+#include "helmet_renderer.hpp"
 #pragma once
 
 #include <array>
@@ -890,6 +891,7 @@ class OpenXrLayer {
     // Immutable between BeginSession and teardown; live edits apply next session.
     OsdRenderer osd_;
     og::OverlayRenderer overlays_;
+    og::HelmetRenderer helmet_;
     std::atomic<bool> overlays_monitoring_{false};
     std::atomic<bool> osd_vulkan_{false}, turbo_metrics_active_{false};
     std::mutex osd_vulkan_queue_mutex_;
@@ -1094,9 +1096,11 @@ class OpenXrLayer {
     // Versioned, session-targeted app<->layer relay. The watcher owns all
     // filesystem I/O; frame paths only update in-memory state and a dirty bit.
     std::vector<QuadViewDimensions> quadviews_dimensions_; // mutex_
+    std::array<XrExtent2Di, 2> render_resolution_{}; // Current submitted stereo imageRect extents; mutex_.
     std::uint64_t quadviews_dimensions_at_{0};
     std::filesystem::path runtime_relay_root_;
     std::string runtime_relay_session_id_;
+    RuntimeBenchmarkRecorder benchmark_;
     std::vector<std::string> runtime_relay_sessions_to_remove_;
     std::uint64_t runtime_relay_session_sequence_{0};
     std::uint64_t runtime_relay_last_applied_revision_{0};
@@ -1107,6 +1111,7 @@ class OpenXrLayer {
     // exit (games that skip OpenXR teardown). Guarded by mutex_.
     ProcessExitFile runtime_relay_exit_status_;
     ProcessExitFile runtime_relay_exit_control_;
+    ProcessExitFile runtime_relay_exit_benchmark_, runtime_relay_exit_benchmark_request_;
     bool runtime_relay_pruned_{false}; // Watcher thread only.
     // The app's last Rescan inputs request taken (Unix ms). Watcher thread only.
     std::uint64_t input_rescan_taken_at_{0};

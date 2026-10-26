@@ -12,9 +12,15 @@ struct Flags {
     std::optional<bool> yellow,blue,green,white,checkered,red,black;
 };
 struct Data {
+    // Vehicle-local SI acceleration: lateral left, longitudinal forward, up.
+    std::optional<double> lateralAccelMps2,longitudinalAccelMps2,verticalAccelMps2;
     std::optional<double> speedMps,rpm,throttle,brake,clutch,fuelLiters;
     std::optional<int> gear,lap,lapsCompleted;
     std::optional<double> lapTimeSeconds,lastLapSeconds,bestLapSeconds;
+    std::optional<double> airTempC,trackTempC,rainIntensity,trackWetness;
+    std::optional<double> sessionTimeSeconds,timeOfDaySeconds,solarAltitudeRadians;
+    std::optional<int> carsNearby,carsVisible,carsNearbyRadiusMeters;
+    std::optional<std::string> cloudCover,trackWetnessState,carsNearbyMethod,trackName,sessionId;
     Flags flags;
     std::optional<bool> inPits;
 };

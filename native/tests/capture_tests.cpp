@@ -15,6 +15,54 @@ XrResult XRAPI_CALL overlayLocate(XrSpace space, XrSpace, XrTime time, XrSpaceLo
             : 0;
     return XR_SUCCESS;
 }
+void quadGrading(Session &session) {
+    std::array<ComPtr<ID3D11Texture2D>,2> textures;
+    std::array<XrSwapchain,2> handles{reinterpret_cast<XrSwapchain>(101),reinterpret_cast<XrSwapchain>(102)};
+    XrCompositionLayerProjectionView views[4]{{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW},{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW},
+                                            {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW},{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}};
+    D3D11_TEXTURE2D_DESC desc{};desc.Width=desc.Height=16;desc.ArraySize=2;desc.MipLevels=desc.SampleDesc.Count=1;
+    desc.Format=DXGI_FORMAT_R8G8B8A8_TYPELESS;desc.BindFlags=D3D11_BIND_RENDER_TARGET;
+    for(unsigned i=0;i<2;++i) {
+        require(SUCCEEDED(session.device->CreateTexture2D(&desc,nullptr,&textures[i])),"quad context/focus texture");
+        D3D11_RENDER_TARGET_VIEW_DESC rd{};rd.Format=DXGI_FORMAT_R8G8B8A8_UNORM;rd.ViewDimension=D3D11_RTV_DIMENSION_TEXTURE2DARRAY;rd.Texture2DArray.ArraySize=2;
+        ComPtr<ID3D11RenderTargetView> rtv;require(SUCCEEDED(session.device->CreateRenderTargetView(textures[i].Get(),&rd,&rtv)),"quad RTV");
+        float red[]{1,0,0,1};session.context->ClearRenderTargetView(rtv.Get(),red);
+        auto chain=std::make_unique<Swapchain>();chain->session=&session;
+        chain->info.width=chain->info.height=16;chain->info.arraySize=2;chain->info.format=DXGI_FORMAT_R8G8B8A8_UNORM;
+        chain->info.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+        XrSwapchainImageD3D11KHR image{XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR};image.texture=textures[i].Get();chain->images.push_back(image);
+        chain->acquired.push_back({0,true});chains[handles[i]]=std::move(chain);
+        for(unsigned eye=0;eye<2;++eye)views[i*2+eye].subImage={handles[i],{{int32_t(i*4),int32_t(i*4)},{int32_t(16-i*8),int32_t(16-i*8)}},eye};
+    }
+    XrCompositionLayerProjection projection{XR_TYPE_COMPOSITION_LAYER_PROJECTION};projection.viewCount=4;projection.views=views;
+    auto base=reinterpret_cast<const XrCompositionLayerBaseHeader*>(&projection);
+    XrFrameEndInfo end{XR_TYPE_FRAME_END_INFO};end.layerCount=1;end.layers=&base;
+    remember_projection_regions(session,&end);
+    require(chains.at(handles[0])->projectionRegions.size()==2&&chains.at(handles[1])->projectionRegions.size()==2,
+            "quad submission collects both eye slices of separate context and focus images");
+    session.instance->config.visorColor={true,100,50,0};
+    auto before=session.visorColorAppliedCalls;
+    for(unsigned i=0;i<2;++i){
+        XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};require(release_image(handles[i],&release)==XR_SUCCESS,"quad grade release");
+        auto stagingDesc=desc;stagingDesc.BindFlags=0;stagingDesc.Usage=D3D11_USAGE_STAGING;stagingDesc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+        ComPtr<ID3D11Texture2D> staging;require(SUCCEEDED(session.device->CreateTexture2D(&stagingDesc,nullptr,&staging)),"quad readback");
+        session.context->CopyResource(staging.Get(),textures[i].Get());
+        for(unsigned eye=0;eye<2;++eye){
+            D3D11_MAPPED_SUBRESOURCE map{};require(SUCCEEDED(session.context->Map(staging.Get(),eye,D3D11_MAP_READ,0,&map)),"quad eye readback");
+            auto center=*reinterpret_cast<const uint32_t*>(static_cast<const char*>(map.pData)+8*map.RowPitch+8*4);
+            auto corner=*static_cast<const uint32_t*>(map.pData);session.context->Unmap(staging.Get(),eye);
+            require((center&255)>=26&&(center&255)<=28&&((center>>8)&255)==(center&255)&&((center>>16)&255)==(center&255),"every context/focus eye receives one actual grayscale brightness grade");
+            if(i)require(corner==0xff0000ff,"focus rectangle leaves outside pixels unchanged");
+        }
+    }
+    require(session.visorColorAppliedCalls==before+2,"one grade per context/focus image");
+    views[1].subImage=views[0].subImage;remember_projection_regions(session,&end);
+    require(chains.at(handles[0])->projectionRegions.size()==1,"duplicate quad rectangles processed once");
+    views[1].subImage.imageRect={{1,1},{8,8}};remember_projection_regions(session,&end);
+    const auto result=session.processor->process(textures[0].Get(),DXGI_FORMAT_R8G8B8A8_UNORM,chains.at(handles[0])->projectionRegions,{},session.instance->config.visorColor);
+    require(result.status==og::ImageProcessStatus::Invalid,"overlapping quad rectangles rejected before repeated grading");
+    chains.clear();
+}
 int main() {
     try {
         og::OverlayPose panel;
@@ -181,6 +229,15 @@ int main() {
                         "depth attachment never classified for sharpening");
                 chains.at(handle)->info.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
                 remember_projection_regions(session, &end);
+                session.context->ClearRenderTargetView(renderTarget.Get(), redColor);
+                instance.config.visorColor={true,100,50,0};
+                session.processor=std::make_unique<og::ImageProcessor>(session.device.Get(),session.context.Get());
+                instance.ReleaseSwapchainImage=[](XrSwapchain,const XrSwapchainImageReleaseInfo*)->XrResult{return XR_SUCCESS;};
+                chains.at(handle)->acquired.push_back({0,true});
+                XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+                require(release_image(handle,&releaseInfo)==XR_SUCCESS&&session.visorColorAppliedCalls==1&&session.sharpenAppliedCalls==0,
+                        "real release path applies visor grade separately from sharpening");
+                session.context->ClearRenderTargetView(renderTarget.Get(), blueColor);
                 publish(session, &end);
                 require(session.channel.lock(), "capture frame metadata lock");
                 auto frame = *session.channel.data();
@@ -276,6 +333,7 @@ int main() {
                 session.overlays.unlock();
                 recapture(false, "new source epoch still rejects prior source geometry");
                 chains.clear();
+                quadGrading(session);
             }
         std::cout << "Layer acquired-image snapshot, subimage crop, shared GPU publish and "
                      "readback passed\n";

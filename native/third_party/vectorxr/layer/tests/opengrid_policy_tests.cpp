@@ -34,6 +34,18 @@ int main() {
               "frame generation and OSD remain available");
         check(runtime.core.osd.toolkit_summary == "Configured: driving | SS 100% | Crop 0/0/0/0%",
               "desktop toolkit summary parsed");
+        const auto parse_osd = [](const std::string& osd) {
+            return depthxr::ParseConfig(R"({"version":3,"core":{"osd":)" + osd +
+                R"(},"applications":[],"modules":{"depthxr":{"enabled":false,"defaults":{"stereoBoost":1,"convergence":0},"bindings":{"toggleEnabled":{"type":"none"}},"profiles":[]},"pivotxr":{"enabled":false,"defaults":{},"profiles":[]}}})");
+        };
+        const auto resolution_config = parse_osd(R"({"showResolution":true,"configuredRenderScale":135})");
+        check(resolution_config.ok, resolution_config.error.c_str());
+        check(resolution_config.document.core.osd.show_resolution &&
+                  resolution_config.document.core.osd.configured_render_scale == 135,
+              "render resolution toggle and configured percent are parsed independently");
+        check(!parse_osd(R"({"showResolution":"yes"})").ok &&
+              !parse_osd(R"({"configuredRenderScale":999})").ok,
+              "render resolution settings reject malformed types and unsupported scale");
         parsed.document.depthxr.enabled = true;
         parsed.document.pivotxr.enabled = true;
         parsed.document.quadviews.enabled = true;

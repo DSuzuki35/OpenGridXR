@@ -258,10 +258,16 @@ int wmain(int argc, wchar_t **argv) {
         WritePrivateProfileStringW(L"iracing", L"SharpeningMode", L"luma", config.c_str());
         WritePrivateProfileStringW(L"iracing", L"SharpeningStrength", L"120", config.c_str());
         WritePrivateProfileStringW(L"iracing", L"LumaRadius", L"NaN", config.c_str());
+        WritePrivateProfileStringW(L"iracing", L"HelmetVisorEnabled", L"1", config.c_str());
+        WritePrivateProfileStringW(L"iracing", L"HelmetVisorContrast", L"999", config.c_str());
+        WritePrivateProfileStringW(L"iracing", L"HelmetVisorBrightness", L"NaN", config.c_str());
+        WritePrivateProfileStringW(L"iracing", L"HelmetVisorSaturation", L"-1", config.c_str());
         auto parsed = og::read_config(config.wstring(), "iracing");
         check(parsed.sharpening.mode == og::SharpeningMode::Luma &&
                   parsed.sharpening.strength == 100 && parsed.sharpening.radius == 1,
               "sharpen settings clamp finite bounds and default invalid values");
+        check(parsed.visorColor.enabled&&parsed.visorColor.contrast==150&&parsed.visorColor.brightness==100&&parsed.visorColor.saturation==0,
+              "visor settings clamp finite bounds and default invalid values");
         SetEnvironmentVariableW(L"OPENGRIDXR_CONFIG", config.c_str());
         auto module = LoadLibraryW((folder / L"OpenGridXR.dll").c_str());
         check(module != nullptr, "built DLL loads");

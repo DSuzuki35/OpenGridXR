@@ -58,6 +58,9 @@ if(WIN32 AND DEPTHXR_BUILD_LAYER)
     target_compile_definitions(depthxr_osd PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX XR_USE_GRAPHICS_API_D3D11 XR_USE_GRAPHICS_API_D3D12 XR_USE_GRAPHICS_API_VULKAN)
     target_link_libraries(depthxr_osd PUBLIC depthxr_core OpenXR::openxr_loader Vulkan::Headers d3d11 d3d12 d3dcompiler gdi32)
     target_sources(depthxr_osd PRIVATE "${PROJECT_SOURCE_DIR}/../../src/overlay_transport.cpp" "${PROJECT_SOURCE_DIR}/../../src/overlay_renderer.cpp")
+    target_sources(depthxr_osd PRIVATE "${PROJECT_SOURCE_DIR}/../../src/helmet_renderer.cpp" "${PROJECT_SOURCE_DIR}/../../src/helmet_math.cpp" "${PROJECT_SOURCE_DIR}/../../telemetry/telemetry.cpp")
+    target_include_directories(depthxr_osd PRIVATE "${PROJECT_SOURCE_DIR}/../../telemetry")
+    target_link_libraries(depthxr_osd PUBLIC windowscodecs ole32)
     target_include_directories(depthxr_osd PUBLIC "${PROJECT_SOURCE_DIR}/../../include")
 
     # Frame Generation compute shaders. One HLSL source compiles to DXBC for
@@ -440,6 +443,8 @@ if(WIN32 AND DEPTHXR_BUILD_LAYER)
         target_link_libraries(depthxr_framegen_presenter_tests PRIVATE depthxr_framegen)
         target_compile_definitions(depthxr_framegen_presenter_tests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
         add_test(NAME depthxr_framegen_presenter_tests COMMAND depthxr_framegen_presenter_tests)
+        add_test(NAME depthxr_framegen_submission_counter_tests COMMAND depthxr_framegen_presenter_tests --submission-counter-tests)
+        set_tests_properties(depthxr_framegen_submission_counter_tests PROPERTIES TIMEOUT 120)
         # Paced by the wall clock: about 375 s on a fast desktop (0.19.2), longer on a shared CI runner.
         set_tests_properties(depthxr_framegen_presenter_tests PROPERTIES TIMEOUT 900)
         add_executable(depthxr_osd_tests tests/osd_tests.cpp)

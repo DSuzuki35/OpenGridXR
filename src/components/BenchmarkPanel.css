@@ -1,0 +1,17 @@
+.benchmark-page{display:grid;gap:20px;min-width:0}
+.benchmark-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.benchmark-actions>span,.benchmark-help{font-size:12px;line-height:1.6;color:var(--text-muted,#9894a4)}
+.benchmark-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0}
+.benchmark-metrics>div{display:grid;gap:8px;min-width:0}
+.benchmark-metrics span{font-size:12px;color:var(--text-muted,#9894a4)}
+.benchmark-metrics strong{font-size:22px;font-weight:500;overflow-wrap:anywhere}
+.benchmark-table{overflow-x:auto}
+.benchmark-table table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
+.benchmark-table th,.benchmark-table td{padding:12px 9px;border-bottom:1px solid #332d3d;white-space:nowrap}
+.benchmark-table th{font-weight:500;color:var(--text-muted,#9894a4)}
+.benchmark-context{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:12px;line-height:1.6;margin:18px 0}
+.benchmark-lap{border-top:1px solid #332d3d;padding:14px 0;font-size:13px}
+.benchmark-lap summary{cursor:pointer}
+.benchmark-error{color:#f2b9bd;padding:12px 0}
+@media(max-width:900px){.benchmark-metrics,.benchmark-context{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.benchmark-context{grid-template-columns:1fr}}

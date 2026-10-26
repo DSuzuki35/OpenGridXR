@@ -58,3 +58,18 @@ test('test mode never starts hardware; disabled actions and malformed input are 
   f.press({...input,index:128}); assert.equal(f.controller.captureStatus().state,'listening');
   f.controller.captureCancel(); f.press(input); await tick(); assert.equal(f.changes.length,0); f.controller.close();
 });
+
+test('obsolete saved bindings neither start a reader nor dispatch configuration writes', async () => {
+  const { createProfile } = await import('../src/model.mjs');
+  const { listToggleActions } = await import('../src/input-bindings.mjs');
+  const p = createProfile();
+  p.inputBindings.bindings = [{ ...input, deviceName: 'Wheel', actionId: 'mask.linked' }];
+  const f = setup({ listActions: listToggleActions });
+  f.controller.update({ selectedProfileId: p.id, profiles: [p] });
+  f.controller.editorState({ dirty: false, busy: false, profileId: p.id });
+  assert.equal(f.active.at(-1), false);
+  f.press(input);
+  await tick();
+  assert.deepEqual(f.changes, []);
+  f.controller.close();
+});

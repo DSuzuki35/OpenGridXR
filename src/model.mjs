@@ -8,6 +8,7 @@ import {
 const clone = (value) => structuredClone(value);
 import { spatialDefaults, centeringDefaults, validateSpatialOverlays, validateCentering } from "./spatial-overlays.mjs";
 import { bindingDefaults, validateBindings } from "./input-bindings.mjs";
+import { visorDefaults, validateVisor } from "./helmet.mjs";
 const PRESETS = {
   formula: [
     [0.12, 0.22],
@@ -77,6 +78,13 @@ export function createProfile(game = "iracing", name) {
       offsetX: 0,
       offsetY: 0,
       visorTint: 0,
+      visorTintColor: "#142035",
+      visorContrast: 100,
+      visorBrightness: 100,
+      visorSaturation: 100,
+      visor: visorDefaults(),
+      headMotion: 0,
+      vehicleMotion: 0,
     },
     mask: {
       enabled: false,
@@ -271,6 +279,12 @@ export function validateProfile(p) {
   num(p.helmet.offsetX, "Helmet X", -100, 100);
   num(p.helmet.offsetY, "Helmet Y", -100, 100);
   num(p.helmet.visorTint, "Visor tint", 0, 100);
+  if (p.helmet.visorTintColor !== undefined && !/^#[a-fA-F0-9]{6}$/.test(p.helmet.visorTintColor)) fail("Visor tint color must be a six-digit hex color.");
+  for (const key of ["visorContrast", "visorBrightness"]) if (p.helmet[key] !== undefined) num(p.helmet[key], key, 50, 150);
+  if (p.helmet.visorSaturation !== undefined) num(p.helmet.visorSaturation, "Visor saturation", 0, 150);
+  validateVisor(p.helmet.visor);
+  if (p.helmet.headMotion !== undefined) num(p.helmet.headMotion, "Helmet head motion", 0, 1);
+  if (p.helmet.vehicleMotion !== undefined) num(p.helmet.vehicleMotion, "Helmet vehicle motion", 0, 1);
   obj(p.mask, "Mask");
   bool(p.mask.enabled, "Mask enabled");
   bool(p.mask.linked, "Linked eyes");

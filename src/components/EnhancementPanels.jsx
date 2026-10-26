@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button, Note, Panel, Range, Segmented, Toggle } from "./Controls.jsx";
 import { TrackArt } from "./ContourEditor.jsx";
+import "./FrameGeneration.css";
 
 const ACCENTS = {
   violet: "#8e70f2",
@@ -108,6 +109,50 @@ export function EngineStatus({ runtime }) {
   );
 }
 
+function SynthesisPreview({ mode }) {
+  const extrapolate = mode === "extrapolate";
+  const frames = extrapolate
+    ? [
+        { time: "t", label: "Previous frame", position: "20%" },
+        { time: "t + 1", label: "Latest frame", position: "55%" },
+        { time: "t + 1.5", label: "Projected frame", position: "73%", generated: true },
+      ]
+    : [
+        { time: "t", label: "Earlier frame", position: "20%" },
+        { time: "t + 0.5", label: "In-between frame", position: "38%", generated: true },
+        { time: "t + 1", label: "Later frame", position: "55%" },
+      ];
+  return (
+    <div className={`synthesis-preview ${extrapolate ? "extrapolate" : "interpolate"}`}>
+      <div className="synthesis-preview-heading" aria-live="polite">
+        <strong>{extrapolate ? "Extrapolation" : "Interpolation"}</strong>
+        <span>{extrapolate ? "Projected beyond the latest frame" : "Between two known frames"}</span>
+      </div>
+      <div className="frame-sequence" aria-label={extrapolate
+        ? "Two known rendered frames followed by a generated prediction"
+        : "A generated frame between two known rendered frames"}>
+        {frames.map((frame, index) => (
+          <React.Fragment key={`${mode}-${frame.time}`}>
+            {index > 0 && <span className="sequence-connector" aria-hidden="true">{!extrapolate && index === 2 ? "←" : "→"}</span>}
+            <div className={`sequence-frame ${frame.generated ? "generated" : "original"}`} data-frame-kind={frame.generated ? "generated" : "rendered"}>
+              <span className="frame-time">{frame.time}</span>
+              <div className="frame-road" />
+              <div className="frame-car" style={{ left: frame.position }} aria-hidden="true" />
+              <strong>{frame.label}<small>{frame.generated ? "GENERATED" : "RENDERED · KNOWN"}</small></strong>
+              {frame.generated && <span className="sequence-spark"><Sparkles size={17} /></span>}
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="frame-motion-track" aria-hidden="true"><span className="frame-motion-dot" /></div>
+      <p className="synthesis-explanation">{extrapolate
+        ? "Estimate motion from the previous and latest frames, then project it forward into a new frame."
+        : "Use motion between an earlier and a later rendered frame to generate a frame between them."}</p>
+      <div className="diagram-caption">ILLUSTRATION ONLY · NO MEASURED FPS OR LATENCY</div>
+    </div>
+  );
+}
+
 export function FrameGenerationPage({
   framegen,
   overlay,
@@ -116,6 +161,7 @@ export function FrameGenerationPage({
   runtime,
   onRefresh,
   onSetup,
+  onOpenVectorXR,
 }) {
   return (
     <div className="enhancement-layout">
@@ -126,6 +172,14 @@ export function FrameGenerationPage({
           action={<span className="badge">EXPERIMENTAL</span>}
           className="framegen-intro"
         >
+          <div className="vectorxr-credit">
+            <div>
+              <span className="vectorxr-credit-kicker">ORIGINAL ENGINE · DIENERTECH LLC</span>
+              <h3>Derived from VectorXR</h3>
+              <p>OpenGrid XR adapts VectorXR’s open-source frame generation engine, developed by DienerTech LLC, under MPL-2.0.</p>
+            </div>
+            <Button variant="ghost" icon={ArrowUpRight} onClick={onOpenVectorXR}>VectorXR original project</Button>
+          </div>
           <div className="feature-enable">
             <div>
               <h3>A fuller motion sequence.</h3>
@@ -140,34 +194,7 @@ export function FrameGenerationPage({
               onChange={(enabled) => onChange({ enabled })}
             />
           </div>
-          <div
-            className="frame-sequence"
-            aria-label="Illustrative sequence of rendered and generated frames"
-          >
-            <div className="sequence-frame original">
-              <span>01</span>
-              <div className="frame-road" />
-              <strong>Rendered frame</strong>
-            </div>
-            <span className="sequence-connector">+</span>
-            <div className="sequence-frame generated">
-              <span>01.5</span>
-              <div className="frame-road" />
-              <strong>Generated frame</strong>
-              <span className="sequence-spark">
-                <Sparkles size={17} />
-              </span>
-            </div>
-            <span className="sequence-connector">→</span>
-            <div className="sequence-frame original">
-              <span>02</span>
-              <div className="frame-road" />
-              <strong>Rendered frame</strong>
-            </div>
-          </div>
-          <div className="diagram-caption">
-            ILLUSTRATION ONLY · NO MEASURED FPS OR LATENCY
-          </div>
+          <SynthesisPreview mode={framegen.synthesisMode} />
           <div className="feature-state">
             <span>PROFILE CONFIGURATION</span>
             <strong>
@@ -395,6 +422,24 @@ function OverlayPreview({ overlay, framegen, profile, gameName }) {
               <span>No live samples</span>
             </div>
           )}
+          {overlay.showResolution !== false && (
+            <div className="osd-details">
+              <div>
+                <span>Rendered / eye</span>
+                <strong>Unavailable</strong>
+              </div>
+              <div>
+                <span>Configured render scale</span>
+                <strong>{profile.view.renderScale}%</strong>
+              </div>
+            </div>
+          )}
+          {overlay.showFramegen && (
+            <div className="osd-details">
+              <div><span>Generated frames / second</span><strong>-- / --</strong></div>
+              <div><span>Generated share of submissions</span><strong>--%</strong></div>
+            </div>
+          )}
           {!compact && (
             <div className="osd-details">
               {overlay.showRuntime && (
@@ -495,6 +540,7 @@ export function OverlayPage({
             <div className="toggle-list">
               {[
                 { key: "showPerformance", label: "Show FPS & frame times" },
+                { key: "showResolution", label: "Show render resolution & scale" },
                 { key: "showGraph", label: "Show frame-time graph" },
                 { key: "showRuntime", label: "Show runtime" },
                 { key: "showApp", label: "Show application" },
@@ -506,7 +552,7 @@ export function OverlayPage({
                   key={key}
                   bindingAction={`overlay.${key}`}
                   label={label}
-                  checked={overlay[key]}
+                  checked={key === "showResolution" ? overlay[key] !== false : overlay[key]}
                   onChange={(value) => onChange({ [key]: value })}
                 />
               ))}

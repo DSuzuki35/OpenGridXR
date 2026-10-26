@@ -4,13 +4,13 @@
 
 [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md) · [Telemetry API](docs/telemetry-api.md) · [Overlay guide](docs/spatial-overlays.md)
 
-Free and fully open-source Windows toolkit for iRacing and Le Mans Ultimate. Version 0.3.0 is a development preview with native crop/capture/output, integrated headset frame generation and performance overlay, headset sharpening, native iRacing foveation controls, read-only telemetry, and spatial URL/window overlays. Real sim/headset compatibility and performance still need validation.
+Free and fully open-source Windows toolkit for iRacing and Le Mans Ultimate. Version 0.3.1 is a development preview with native crop/capture/output, stereo helmet overlays, integrated headset frame generation and performance overlay, headset sharpening, native iRacing foveation controls, read-only telemetry, and spatial URL/window overlays. Real sim/headset compatibility and performance still need validation.
 
 ## Run
 
 Install the Windows setup package from [GitHub Releases](https://github.com/DSuzuki35/OpenGridXR/releases). The installed app checks stable releases at startup and every six hours. A notification offers **Download update**, **Later**, and **Skip this version**. Downloading never installs automatically: use **Install and restart** when ready. Save your profile and close both sims and Clean Output first. Profiles and backups are preserved. After restarting, use **Setup → Update runtime layer** to update the separately registered native files.
 
-**Setup → Check for updates** checks manually, including a previously skipped version. Source builds and unpacked development builds do not self-update. For development, double-click `Start OpenGrid XR.cmd` or run `release/0.3.0/win-unpacked/OpenGrid XR.exe`; keep that entire directory together. The build is unsigned; signing can be performed externally.
+**Setup → Check for updates** checks manually, including a previously skipped version. Source builds and unpacked development builds do not self-update. For development, double-click `Start OpenGrid XR.cmd` or run `release/0.3.1/win-unpacked/OpenGrid XR.exe`; keep that entire directory together. The build is unsigned; signing can be performed externally.
 
 1. Select iRacing or Le Mans Ultimate, then a profile.
 2. In **View & crop**, set rectangular crop and render scale. Enable the custom visibility mask only if wanted. Edit its control points, use arrow keys for fine adjustment, or start from a Formula/GT/Open contour.
@@ -41,17 +41,25 @@ Set the Windows display mode to the capture card's supported resolution and refr
 
 **Symmetric extra area** links both expansion sliders. Turning it on sets both to the larger existing side; turning it off keeps the values for independent editing. The choice is stored in each profile.
 
+**Stabilization reserve** sets all four margins together. Expand the individual controls to fine-tune left, right, top and bottom. With different margins, the global value shows their average; moving it sets every margin to the new value.
+
 The output uses D3D11 shared textures, so its graphics adapter must be compatible with the game's. Supported stereo D3D11 projection capture is the initial path. Unsupported capture formats/view modes should remain pass-through for the game and must not be represented as working capture. No automatic game launch or runtime switch is performed.
 
 ## Helmets
 
-The helmet page previews original **Formula, GT and Open** interior overlays rendered in Blender. Transparent PNG assets and editable Blender sources are included; see the [helmet asset guide](docs/helmets.md). Style, opacity, scale, position and visor tint can be previewed and saved. These are desktop previews and reusable overlay assets; an in-headset helmet renderer is not included. The native custom contour crop works independently.
+The helmet editor uses original **Formula, GT and Open** interiors rendered in Blender from separate left/right eye cameras. The headset receives two cached transparent images, with no real-time helmet mesh. Helmets remain visible in Driving and Streaming, while Clean Output excludes them. Optional damped head movement and acceleration-driven movement default to off. See the [helmet guide](docs/helmets.md) for appearance controls and editable Blender sources.
+
+**Fit crop to visor opening** explicitly updates the saved per-eye visibility mask and rectangular crop from the opaque helmet border, with padding and movement allowance. Tint and translucent lettering never count as hidden scenery. Crop and masks can reduce rendering only when the game/runtime honors them; painting a helmet over a full frame alone does not save scene rendering. Streaming preserves the full source and disables the driving mask.
 
 ## Telemetry and spatial overlays
 
 **Telemetry** reads the native iRacing SDK and LMU shared-memory interfaces. Enable it in a game profile, save, and open the telemetry page. It displays source freshness, speed, RPM, pedals, fuel, laps and supported flags; unknown or stale values are not shown as live. Collection defaults to 20 Hz, is capped at 30 Hz, and pauses without a consumer. Current supported LMU builds use their built-in interface, with no external shared-memory plugin. See the [telemetry API](docs/telemetry-api.md) for the standalone read-only JSON Lines interface and [source requirements](native/telemetry/README.md).
 
 **Spatial overlays** supports up to 15 URL/window sources with head-following or local placement, presets, individual opacity/size and a combined frame-transport budget. Save settings and restart the sim when enabling the engine for the first time. Select capture windows again after restarting OpenGrid. **Recenter overlays** aligns their local anchors; **Center VR in game** sends your explicitly configured in-game recenter shortcut after a delay. See the [overlay guide](docs/spatial-overlays.md) for placement, resource controls and GPU/runtime limits.
+
+## Lap benchmarks
+
+**Lap benchmark** records application frame intervals together with lap boundaries, weather, temperatures and nearby traffic. Compare complete laps, inspect partial segments and export offline HTML reports or CSV samples. Successful generated-frame submissions are counted separately from real application frames and repeats; CPU/GPU render duration and actual headset display counts remain unavailable unless a source supplies them. See the [benchmark guide](docs/benchmarks.md) for definitions, recording limits and the different traffic-distance methods used by the sims.
 
 ## Profiles and recovery
 
@@ -61,13 +69,17 @@ Stale saves are rejected. A damaged profile file is preserved; the app can show 
 
 ## Headset frame generation and VR overlay
 
-The optional native engine is included in OpenGrid XR. No VectorXR desktop app or second layer installation is needed. OpenGrid privately loads `OpenGridXR-Enhancements.dll` downstream of its crop/capture layer. Source and modifications are included under MPL-2.0 with attribution to DienerTech's VectorXR. Existing VectorXR settings are not used or changed.
+The optional native engine adapts frame generation from [DienerTech's VectorXR](https://github.com/DienerTech/vectorxr), credited and linked directly in the Frame generation page. No VectorXR desktop app or second layer installation is needed. OpenGrid privately loads `OpenGridXR-Enhancements.dll` downstream of its crop/capture layer. Source and modifications are included with MPL-2.0 notices and corresponding source links in [Third-party notices](THIRD-PARTY-NOTICES.md). Existing VectorXR settings are not used or changed. The explanatory preview changes with interpolation or extrapolation; it is not a live benchmark.
 
 In **Frame generation**, enable the feature, select interpolation or extrapolation, choose Dynamic/Auto/2×/3×/4× and adjust quality/artifact controls. Shader motion estimation is the portable default; NVIDIA hardware estimation uses the optical-flow component in the installed graphics driver and can fall back where unavailable. Enabling frame generation requires a game restart. Disable the runtime's own motion smoothing while using it. Frame generation is experimental: generated frames can exhibit artifacts and interpolation adds latency. The streaming window continues to show captured real game frames.
 
 In **Performance HUD**, select compact or expanded layout, position, distance, scale, opacity, colors, update rate and displayed information. The real head-following panel can show application FPS/frame intervals, a timing graph, performance metrics and actual frame-generation state. The toolkit summary is labelled **Configured**: a saved setting is not proof that a running session has applied a restart-required change. This is a configurable status panel, not an interactive in-headset settings menu. Desktop previews use placeholders, not invented live metrics.
 
 Default shortcuts are **Ctrl+Alt+F9** for the frame-generation A/B toggle, **Ctrl+Alt+F10** for overlay visibility and **Ctrl+Alt+F11** for overlay layout. Keys are configurable or can be unbound; duplicate assignments are rejected. Both features default to off. After upgrading from 0.1.0, close the sims/output and use **Setup → Install/update runtime layer** to deploy the added engine.
+
+Enable **Show render resolution & scale** in the HUD to show both the actual submitted left/right projection dimensions and OpenGrid's configured scaling percentage. Pixel dimensions come from the application's submitted eye rectangles, not an estimate from the scale slider. Before a valid frame, dimensions are unavailable. The configured percentage is separate because a game may ignore resolution recommendations.
+
+The frame-generation HUD also shows cumulative generated frames, generated frames per second and their share of successful submissions. Counts reflect actual successful synthetic submissions, not the configured multiplier. The lap recorder retains separate application, generated, repeated and submitted totals.
 
 ## Supersampling, foveation and sharpening
 
@@ -87,11 +99,11 @@ Included: profile editor and backup/import/export, per-eye contour editor, super
 
 ## Wheel, joystick and buttonbox bindings
 
-The controller icon beside each toggle learns a button or POV direction. Save the profile after learning. The **Controller bindings** page lists assignments and supports removing or relearning them. Bindings are per profile and use device instance IDs rather than enumeration order; reconnecting through a different device instance can require relearning.
+Controller bindings offer quick driving actions: performance HUD visibility/layout, frame generation on/off, and spatial overlay visibility. Setup and geometry settings are not bindable. The controller icon beside a supported action learns a button or POV direction. Save the profile after learning. The **Controller bindings** page lists assignments and supports removing or relearning them. Bindings are per profile and use device instance IDs rather than enumeration order; reconnecting through a different device instance can require relearning.
 
 The native DirectInput reader supports up to 128 buttons and four POV hats per device, uses background nonexclusive acquisition, and sends press transitions only. Holding a button does not repeatedly toggle. Initial and reacquired device states establish a baseline without firing actions. The helper starts only for enabled saved bindings or learning, and stops when unused. No force-feedback or keyboard injection is used for toggle bindings.
 
-Actions work on the saved selected profile while the app remains open, including when a sim is in the foreground. They pause while the editor is dirty, busy or learning a binding. Settings that require a game or Clean Output restart still require it; a binding does not turn a startup setting into a live runtime control. Physical wheel/buttonbox validation on the game PC is still required.
+Actions work on the saved selected profile while the app remains open, including when a sim is in the foreground. They pause while the editor is dirty, busy or learning a binding. HUD and frame-generation bindings send acknowledged commands to the matching live game session; the feature must be enabled when that session starts. They do not rewrite startup preferences. Obsolete setup bindings from older profiles remain import-compatible but cannot execute. Physical wheel/buttonbox validation on the game PC is still required.
 
 **Runtime optics** offers reviewed offline changes to the Sboys Dream Air and Dream Air SE configuration, with separate target selection, exact backups and restore. Native Pimax optics remain controlled through Pimax Play because a supported external write API is not established. See the [runtime optics guide](docs/runtime-optics.md).
 

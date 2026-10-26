@@ -13,7 +13,8 @@ pinned revision `9aff1bd30d8fadff646058d7cbf581817faf4b8b`, files
 and copyright notice. The SDK's BSD 3-clause terms are preserved in
 `iracing/LICENSE`. The client implementation is not linked or bundled; no SDK
 broadcast/control APIs are used. The decoder implements a smaller bounded
-read-only path and skips the session YAML entirely.
+read-only path. Only bounded `WeekendInfo.TrackName` and `TrackLength` scalars are
+read from session YAML; all other metadata is discarded.
 
 ## Le Mans Ultimate
 
@@ -48,6 +49,7 @@ verified by evaluating the pinned mapping with ctypes on Windows:
 | Telemetry metadata | 128464; count/index/presence at +0/+1/+2 |
 | Vehicle telemetry array | 128468; stride 1888; maximum 104 |
 | Player velocity | telemetry record +184, +192, +200 |
+| Player local acceleration | telemetry record +208, +216, +224; meters/sec² |
 | Gear / RPM | telemetry record +352 / +356 |
 | Raw throttle / brake / clutch | +388 / +396 / +412 |
 | Fuel liters | telemetry record +524 |
@@ -55,3 +57,43 @@ verified by evaluating the pinned mapping with ctypes on Windows:
 The test fixtures use these independent literal ABI facts. Native LMU's layout
 is different from the legacy external plugin's buffers; those buffers are not
 read, installed, or claimed as a fallback.
+
+Acceleration channels use the same bounded snapshot as the other signals.
+iRacing's `LatAccel`, `LongAccel` and `VertAccel` are accepted only when the SDK
+descriptor declares `m/s^2`. LMU's `mLocalAccel` follows its local velocity vector;
+the local z axis points backward, so it is negated for forward longitudinal
+acceleration. Output axes are lateral left, longitudinal forward and vertical up.
+Nonfinite values or magnitudes above 200 m/s² remain unavailable. Missing channels
+are not inferred from speed or steering. The optional helmet effect reads these
+channels at 20 Hz and fades out when updates stop; physical-game validation of
+direction and comfort remains necessary.
+
+## Benchmark context fields
+
+The SDK's [live-channel/session-string reference](https://us.v-cdn.net/6034148/uploads/8DD84H30FIC8/telemetry-11-23-15.pdf)
+defines lap-percentage arrays and `WeekendInfo.TrackLength` in kilometres. The
+[SDK descriptor dump](https://github.com/mherbold/MarvinsAIRA/blob/main/LatestTelemetryDataProperties.txt)
+records simulator-provided names, types and units for `AirTemp`, `TrackTempCrew`,
+`Precipitation`, `Skies`, `TrackWetness`, `SessionTimeOfDay`, `SolarAltitude`,
+`PlayerCarIdx`, `CarIdxLapDistPct` and `CarIdxTrackSurface`. The
+[SDK enum declarations](https://github.com/mherbold/IRSDKSharper/blob/main/IRacingSdkEnum.cs)
+preserve wetness categories; no categorical value is converted to a percentage.
+These references were checked on 2026-10-26. Runtime descriptors must still match
+the expected units; missing or invalid values remain null.
+
+Additional offsets independently calculated from the pinned LMU ctypes mapping:
+
+| Field | Offset relative to scoring info / vehicle scoring |
+| --- | --- |
+| Scoring session elapsed time | info +68, double |
+| Rain severity / ambient C / track C | info +220 / +228 / +236, double |
+| Average main-path wetness | info +332, double |
+| Time of day | info +344, float (verified 1.4.2 layout only) |
+| Sky category | info +350, uint8 (verified 1.4.2 layout only) |
+| Vehicle controller | vehicle +197, int8 (-1 means nobody) |
+| Vehicle world position, metres | vehicle +264 / +272 / +280, double |
+
+The cloud darkness field at info +212 is deliberately not called cloud coverage.
+Scoring clock freshness is checked against the player physics clock. Nearby
+counts use a fixed 100-metre threshold, carry an explicit method, and do not
+claim visibility. No verified rendered-car count was found in these interfaces.

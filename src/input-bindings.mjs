@@ -4,29 +4,28 @@ import { spatialDefaults } from "./spatial-overlays.mjs";
 
 export const bindingDefaults = () => ({ enabled: true, bindings: [] });
 const SPECS = [
-  ["mask.enabled", "Use contour in driving", "View & crop"],
-  ["mask.linked", "Link eyes", "View & crop"],
-  ["helmet.enabled", "Save helmet preference", "Helmet"],
-  ["stream.mirror", "Mirror output", "Stream"],
-  ["stream.fullscreen", "Start fullscreen", "Stream"],
-  ["stream.extraSymmetric", "Symmetric extra area", "Stream"],
-  ["framegen.enabled", "Configure frame generation", "Frame generation", true],
-  ["overlay.enabled", "Enable performance HUD", "Performance HUD", true],
-  [
-    "overlay.showPerformance",
-    "Show FPS & frame times",
-    "Performance HUD",
-    true,
-  ],
-  ["overlay.showGraph", "Show frame-time graph", "Performance HUD", true],
-  ["overlay.showRuntime", "Show runtime", "Performance HUD", true],
-  ["overlay.showApp", "Show application", "Performance HUD", true],
-  ["overlay.showClock", "Show clock", "Performance HUD", true],
-  ["overlay.showFramegen", "Show frame generation", "Performance HUD", true],
-  ["overlay.showToolkit", "Show toolkit settings", "Performance HUD", true],
-  ["telemetry.enabled", "Enable telemetry", "Telemetry"],
-  ["spatialOverlays.enabled", "Enable spatial overlays", "Spatial overlays"],
+  ["overlay.enabled", "Toggle performance HUD", "Performance HUD"],
+  ["overlay.layout", "Switch HUD mode: compact / expanded", "Performance HUD"],
+  ["framegen.enabled", "Toggle frame generation", "Frame generation"],
+  ["spatialOverlays.enabled", "Toggle all spatial overlays", "Spatial overlays"],
 ];
+// Older profiles remain readable, but setup actions are never offered or executed.
+const LEGACY_ACTIONS = new Set([
+  "mask.enabled",
+  "mask.linked",
+  "helmet.enabled",
+  "stream.mirror",
+  "stream.fullscreen",
+  "stream.extraSymmetric",
+  "telemetry.enabled",
+  "overlay.showPerformance",
+  "overlay.showGraph",
+  "overlay.showRuntime",
+  "overlay.showApp",
+  "overlay.showClock",
+  "overlay.showFramegen",
+  "overlay.showToolkit",
+]);
 const GUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const DEVICE = new RegExp(`^dinput:\\{${GUID}\\}$`);
 const DYNAMIC = new RegExp(
@@ -36,9 +35,7 @@ const DYNAMIC = new RegExp(
 function defaults(group) {
   if (group === "framegen") return framegenDefaults();
   if (group === "overlay") return overlayDefaults();
-  if (group === "telemetry") return { enabled: false, updateHz: 20 };
   if (group === "spatialOverlays") return spatialDefaults();
-  if (group === "stream") return { fullscreen: true, extraSymmetric: false };
   return {};
 }
 export function listToggleActions(profile) {
@@ -50,22 +47,21 @@ export function listToggleActions(profile) {
       group,
       restartRequired,
       disabled: false,
-      checked: !!{ ...defaults(section), ...profile?.[section] }[key],
+      checked:
+        key === "layout"
+          ? profile?.overlay?.layout === "compact"
+          : !!{ ...defaults(section), ...profile?.[section] }[key],
     };
   });
   for (const item of profile?.spatialOverlays?.items || []) {
-    for (const [key, label] of [
-      ["enabled", "Enable overlay"],
-      ["showInStream", "Show in stream"],
-    ])
-      actions.push({
-        id: `spatialOverlays.${item.id}.${key}`,
-        label: `${item.name} - ${label}`,
-        group: "Spatial overlays",
-        checked: item[key] === true,
-        disabled: false,
-        restartRequired: false,
-      });
+    actions.push({
+      id: `spatialOverlays.${item.id}.enabled`,
+      label: `${item.name} - Toggle overlay`,
+      group: "Spatial overlays",
+      checked: item.enabled === true,
+      disabled: false,
+      restartRequired: false,
+    });
   }
   return actions;
 }
@@ -81,7 +77,13 @@ export function validateBindings(value, profile) {
   )
     throw new Error("Invalid input bindings.");
   const allowed = profile
-    ? new Set(listToggleActions(profile).map((action) => action.id))
+    ? new Set([
+        ...listToggleActions(profile).map((action) => action.id),
+        ...LEGACY_ACTIONS,
+        ...(profile.spatialOverlays?.items || []).map(
+          (item) => `spatialOverlays.${item.id}.showInStream`,
+        ),
+      ])
     : null;
   const used = new Set();
   for (const binding of value.bindings) {
@@ -93,6 +95,7 @@ export function validateBindings(value, profile) {
       (allowed
         ? !allowed.has(binding.actionId)
         : !SPECS.some(([id]) => id === binding.actionId) &&
+          !LEGACY_ACTIONS.has(binding.actionId) &&
           !DYNAMIC.test(binding.actionId)) ||
       typeof binding.deviceId !== "string" ||
       !DEVICE.test(binding.deviceId) ||
@@ -138,15 +141,11 @@ export function toggleProfileAction(profile, actionId) {
     next[group] = {
       ...defaults(group),
       ...next[group],
-      [key]: !action.checked,
+      [key]:
+        actionId === "overlay.layout"
+          ? action.checked ? "expanded" : "compact"
+          : !action.checked,
     };
-    if (actionId === "stream.extraSymmetric" && next.stream.extraSymmetric)
-      next.stream.extraLeft = next.stream.extraRight = Math.max(
-        next.stream.extraLeft,
-        next.stream.extraRight,
-      );
-    if (actionId === "mask.linked" && next.mask.linked)
-      next.mask.right = next.mask.left.map((point) => ({ ...point }));
   }
   return validateProfile(next);
 }

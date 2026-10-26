@@ -639,6 +639,7 @@ void FrameGenPresenter::Stop() {
     logged_quad_lost_claim_ = logged_quad_unanalyzed_ = false;
     newest_copy_fresh_ = false;
     generated_ = repeated_ = failures_ = demoted_ = abandoned_frames_ = captured_ = 0;
+    generated_submitted_=repeated_submitted_=submitted_success_=0;generated_submissions_.clear();
     threaded_frames_.clear();
     dropped_unended_ = dropped_superseded_ = 0;
     threaded_disabled_ = logged_threaded_ = false;
@@ -3091,7 +3092,7 @@ XrResult FrameGenPresenter::EndFrame(XrSession session, const XrFrameEndInfo* in
         NoteRealEndLocked(now);
         totals_.non_renderable += renderable ? 0 : 1;
         if (!frame || !frame->engaged) {
-            NoteSubmissionLocked(true);
+            NoteSubmissionLocked(true,false,XR_SUCCEEDED(result),info->layerCount>0);
         }
         UpdateAutoLocked(now, frame, frame && frame->engaged && last_cycle_started_late_);
         if (state_ == FrameGenState::kActive && now - last_summary_ >= summary_interval_) {
@@ -3142,7 +3143,7 @@ XrResult FrameGenPresenter::SubmitAt(XrSession session, const XrFrameEndInfo& in
     copy.displayTime = time;
     const XrResult result = RuntimeEnd(calls, session, &copy, false);
     std::scoped_lock lock(mutex_);
-    NoteSubmissionLocked(true);
+    NoteSubmissionLocked(true,false,XR_SUCCEEDED(result),copy.layerCount>0);
     return result;
 }
 
@@ -3690,7 +3691,7 @@ XrResult FrameGenPresenter::RunCycle(XrSession session, const XrFrameEndInfo& in
         }
         const XrResult result = RuntimeEnd(calls, session, &content, true);
         std::scoped_lock lock(mutex_);
-        NoteSubmissionLocked(distinct, moved);
+        NoteSubmissionLocked(distinct,moved,XR_SUCCEEDED(result),content.layerCount>0);
         if (XR_FAILED(result)) {
             PauseLocked(std::string(slot < generated ? "runtime rejected a generated frame (" : "runtime rejected the real frame (") +
                         std::to_string(result) + ")");
@@ -4629,8 +4630,14 @@ void FrameGenPresenter::DestroyOutputs() {
     extrapolated_ = {};
 }
 
-void FrameGenPresenter::NoteSubmissionLocked(bool distinct, bool generated) {
+void FrameGenPresenter::NoteSubmissionLocked(bool distinct, bool generated, bool success, bool rendered) {
     const auto now = Clock::now();
+    if(success&&rendered){
+        ++submitted_success_;
+        if(!distinct)++repeated_submitted_;
+        else if(generated){++generated_submitted_;generated_submissions_.push_back(now);}
+    }
+    while(!generated_submissions_.empty()&&now-generated_submissions_.front()>std::chrono::seconds(1))generated_submissions_.pop_front();
     submissions_.push_back(now);
     ++totals_.submissions;
     if (distinct) {
@@ -5987,7 +5994,7 @@ XrResult FrameGenPresenter::ThreadedEnd(XrSession session, const XrFrameEndInfo&
     }
     last_offer_slot_ = offer.slot;
     NoteSubmissionLocked(offer.should_render,
-                         show_between && !(skip < between_exact.size() && between_exact[skip]));
+                         show_between && !(skip < between_exact.size() && between_exact[skip]),XR_SUCCEEDED(result),offer.should_render&&info.layerCount>0);
     last_shown_set_.reset(); // a real frame, or a set not among the sets below
     // From here the presenter thread fills its slots from this frame:
     // extrapolating, again until the frames generated from it are ready,
@@ -7360,8 +7367,12 @@ void FrameGenPresenter::CompositorLoop() {
                 path = 4;
                 content = jit_content_;
                 jit_views_ = std::move(written_views);
-                jit_exact_ = false;
+                jit_exact_ = write.exact;
                 jit_shown_as_is_ = false;
+                const std::tuple<std::uint64_t,int,float> shown{source->id,static_cast<int>(choice.mode),
+                                                               write.exact?1.0f:choice.fraction};
+                distinct=jit_shown_!=shown;
+                jit_shown_=shown;
                 generated = true;
             } else if (jit_shown_as_is_ && jit_content_.valid && !written) {
                 // Nothing written: the frame last shown as it is, again (a
@@ -7450,7 +7461,7 @@ void FrameGenPresenter::CompositorLoop() {
                 // Generated frames count once, when first shown.
                 const bool moved = distinct && written && !write.exact;
                 generated_ += moved ? 1 : 0;
-                NoteSubmissionLocked(distinct, moved);
+                NoteSubmissionLocked(distinct,moved,XR_SUCCEEDED(result),end_info.layerCount>0);
             }
             if (XR_FAILED(result)) {
                 PauseLocked("runtime rejected a frame from the presenter thread (" + std::to_string(result) + ")");
@@ -7514,7 +7525,7 @@ void FrameGenPresenter::CompositorLoop() {
         }
         submit_lock.unlock();
         lock.lock();
-        NoteSubmissionLocked(distinct, use_generated && !views_exact);
+        NoteSubmissionLocked(distinct,use_generated&&!views_exact,XR_SUCCEEDED(result),end_info.layerCount>0);
         if (XR_FAILED(result)) {
             PauseLocked("runtime rejected a frame from the presenter thread (" + std::to_string(result) + ")");
             break;
@@ -7561,6 +7572,10 @@ FrameGenStatus FrameGenPresenter::Status() const {
     status.distinct_fps = RatePerSecond(distinct_submissions_, now);
     status.gpu_ms = gpu_ms_;
     status.generated = generated_;
+    status.generated_submitted=generated_submitted_;status.repeated_submitted=repeated_submitted_;status.submitted_success=submitted_success_;
+    // Count events in the complete trailing second; never infer from multiplier.
+    while(!generated_submissions_.empty()&&now-generated_submissions_.front()>std::chrono::seconds(1))generated_submissions_.pop_front();
+    status.generated_fps=static_cast<double>(generated_submissions_.size());
     status.repeated = repeated_;
     status.failures = failures_;
     status.demoted = demoted_;

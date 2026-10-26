@@ -42,6 +42,95 @@ void TouchOld(const std::filesystem::path& path, const std::string& content = "{
 int main() {
     const auto root = std::filesystem::temp_directory_path() /
         ("vectorxr-relay-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    {
+        using Recorder=depthxr::RuntimeBenchmarkRecorder;const auto start=Recorder::Clock::time_point{}+std::chrono::seconds(1);
+        Recorder recorder;recorder.Reset(start,100000);
+        recorder.Application(start,true);recorder.Application(start+std::chrono::milliseconds(10),true);
+        Expect(recorder.Snapshot().frames.empty()&&recorder.Snapshot().counters.application==2,"No benchmark demand retains no frame history");
+        recorder.Demand(start+std::chrono::seconds(5));
+        for(int i=11;i<1111;++i)recorder.Application(start+std::chrono::milliseconds(i),true);
+        auto snapshot=recorder.Snapshot();
+        Expect(snapshot.frames.size()==1024&&snapshot.frames.back().frame_ms==1&&snapshot.frames.back().timestamp_ms==101110,"Frame ring is bounded and records actual intervals and aligned Unix timestamps");
+        Expect(snapshot.frames.front().sequence<snapshot.frames.back().sequence,"Frame sequence allows deduplication across snapshots");
+        recorder.Submitted(false,true);recorder.Submitted(true,false);recorder.Submitted(true,true);
+        Expect(recorder.Snapshot(false).frames.empty()&&recorder.Snapshot(false).counters.submitted==1,"Counters exclude failed and empty runtime submissions without copying history");
+        recorder.Application(start+std::chrono::seconds(6),true);
+        Expect(recorder.Snapshot().frames.empty()&&recorder.Snapshot().counters.application>snapshot.counters.application,"Lease expiration drops history but retains monotonic session counts");
+        recorder.Demand(start+std::chrono::seconds(10));recorder.Application(start+std::chrono::seconds(7),false);recorder.Application(start+std::chrono::seconds(8),true);
+        Expect(recorder.Snapshot().frames.empty(),"Non-rendering pause does not create a fake long application frame");
+        const auto request=depthxr::RuntimeBenchmarkRequestPath(root,"123-1000-1");
+        const std::string valid=R"({"protocolVersion":1,"sessionId":"123-1000-1","requestedAtMs":1000,"expiresAtMs":5000})";
+        Touch(request,valid);Expect(depthxr::ReadRuntimeBenchmarkLease(request,"123-1000-1",2000)==3000,"Fresh session-scoped benchmark lease");
+        Expect(!depthxr::ReadRuntimeBenchmarkLease(request,"other",2000)&&!depthxr::ReadRuntimeBenchmarkLease(request,"123-1000-1",999)&&!depthxr::ReadRuntimeBenchmarkLease(request,"123-1000-1",5000),"Other-session, future and expired leases rejected");
+        for(const auto& invalid:{R"({"protocolVersion":1,"sessionId":"123-1000-1","requestedAtMs":1000,"expiresAtMs":9000})",R"({"protocolVersion":1,"sessionId":"123-1000-1","requestedAtMs":1000,"expiresAtMs":5000,"expiresAtMs":4000})"}){
+            Touch(request,invalid);Expect(!depthxr::ReadRuntimeBenchmarkLease(request,"123-1000-1",2000),"Oversized leases and duplicate fields rejected");}
+        snapshot.session_id="123-1000-1";snapshot.timestamp_ms=101110;snapshot.state="active";snapshot.mode="interpolate";snapshot.multiplier=2;snapshot.counters.generated=3;
+        const auto output=depthxr::RuntimeBenchmarkPath(root,snapshot.session_id);Expect(depthxr::WriteRuntimeBenchmark(output,snapshot),"Benchmark feed written atomically");
+        std::ifstream feed(output);std::string json((std::istreambuf_iterator<char>(feed)),{});
+        feed.close();
+        Expect(json.find("\"cpuMs\":null,\"gpuMs\":null")!=std::string::npos&&json.find("\"displayed\":null")!=std::string::npos&&json.find("\"generated\":3")!=std::string::npos,"Unknown hardware timings stay null and generated is an actual count");
+        recorder.Reset(start,200000);Expect(recorder.Snapshot().counters.application==0&&recorder.Snapshot().frames.empty(),"New session resets history and counters");
+        std::filesystem::remove(output);std::filesystem::remove(request);
+    }
+
+    {
+        const auto control = root / "control-test.json";
+        depthxr::RuntimeControlDocument document;
+        const std::string prefix = "{\"protocolVersion\":1,\"targetSessionId\":\"1234-1000-1\",\"revision\":7,\"expiresAtUnixMilliseconds\":2000,";
+        for (const auto* action : {"framegen.toggle", "osd.toggle", "osd.cycle"}) {
+            Touch(control, prefix + "\"drivingAction\":\"" + action + "\"}");
+            Expect(depthxr::ReadRuntimeControl(control, &document), "A supported driving action should parse without a diagnostic command");
+            Expect(document.driving_action == action && !document.quadviews_diagnostic_visualization,
+                   "Parsing must keep exactly the requested action and clear previous commands");
+        }
+        std::uint64_t applied = 0;
+        int operations = 0;
+        const auto apply = [&](const depthxr::RuntimeControlDocument& command) {
+            if (command.driving_action != "osd.cycle") return false;
+            ++operations; return true;
+        };
+        Expect(!depthxr::ApplyRuntimeControl(document, "other-session", 1000, &applied, apply) && operations == 0,
+               "A command for another session must not execute");
+        Expect(!depthxr::ApplyRuntimeControl(document, "1234-1000-1", 2001, &applied, apply) && operations == 0,
+               "An expired command must not execute");
+        Expect(depthxr::ApplyRuntimeControl(document, "1234-1000-1", 1000, &applied, apply) && operations == 1 && applied == 7,
+               "A fresh command must execute and advance its acknowledgement");
+        Expect(!depthxr::ApplyRuntimeControl(document, "1234-1000-1", 1001, &applied, apply) && operations == 1,
+               "Polling an already applied command must not toggle it again");
+        document.revision = 8;
+        document.driving_action = "framegen.toggle";
+        Expect(!depthxr::ApplyRuntimeControl(document, "1234-1000-1", 1001, &applied, apply) && applied == 7,
+               "An unavailable operation must not be acknowledged");
+        Touch(control, prefix + "\"quadviewsDiagnosticVisualization\":false}");
+        Expect(depthxr::ReadRuntimeControl(control, &document) && document.quadviews_diagnostic_visualization == false,
+               "Existing diagnostic commands must remain compatible");
+        Touch(control, prefix + "\"desired\":{\"quadviewsDiagnosticVisualization\":true}}");
+        Expect(depthxr::ReadRuntimeControl(control, &document) && document.quadviews_diagnostic_visualization == true,
+               "The original nested diagnostic command must remain compatible");
+        for (const auto& invalid : {
+            prefix + "\"drivingAction\":\"settings.write\"}",
+            prefix + "\"drivingAction\":\"osd.toggle\",\"drivingAction\":\"osd.cycle\"}",
+            prefix + "\"drivingAction\":\"osd.toggle\",\"quadviewsDiagnosticVisualization\":true}",
+            prefix + "\"drivingAction\":\"osd.toggle\"} trailing",
+            prefix + "\"drivingAction\":\"osd.toggle\",\"extra\":true}",
+            prefix + "\"drivingAction\":\"osd.toggle\",}",
+            std::string("{\"protocolVersion\":1.5,\"targetSessionId\":\"1234-1000-1\",\"revision\":7,\"expiresAtUnixMilliseconds\":2000,\"drivingAction\":\"osd.toggle\"}"),
+            std::string(4097, ' '),
+        }) {
+            Touch(control, invalid);
+            Expect(!depthxr::ReadRuntimeControl(control, &document), "Malformed, ambiguous or oversized control must fail closed");
+        }
+        depthxr::RuntimeStatusDocument status;
+        status.session_id = "1234-1000-1";
+        status.framegen_toggle_available = true;
+        const auto status_path = root / "status-test.json";
+        Expect(depthxr::WriteRuntimeStatus(status_path, status), "Driving capabilities should serialize");
+        std::ifstream status_stream(status_path);
+        const std::string status_text((std::istreambuf_iterator<char>(status_stream)), std::istreambuf_iterator<char>());
+        Expect(status_text.find("\"drivingControls\": true") != std::string::npos &&
+               status_text.find("\"framegenToggle\": true") != std::string::npos,
+               "Status must advertise supported driving controls to desktop clients");
+    }
 
     // Sessions of process 1234 ended without teardown (one status file is
     // zero-filled, as after a hard shutdown); process 5678 is still running.

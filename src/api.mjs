@@ -33,6 +33,12 @@ function download(value, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const preview = {
+  async benchmarkStatus(){return {state:'idle',running:false,frameCount:0,lapSegments:0,message:'Recording requires the Windows app and a running sim.'};},
+  async benchmarkStart(){throw new Error('Recording requires the Windows app and a running sim.');},
+  async benchmarkStop(){return this.benchmarkStatus();},
+  async benchmarkReport(){return null;},
+  async benchmarkExport(){throw new Error('Recording requires the Windows app.');},
+  async openVectorXR() { window.open("https://github.com/DienerTech/vectorxr", "_blank", "noopener,noreferrer"); },
   async runtimeOpticsInspect() { return { available: false, candidates: [], selected: null, message: "Runtime optics require the Windows app.", capabilities: { pimaxNative: { supported: false, message: "Use Pimax Play for native Wide FOV." } } }; },
   async runtimeOpticsChoose() { throw new Error("Runtime optics require the Windows app."); },
   async runtimeOpticsPreview() { throw new Error("Runtime optics require the Windows app."); },

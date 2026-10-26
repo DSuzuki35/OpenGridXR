@@ -39,7 +39,7 @@ int main(int argc,char**argv){try{
     if(!valid_test_namespace(prefix)||duration>60000||duration<1)throw std::runtime_error("invalid test options");
     if(freeze&&!freezeName.empty())throw std::runtime_error("choose timed or event-controlled freeze");
     FreezeEvent freezeEvent(freezeName);
-    auto ir=fixture::iracing(),lmu=fixture::lmu();
+    auto ir=fixture::iracing_context(),lmu=fixture::lmu();
     Mapping im(mapping_name(Game::IRacing,prefix),ir.size()),lm(mapping_name(Game::Lmu,prefix),lmu.size()),lock(lock_name(prefix),8);
     std::memcpy(im.data,ir.data.data(),ir.size());std::memcpy(lm.data,lmu.data.data(),lmu.size());
     std::memset(lock.data,0,8);
@@ -49,7 +49,7 @@ int main(int argc,char**argv){try{
         auto elapsed=GetTickCount64()-start;
         frozen=frozen||freezeEvent.signaled()||(freeze&&elapsed>=freeze);
         if(!frozen){
-            ++tick;auto slot=tick%2;auto offset=4096+slot*256;
+            ++tick;auto slot=tick%2;auto offset=8192+slot*1024;
             float lap=32.5f+float(elapsed)/1000;std::memcpy(im.data+offset+36,&lap,4);MemoryBarrier();
             InterlockedExchange(reinterpret_cast<volatile LONG*>(im.data+48+slot*16),LONG(tick));
             InterlockedExchange(reinterpret_cast<volatile LONG*>(lock.data+4),1);

@@ -24,6 +24,7 @@
     "showApp": true,
     "showClock": false,
     "showPerformance": true,
+    "showResolution": true,
     "showFramegen": true,
     "showToolkit": true,
     "accent": "violet",

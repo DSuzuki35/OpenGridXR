@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The free, open source sim racing XR toolkit by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "GPL-2.0-only",
@@ -30,6 +30,7 @@
       "dist/**",
       "desktop/**",
       "src/model.mjs",
+      "src/helmet.mjs",
       "src/spatial-overlays.mjs",
       "src/input-bindings.mjs",
       "src/enhancements.mjs",

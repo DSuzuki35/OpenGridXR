@@ -30,7 +30,7 @@ jobs:
           exit $LASTEXITCODE
       - name: Run portable native checks
         shell: pwsh
-        run: ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input)"
+        run: ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math)"
       - name: Package unsigned application
         run: npm run package
       - uses: actions/upload-artifact@v4

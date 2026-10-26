@@ -19,6 +19,29 @@ function validateRecord(value, game) {
     if (!(v === null || (typeof v === "number" && Number.isFinite(v)))) throw new Error("Invalid telemetry value.");
     data[key] = v;
   }
+  for (const key of ['lateralAccelMps2','longitudinalAccelMps2','verticalAccelMps2']) {
+    const v=value.data[key];
+    if(v===undefined)continue;
+    if(v!==null && (typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>200))throw new Error('Invalid acceleration telemetry.');
+    data[key]=v;
+  }
+  const contextRanges={airTempC:[-100,100],trackTempC:[-100,150],rainIntensity:[0,1],trackWetness:[0,1],sessionTimeSeconds:[0,1e9],timeOfDaySeconds:[0,86400],solarAltitudeRadians:[-1.570797,1.570797],carsNearby:[0,127],carsVisible:[0,127],carsNearbyRadiusMeters:[100,100]};
+  for(const [key,[lo,hi]] of Object.entries(contextRanges)) {
+    const v=value.data[key];if(v===undefined)continue;
+    if(v!==null && (typeof v!=='number'||!Number.isFinite(v)||v<lo||v>hi||(['carsNearby','carsVisible','carsNearbyRadiusMeters'].includes(key)&&!Number.isInteger(v))))throw new Error('Invalid telemetry context.');
+    data[key]=v;
+  }
+  const categories={cloudCover:['clear','light-clouds','partly-cloudy','mostly-cloudy','overcast','cloudy-drizzle','cloudy-light-rain','overcast-light-rain','overcast-rain','overcast-heavy-rain','overcast-storm'],trackWetnessState:['dry','mostly-dry','very-lightly-wet','lightly-wet','moderately-wet','very-wet','extremely-wet'],carsNearbyMethod:['world-distance','track-distance']};
+  for(const [key,allowed] of Object.entries(categories)) {
+    const v=value.data[key];if(v===undefined)continue;
+    if(v!==null&&!allowed.includes(v))throw new Error('Invalid telemetry context category.');
+    data[key]=v;
+  }
+  for(const key of ['trackName','sessionId']) {
+    const v=value.data[key];if(v===undefined)continue;
+    if(v!==null&&(typeof v!=='string'||v.length<1||v.length>116||/[^\x20-\x7e]/.test(v)))throw new Error('Invalid telemetry context text.');
+    data[key]=v;
+  }
   data.flags = {};
   for (const key of FLAGS) {
     const v = value.data.flags?.[key];

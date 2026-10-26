@@ -100,8 +100,9 @@ struct SavedState {
 struct Constants {
     float reciprocalSize[2],minimumPixel[2],maximumPixel[2],slice,strength;
     float clamp,radius; UINT pattern,mode;
+    float contrast,brightness,saturation; UINT colorFlags;
 };
-static_assert(sizeof(Constants)==48,"HLSL buffer layout");
+static_assert(sizeof(Constants)==64,"HLSL buffer layout");
 } // namespace
 
 struct ImageProcessor::Impl {
@@ -192,16 +193,21 @@ ImageProcessor::ImageProcessor(ID3D11Device *device, ID3D11DeviceContext *contex
 ImageProcessor::~ImageProcessor() = default;
 
 ImageProcessResult ImageProcessor::process(ID3D11Texture2D *image, DXGI_FORMAT format,
-    const std::vector<ImageRegion> &regions, const SharpeningSettings &settings) {
-    if(settings.mode==SharpeningMode::Off || settings.strength==0 || regions.empty()) return {};
+    const std::vector<ImageRegion> &regions, const SharpeningSettings &settings,
+    const SceneColorSettings &color) {
+    const bool sharpen=sharpening_active(settings), grade=scene_color_active(color);
+    if((!sharpen && !grade) || regions.empty()) return {};
     auto &p=*impl_;
     if(!image || !p.device || !p.context || p.context->GetType()!=D3D11_DEVICE_CONTEXT_IMMEDIATE ||
-        (settings.mode!=SharpeningMode::Luma && settings.mode!=SharpeningMode::Cas) ||
+        (settings.mode!=SharpeningMode::Off && settings.mode!=SharpeningMode::Luma && settings.mode!=SharpeningMode::Cas) ||
         !std::isfinite(settings.strength) || settings.strength<0 || settings.strength>100 ||
         !std::isfinite(settings.clamp) || settings.clamp<0 || settings.clamp>.1f ||
         !std::isfinite(settings.radius) || settings.radius<.1f || settings.radius>6 ||
         settings.pattern<1 || settings.pattern>4) return {ImageProcessStatus::Invalid,E_INVALIDARG};
-    if(settings.mode==SharpeningMode::Luma && settings.clamp==0) return {};
+    if(color.enabled && (!std::isfinite(color.contrast) || color.contrast<50 || color.contrast>150 ||
+        !std::isfinite(color.brightness) || color.brightness<50 || color.brightness>150 ||
+        !std::isfinite(color.saturation) || color.saturation<0 || color.saturation>150))
+        return {ImageProcessStatus::Invalid,E_INVALIDARG};
     D3D11_TEXTURE2D_DESC desc{}; image->GetDesc(&desc);
     ComPtr<ID3D11Device> owner,contextOwner;
     image->GetDevice(&owner); p.context->GetDevice(&contextOwner);
@@ -231,7 +237,9 @@ ImageProcessResult ImageProcessor::process(ID3D11Texture2D *image, DXGI_FORMAT f
     hr=p.initialize(); if(FAILED(hr)) return {ImageProcessStatus::Failed,hr};
     // LumaSharpen's original works in display-encoded values. CAS works in linear
     // values: the sRGB SRV/RTV pair performs the decode/encode in hardware.
-    DXGI_FORMAT view=settings.mode==SharpeningMode::Luma ? encodedFormat(format) : format;
+    DXGI_FORMAT view=sharpen && settings.mode==SharpeningMode::Cas ? format : encodedFormat(format);
+    UINT colorFlags=grade ? 1u : 0u;
+    if(view==DXGI_FORMAT_R8G8B8A8_UNORM_SRGB || view==DXGI_FORMAT_B8G8R8A8_UNORM_SRGB) colorFlags|=2u;
     hr=p.prepare(desc,view); if(FAILED(hr)) return {ImageProcessStatus::Failed,hr};
     SavedState saved(p.context.Get(),p.device->GetFeatureLevel());
     p.context->SetPredication(nullptr,FALSE);
@@ -255,7 +263,8 @@ ImageProcessResult ImageProcessor::process(ID3D11Texture2D *image, DXGI_FORMAT f
     for(const auto &r:regions) {
         Constants c{{1.f/desc.Width,1.f/desc.Height},{r.x+.5f,r.y+.5f},
             {r.x+r.width-.5f,r.y+r.height-.5f},float(r.arraySlice),settings.strength*.01f,
-            settings.clamp,settings.radius,settings.pattern,settings.mode==SharpeningMode::Luma?1u:2u};
+            settings.clamp,settings.radius,settings.pattern,sharpen?(settings.mode==SharpeningMode::Luma?1u:2u):0u,
+            grade?color.contrast*.01f:1.f,grade?color.brightness*.01f:1.f,grade?color.saturation*.01f:1.f,colorFlags};
         p.context->UpdateSubresource(p.constants.Get(),0,nullptr,&c,0,0);
         D3D11_VIEWPORT viewport{float(r.x),float(r.y),float(r.width),float(r.height),0,1};
         p.context->RSSetViewports(1,&viewport);

@@ -1,66 +1,111 @@
-# Original helmet overlays
+# Stereo helmet interiors and curved visors
 
-OpenGrid XR includes three original driver-eye interior overlays, rendered from
-editable Blender geometry. They contain no photographs, commercial helmet art,
-logos, downloaded models, or external texture dependencies. The generated assets
-and generator are distributed under this repository's GPL-2.0 license.
+OpenGrid XR includes original Formula, GT and Open helmet interiors built from
+editable Blender geometry. They are physically inspired driver-eye cutaways, not
+measured replicas or optically calibrated models of a particular headset. The
+geometry, generated artwork and scripts use this repository's GPL-2.0 license.
+No manufacturer photographs, logos, downloaded meshes or external textures are
+embedded in the supplied assets.
 
-| Style | Render | Editable scene | Appearance |
-| --- | --- | --- | --- |
-| Formula | `public/helmets/formula.png` | `assets/helmets/formula.blend` | Tighter visor opening, padded chin bar and breath deflector |
-| GT | `public/helmets/gt.png` | `assets/helmets/gt.blend` | Taller visor opening and warm brow accent |
-| Open | `public/helmets/open.png` | `assets/helmets/open.blend` | Open lower view with brow and cheek padding |
+## Geometry and stereo
 
-Each PNG is 1920 × 1080, 8-bit RGBA, with a fully transparent central viewing
-area and antialiased aperture edges. Lighting, stitched seams, molded seals,
-cheek padding, and fasteners are rendered into the border. These are original
-stylized interior cutaways, not replicas of any helmet manufacturer.
+Each style has a padded shell, gasket, stitched seams, cheek pads, fasteners and
+an actual curved polycarbonate visor surface. Editable reference sunstrip and
+mirrored `OPEN GRID` lettering meshes follow that surface. They can be inspected
+from inside and outside in the `.blend` source; these cutaways are not complete
+wearable helmets for arbitrary viewpoints.
 
-## Reproduce or edit
+| Asset | Location | Purpose |
+| --- | --- | --- |
+| Editable source | `assets/helmets/<style>.blend` | Geometry, sample print, lights and three cameras |
+| Original mono render | `public/helmets/<style>.png` | Preserved orthographic reference |
+| Stereo shell pair | `public/helmets/<style>-left.png`, `-right.png` | Separate perspective renders of real geometry |
+| Curved projection maps | `public/helmets/<style>-<eye>-visor-uv.png`, `-visor-v.png` | High-precision coordinates for custom print |
 
-Created and checked with Blender 4.5.15 LTS using Cycles, 64 samples and denoising.
-Download Blender from its official distribution; a global installation is not
-required. Blender is an authoring dependency only, not an app runtime dependency.
+Images are 1920 × 1080 RGBA. The stereo cameras are parallel, with a 0.12
+model-unit baseline and off-axis shifts converging at the aperture plane. The
+pair has real geometric parallax, not a translated flat picture. These artistic
+model dimensions are not a user's measured IPD.
 
-From the repository root, with Blender on the executable path:
+## Customization and saved headset images
+
+The editor projects strip color, text and uploaded raster graphics through the
+Blender-rendered maps. Lettering bends with the surface and is mirrored by
+default, like exterior print viewed from inside. White/red and dark/white presets
+are starting points; text width, size, position, opacity and softness remain
+editable. Full visor tint color and strength are independent of the upper strip.
+PNG, JPEG and WebP uploads are decoded and normalized to embedded PNGs of at most
+192 KB and 1024 × 512 pixels. Exported profiles carry their graphics.
+
+The preview and profile-save preparation use the same canvas compositor. Saving
+bakes two finished PNGs in the installed runtime directory. The hidden renderer
+is sandboxed, denies navigation/network requests and is destroyed afterward.
+Unchanged appearances reuse cached images. A generation-tagged sidecar is
+disabled before replacing either image, then enabled after both are ready. The
+native loader rechecks it after decoding to reject mixed generations. Failed
+preparation leaves that helmet disabled.
+
+The headset layer submits the raster pair. It does not render Blender meshes,
+reproject text, or run Blender during a race. Helmets can remain on in driving
+and streaming modes; the clean stream excludes headset composition layers.
+Desktop screenshots do not establish headset alignment, comfort or an active
+OpenXR session.
+
+## Genuine scene adjustments
+
+Brightness, contrast and saturation process the game scene separately from the
+alpha-overlay tint. They run in that order on display-encoded color in the native
+D3D11 image-processing path, before helmet, HUD and spatial layers. This includes
+D3D11 games using the frame-generation bridge. Native D3D12 game sessions do not
+support these adjustments. Clean stream capture remains before grading. Neutral
+values are 100%; save and restart the XR session after changes. The editor uses
+the same adjustment order.
+
+## Crop and motion
+
+`Fit crop to visor opening` explicitly updates the existing per-eye contour and
+shared crop. It derives a conservative convex envelope containing every
+nonopaque shell pixel, adding configured mask padding and a small raster margin.
+Translucent visor tint and print never justify hiding scenery behind them.
+Semi-transparent shells consequently offer little or no safe crop.
+
+Optional head and vehicle responses default to zero. Enabling either adds a 3%
+motion allowance; the native compositor caps movement at 3% of each image
+dimension. Vehicle response requires live telemetry. Refit after changing shell
+scale, position, opacity, padding or motion. Saving does not silently overwrite
+crop. Crop/contour stay inactive in streaming even when the helmet remains on.
+Cropping reduces visible/rendered image area; it does not change optical FOV.
+
+## Reproduce the assets
+
+Blender 4.5.15 LTS is an authoring dependency; end users do not need Blender.
+From the repository root:
 
 ```powershell
-blender --background --python scripts/render-helmets.py -- --style all
+blender --background --python scripts/render-helmets.py -- --style all --samples 48
 blender --background --python scripts/render-helmets.py -- --verify
 ```
 
-Use `--style formula`, `--style gt`, or `--style open` for a single asset. For a
-quick draft use `--width 960 --samples 24`; the verification command intentionally
-requires the delivered 1920 × 1080 assets. Rendering overwrites the matching PNG
-and `.blend` source. The normal default command restores final-size outputs.
+`--stereo-only` preserves mono PNGs while regenerating scenes, stereo shells and
+maps. `--maps-only` regenerates maps from saved scenes without rebuilding the
+shell. Use `--style formula`, `gt` or `open` for one style. A draft can use
+`--width 960 --samples 24`; verification expects final 1920 × 1080 assets.
 
-The generator defines aperture proportions in `STYLES`, builds named mesh and
-curve objects, creates procedural materials and studio lights, saves the scene,
-and renders the image. Open any `.blend` in Blender to edit individual parts;
-the camera view is configured for the overlay. Render paths are relative to the
-source file. Changes made directly in Blender are overwritten by regeneration,
-so update the generator when the change needs to remain reproducible.
+UV export first renders floating-point coordinates to temporary EXRs, then packs
+each coordinate into the red/green bytes of a lossless PNG. Packing after sample
+filtering avoids dither artifacts. Temporary EXRs are removed; only static PNG
+maps ship. Base shell renders hide visor/reference print while retaining their
+geometry in the source. Regeneration overwrites matching `.blend` and PNG files;
+update the generator to preserve authoring changes reproducibly.
 
-## Compositing
+Verification covers source geometry, stereo cameras, per-eye differences, RGBA
+dimensions, clear central view and coordinate maps. Electron tests exercise real
+saved PNGs, alpha, generations, caching, profile round-trips, fitting and presets.
 
-Serve the PNGs from `helmets/<style>.png` relative to the app base URL. Keep the
-16:9 aspect ratio and center the image over the scene. Use the existing helmet
-opacity, scale and position preferences to transform the whole layer. Apply
-visor tint to a separate layer behind the helmet; the PNG itself deliberately
-leaves the aperture clear. The contour mask remains an independent feature and
-does not describe the precise rendered aperture.
+## Design references
 
-These assets support the desktop helmet preview. Shipping the source and PNGs
-does not implement native headset composition, stereo alignment, field-of-view
-calibration or head tracking. A runtime compositor must handle those separately.
-The `.blend` files are camera-facing interior cutaways intended for rendering
-these overlays, not complete wearable helmet models for arbitrary viewpoints.
-
-## Verification
-
-`--verify` loads every source scene and its PNG, checks editable geometry and
-camera presence, dimensions, RGBA channels, a fully clear central viewing
-rectangle, opaque brow, and the expected lower opening for each style. It also
-reports transparent-pixel coverage. All three final PNGs were visually inspected
-after rendering. The Blender user-extension cache can emit a permission warning
-in restricted environments; the asset saves and renders do not require it.
+Geometry is original. Construction references include [Bell's official HP77 and
+SmartLock description](https://www.bellracing.com/press-release/bell-racing-helmets-launches-the-innovative-smartlock-visor-locking-system/),
+the [FIA HP77 presentation form](https://www.fia.com/sites/default/files/ah.008.19-c-abp_-_presentation_form_v14_0.pdf),
+and [Arai's car-helmet feature overview](https://www.araihelmet.eu/storage/uploads/blocks/816/block_2/1/arai-2024-features-overview-car-eng.pdf).
+These references do not certify the simulated artwork as an exact optical model.

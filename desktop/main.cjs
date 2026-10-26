@@ -12,6 +12,9 @@ const fs = require("node:fs/promises");
 const { pathToFileURL } = require("node:url");
 const { createStore } = require("./store.cjs");
 const { createRuntime } = require("./runtime.cjs");
+const { prepareHelmetAssets } = require("./helmet-assets.cjs");
+const { createBenchmarkController } = require("./benchmark-controller.cjs");
+const { exportHtml: benchmarkHtml, exportCsv: benchmarkCsv } = require("./benchmark.cjs");
 const { createNativeSettings } = require("./native-settings.cjs");
 const { atomicWrite } = require("./store.cjs");
 const { createTelemetry } = require("./telemetry.cjs");
@@ -20,6 +23,7 @@ const { createSpatialOverlays } = require("./spatial-overlays.cjs");
 const { createGameControl } = require("./game-control.cjs");
 const { createInputHost } = require("./input-host.cjs");
 const { createInputController } = require("./input-controller.cjs");
+const { createLiveControls, isLiveAction } = require("./live-controls.cjs");
 const { createUpdateController, ensureUpdateInstall } = require("./update-controller.cjs");
 const { autoUpdater } = require("electron-updater");
 const { createRuntimeOptics } = require("./runtime-optics.cjs");
@@ -56,9 +60,11 @@ else {
           : path.join(__dirname, "../native/build/Release"),
         runtimeDir,
         testMode: process.env.OPENGRIDXR_TEST_MODE === "1",
+        prepareAssets: doc => prepareHelmetAssets(doc, { runtimeDir, assetDir: path.join(__dirname, "../dist/helmets"), BrowserWindow }),
       });
       const testMode = process.env.OPENGRIDXR_TEST_MODE === "1";
       let editorStatus = { dirty: true, busy: true };
+      let editorGeneration = 0;
       const updatePreferences = path.join(data, "update-preferences.json");
       const installed = app.isPackaged && await fs.access(path.join(path.dirname(app.getPath("exe")), "opengrid-installed")).then(() => true, () => false);
       const updates = createUpdateController({
@@ -80,12 +86,29 @@ else {
         executable: path.join(app.isPackaged ? path.join(process.resourcesPath, "native") : path.join(__dirname, "../native/build/Release"), "OpenGridXR-Telemetry.exe"),
         ...(testMode && process.env.OPENGRIDXR_TELEMETRY_TEST_NAMESPACE ? { testNamespace: process.env.OPENGRIDXR_TELEMETRY_TEST_NAMESPACE } : {}),
       });
-      app.once("before-quit", () => telemetry.close());
+      app.once("will-quit", () => telemetry.close());
       // The high-frequency telemetry IPC reads this in-memory snapshot, not profiles on disk.
       let telemetryDocument = (await store.load()).document;
+      const benchmarks = createBenchmarkController({
+        root: path.join(runtimeDir, 'enhancements-data', 'runtime'),
+        telemetry: game => telemetry.status(game, {enabled:true,updateHz:20}),
+        onReport: report => atomicWrite(path.join(data,'benchmarks',`benchmark-${new Date(report.startedAtMs).toISOString().replace(/[:.]/g,'-')}.json`),JSON.stringify(report)),
+      });
+      let benchmarkClosing=false;
+      app.on('before-quit',event=>{
+        if(!benchmarkClosing){
+          event.preventDefault();benchmarkClosing=true;
+          benchmarks.close().finally(()=>app.quit());
+        }
+      });
       const helpersDir = app.isPackaged ? path.join(process.resourcesPath, "native") : path.join(__dirname, "../native/build/Release");
       const spatial = await createSpatialOverlays({ electron: require("electron"), executable: path.join(helpersDir, "OpenGridXR-OverlayHost.exe"), getSessions: runtime.sessionsStatus, model, testMode });
       const gameControl = createGameControl({ executable: path.join(helpersDir, "OpenGridXR-Control.exe") });
+      const liveControls = createLiveControls({
+        root: path.join(runtimeDir, 'enhancements-data', 'runtime'),
+        getEditorGeneration: () => editorGeneration,
+        canApply: (profileId, generation) => !editorStatus.dirty && !editorStatus.busy && editorStatus.profileId === profileId && editorGeneration === generation,
+      });
       const input = createInputController({
         testMode,
         testFixture: testMode && process.env.OPENGRIDXR_INPUT_TEST_FIXTURE === "1",
@@ -96,8 +119,14 @@ else {
         },
         listActions: inputModel.listToggleActions,
         applyAction: async (profileId, actionId) => {
+          const actionEditorGeneration = editorGeneration;
           const before = await store.load();
           if (before.document.selectedProfileId !== profileId) throw new Error("The selected profile changed. Try the button again.");
+          if (isLiveAction(actionId)) {
+            const selected = before.document.profiles.find(p => p.id === profileId);
+            if (!selected) throw new Error("The bound profile no longer exists.");
+            return liveControls.execute(selected, actionId, actionEditorGeneration);
+          }
           const next = structuredClone(before.document);
           const index = next.profiles.findIndex(p => p.id === profileId);
           if (index < 0) throw new Error("The bound profile no longer exists.");
@@ -189,7 +218,8 @@ else {
       handle("installUpdate", () => updates.install());
       handle("inputStatus", () => input.status());
       handle("inputEditorState", (state) => {
-        editorStatus = { dirty: state?.dirty !== false, busy: state?.busy !== false };
+        editorGeneration++;
+        editorStatus = { dirty: state?.dirty !== false, busy: state?.busy !== false, profileId: state?.profileId };
         return input.editorState(state);
       });
       handle("inputCaptureStart", (actionId, profileId) => input.captureStart(actionId, profileId));
@@ -241,9 +271,27 @@ else {
         };
       });
       handle("runtimeStatus", () => runtime.status());
+      handle('benchmarkStatus',()=>benchmarks.status());
+      handle('benchmarkStart',async()=>{
+        if(editorStatus.dirty||editorStatus.busy)throw new Error('Save or discard profile edits before recording.');
+        const current=(await store.load()).document;
+        const profile=current.profiles.find(p=>p.id===current.selectedProfileId);
+        return benchmarks.start(profile);
+      });
+      handle('benchmarkStop',async()=>{await benchmarks.stop();return benchmarks.status();});
+      handle('benchmarkReport',()=>{
+        return benchmarks.report({includeSamples:false});
+      });
+      handle('benchmarkExport',async format=>{
+        if(!['html','csv'].includes(format))throw new Error('Unsupported benchmark export.');
+        const report=benchmarks.report();if(!report)throw new Error('Finish a recording before exporting.');
+        const result=await dialog.showSaveDialog(win,{title:'Export benchmark report',defaultPath:`OpenGridXR-${report.game}-benchmark.${format}`,filters:[{name:format==='html'?'HTML report':'CSV data',extensions:[format]}]});
+        if(result.canceled||!result.filePath)return {canceled:true};
+        await atomicWrite(result.filePath,format==='html'?benchmarkHtml(report):benchmarkCsv(report));return {canceled:false};
+      });
       handle("telemetryStatus", (game) => {
         if (!["iracing", "lmu"].includes(game)) throw new Error("Unsupported telemetry game.");
-        return telemetry.status(game, selectedForGame(telemetryDocument, game)?.telemetry);
+        return telemetry.status(game, benchmarks.status().running&&benchmarks.status().game===game?{enabled:true,updateHz:20}:selectedForGame(telemetryDocument, game)?.telemetry);
       });
       handle("listOverlayWindows", () => spatial.listWindows());
       handle("selectOverlayWindow", (game, id, sourceId) => spatial.selectWindow(game, id, sourceId));
@@ -307,6 +355,7 @@ else {
         return runtime.launch(state.document, profile, displays());
       });
       handle("openDataFolder", () => shell.openPath(data));
+      handle("openVectorXR", () => shell.openExternal("https://github.com/DienerTech/vectorxr"));
       handle("importProfile", async () => {
         const result = await dialog.showOpenDialog(win, {
           title: "Import OpenGrid XR profile",

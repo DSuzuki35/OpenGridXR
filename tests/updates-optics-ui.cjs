@@ -37,6 +37,8 @@ const assert = require('node:assert/strict');
     await page.locator('#optics-headset').selectOption('dreamAirSE');
     assert.equal(await page.getByRole('spinbutton',{name:'Eye rotation draft'}).count(),0);
     await page.getByRole('button',{name:'Helmet',exact:true}).click();
+    await page.getByRole('switch',{name:'Show helmet',exact:true}).click();
+    await page.getByRole('group',{name:'Helmet editor section',exact:true}).getByRole('button',{name:'Interior',exact:true}).click();
     for(const style of ['Formula','GT','Open']) {
       await page.getByRole('group',{name:'Helmet style',exact:true}).getByRole('button',{name:style,exact:true}).click();
       const img=page.locator('.helmet-render img'); await img.evaluate(el=>el.decode());

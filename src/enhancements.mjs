@@ -72,6 +72,7 @@ export function validateEnhancements(profile) {
   }
   if (o !== undefined) {
     object(o, "VR overlay");
+    if (o.showResolution !== undefined) bool(o.showResolution, "overlay showResolution");
     for (const name of [
       "enabled",
       "showGraph",

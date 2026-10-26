@@ -115,7 +115,155 @@ def light(name, location, power, size, color):
     obj.rotation_euler = (-obj.location).to_track_quat("-Z", "Y").to_euler()
 
 
-def build(style, width, samples):
+def visor_surface(u, v, lift=0):
+    """Interior face of a wrapped polycarbonate visor, in real scene units."""
+    theta = (u - .5) * 1.6
+    y = 1.35 - v * 2.7
+    return (2.9 * math.sin(theta), y, -.26 + 2.9 * (1 - math.cos(theta)) + .035 * (y / 1.35) ** 2 + lift)
+
+
+def build_visor():
+    vertices, faces, uv_coords = [], [], []
+    columns, rows = 192, 48
+    for j in range(rows + 1):
+        for i in range(columns + 1):
+            u, v = i / columns, j / rows
+            vertices.append(visor_surface(u, v))
+            uv_coords.append((u, 1 - v))
+    for j in range(rows):
+        for i in range(columns):
+            a = j * (columns + 1) + i
+            faces.append((a, a + 1, a + columns + 2, a + columns + 1))
+    mesh = bpy.data.meshes.new("Curved visor UV surface")
+    mesh.from_pydata(vertices, [], faces)
+    uv = mesh.uv_layers.new(name="Printed visor coordinates")
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+        for loop_index in polygon.loop_indices:
+            uv.data[loop_index].uv = uv_coords[mesh.loops[loop_index].vertex_index]
+    visor = bpy.data.objects.new("Curved polycarbonate visor - actual projection surface", mesh)
+    bpy.context.collection.objects.link(visor)
+    glass = material("Clear polycarbonate visor interior", (.85, .92, 1, 1), .045)
+    bsdf = glass.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Transmission Weight"].default_value = 1
+    bsdf.inputs["IOR"].default_value = 1.58
+    visor.data.materials.append(glass)
+    visor.hide_render = True
+    visor["Usage"] = "Genuine curved UV surface. Offline per-eye map projects customizable sunstrip and print; hidden in base-shell PNG."
+    # Editable, physically wrapped sample print proves the intended inside view.
+    strip_vertices, strip_faces = [], []
+    for i in range(columns + 1):
+        u = i / columns
+        for v in (0, .30 + .12 * (1 - (2 * u - 1) ** 2)):
+            strip_vertices.append(visor_surface(u, v, .002))
+    for i in range(columns):
+        a = i * 2
+        strip_faces.append((a, a + 2, a + 3, a + 1))
+    strip_mesh = bpy.data.meshes.new("Curved upper sunstrip geometry")
+    strip_mesh.from_pydata(strip_vertices, [], strip_faces)
+    strip = bpy.data.objects.new("White sunstrip - editable reference geometry", strip_mesh)
+    bpy.context.collection.objects.link(strip)
+    strip.data.materials.append(material("White sunstrip print", (.88, .87, .83, 1), .48))
+    strip.hide_render = True
+    bpy.ops.object.text_add()
+    lettering = bpy.context.object
+    lettering.name = "OPEN GRID mirrored interior print - conformed to visor"
+    lettering.data.body = "OPEN GRID"
+    lettering.data.align_x = "CENTER"
+    lettering.data.align_y = "CENTER"
+    lettering.data.size = .27
+    lettering.data.extrude = 0
+    bpy.context.view_layer.update()
+    bpy.ops.object.convert(target="MESH")
+    lettering = bpy.context.object
+    max_x = max(abs(vertex.co.x) for vertex in lettering.data.vertices)
+    for vertex in lettering.data.vertices:
+        u = .5 - vertex.co.x / (max_x * 2) * .52
+        v = .38 - vertex.co.y / 2.7
+        vertex.co = visor_surface(u, v, .004)
+    lettering.data.materials.append(material("Red exterior lettering seen from inside", (.6, .008, .015, 1), .5))
+    lettering.hide_render = True
+    return visor
+
+
+def render_visor_maps(scene, visor, stereo, style):
+    """Two RGBA8 maps: R/G pack 16-bit U or V, A is visor coverage.
+    Float rendering plus lossless packing preserves coordinates. The app samples these maps
+    only when preparing PNGs, never as a runtime mesh or shader dependency.
+    """
+    hidden = [(obj, obj.hide_render) for obj in scene.objects]
+    for obj, _ in hidden:
+        if obj.type not in ("CAMERA", "LIGHT"):
+            obj.hide_render = obj != visor
+    original_material = visor.data.materials[0]
+    mat = bpy.data.materials.new("Float visor UV export - Raw")
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = nodes.new("ShaderNodeEmission")
+    coords = nodes.new("ShaderNodeTexCoord")
+    separate = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(coords.outputs["UV"], separate.inputs[0])
+    multiply = nodes.new("ShaderNodeMath"); multiply.operation = "MULTIPLY"; multiply.inputs[1].default_value = 255
+    links.new(separate.outputs["X"], multiply.inputs[0])
+    floor = nodes.new("ShaderNodeMath"); floor.operation = "FLOOR"
+    fract = nodes.new("ShaderNodeMath"); fract.operation = "FRACT"
+    links.new(multiply.outputs[0], floor.inputs[0]); links.new(multiply.outputs[0], fract.inputs[0])
+    divide = nodes.new("ShaderNodeMath"); divide.operation = "DIVIDE"; divide.inputs[1].default_value = 255
+    links.new(floor.outputs[0], divide.inputs[0])
+    invert = nodes.new("ShaderNodeMath"); invert.operation = "SUBTRACT"; invert.inputs[0].default_value = 1
+    links.new(separate.outputs["Y"], invert.inputs[1])
+    combine = nodes.new("ShaderNodeCombineColor")
+    links.new(divide.outputs[0], combine.inputs["Red"]); links.new(fract.outputs[0], combine.inputs["Green"]); links.new(invert.outputs[0], combine.inputs["Blue"])
+    links.new(combine.outputs[0], emission.inputs["Color"]); links.new(emission.outputs[0], output.inputs["Surface"])
+    visor.data.materials[0] = mat
+    original_transform, original_exposure, samples = scene.view_settings.view_transform, scene.view_settings.exposure, scene.cycles.samples
+    scene.view_settings.view_transform = "Raw"; scene.view_settings.exposure = 0
+    scene.cycles.samples = 8; scene.cycles.use_denoising = False
+    # Render unquantized UVs first. Packing before sample filtering or PNG
+    # dithering would introduce whole high-byte jumps (visible speckled print).
+    for link in list(combine.inputs["Red"].links): links.remove(link)
+    for link in list(combine.inputs["Green"].links): links.remove(link)
+    links.new(separate.outputs["X"], combine.inputs["Red"])
+    links.new(invert.outputs[0], combine.inputs["Green"])
+    import numpy as np
+    import struct, zlib
+    def write_coordinate_png(file, values, alpha):
+        coordinate = np.rint(np.clip(values, 0, 1) * 65535).astype(np.uint16)
+        rgba = np.zeros((*values.shape, 4), dtype=np.uint8)
+        rgba[:, :, 0] = coordinate >> 8
+        rgba[:, :, 1] = coordinate & 255
+        rgba[:, :, 3] = np.rint(np.clip(alpha, 0, 1) * 255).astype(np.uint8)
+        h, w = values.shape
+        raw = b''.join(b'\0' + row.tobytes() for row in rgba[::-1])
+        def chunk(kind, data):
+            return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+        file.write_bytes(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
+    old_format, old_depth = scene.render.image_settings.file_format, scene.render.image_settings.color_depth
+    scene.render.image_settings.file_format = "OPEN_EXR"; scene.render.image_settings.color_depth = "32"
+    (ROOT / '.local').mkdir(exist_ok=True)
+    for eye, camera in stereo:
+        scene.camera = camera
+        temporary = ROOT / '.local' / f'visor-{style}-{eye}.exr'
+        scene.render.filepath = str(temporary)
+        bpy.ops.render.render(write_still=True)
+        rendered = bpy.data.images.load(str(temporary), check_existing=False)
+        w, h = rendered.size
+        pixels = np.empty(w * h * 4, dtype=np.float32); rendered.pixels.foreach_get(pixels)
+        pixels = pixels.reshape(h, w, 4)
+        for component, suffix in ((0, 'uv'), (1, 'v')):
+            write_coordinate_png(ROOT / 'public' / 'helmets' / f'{style}-{eye}-visor-{suffix}.png', pixels[:, :, component], pixels[:, :, 3])
+        bpy.data.images.remove(rendered); temporary.unlink()
+    scene.render.image_settings.file_format = old_format; scene.render.image_settings.color_depth = old_depth
+    scene.view_settings.view_transform = original_transform; scene.view_settings.exposure = original_exposure
+    scene.cycles.samples = samples; scene.cycles.use_denoising = True
+    visor.data.materials[0] = original_material
+    for obj, was_hidden in hidden:
+        obj.hide_render = was_hidden
+
+
+def build(style, width, samples, stereo_only=False):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     cfg = STYLES[style]
     shell = material("Graphite composite shell", (.009, .012, .016, 1), .46, 320)
@@ -178,6 +326,27 @@ def build(style, width, samples):
     camera.name = "Driver eye overlay camera"
     camera.data.type = "ORTHO"
     camera.data.ortho_scale = 4
+    # Retain the original orthographic mono composition. Stereo is rendered
+    # from real geometry through parallel-axis perspective cameras: a modest
+    # 0.12 model-unit baseline, with zero parallax at the aperture plane (z=0).
+    # Off-axis sensor shift, rather than toe-in, avoids vertical disparity.
+    stereo = []
+    camera_distance, frame_width, baseline = 2.0, 4.0, .12
+    for eye, sign in (("left", -1), ("right", 1)):
+        offset = sign * baseline / 2
+        bpy.ops.object.camera_add(location=(offset, 0, camera_distance))
+        eye_camera = bpy.context.object
+        eye_camera.name = f"Driver {eye} eye stereo camera"
+        eye_camera.data.type = "PERSP"
+        eye_camera.data.sensor_fit = "HORIZONTAL"
+        eye_camera.data.sensor_width = 36
+        eye_camera.data.lens = 36 * camera_distance / frame_width
+        eye_camera.data.shift_x = -offset / frame_width
+        eye_camera.data.clip_start = .05
+        eye_camera.data.clip_end = 100
+        eye_camera["Eye"] = eye
+        eye_camera["Convergence plane Z"] = 0.0
+        stereo.append((eye, eye_camera))
     scene = bpy.context.scene
     scene.camera = camera
     scene.render.engine = "CYCLES"
@@ -196,9 +365,12 @@ def build(style, width, samples):
     bpy.context.preferences.filepaths.save_version = 0
     scene.render.filepath = f"//../../public/helmets/{style}.png"
     scene["OpenGrid XR asset"] = "Original procedural driver-eye cutaway; no external art or textures."
-    scene["Usage"] = "Desktop preview overlay. Native headset compositor integration is separate."
+    scene["Usage"] = "Offline mono and stereo RGBA overlays. Native compositor uses per-eye PNGs; no mesh is drawn at runtime."
+    scene["Stereo baseline"] = baseline
+    scene["Stereo projection"] = "Parallel-axis perspective; off-axis shift converges at z=0; no toe-in."
     scene["Style"] = style
     scene["Generator"] = "scripts/render-helmets.py"
+    visor = build_visor()
     for obj in scene.objects:
         obj.select_set(False)
     camera.select_set(True)
@@ -209,7 +381,16 @@ def build(style, width, samples):
             if area.type == "VIEW_3D":
                 area.spaces.active.region_3d.view_perspective = "CAMERA"
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT / "assets" / "helmets" / f"{style}.blend"), compress=True)
-    bpy.ops.render.render(write_still=True)
+    if not stereo_only:
+        bpy.ops.render.render(write_still=True)
+    for eye, eye_camera in stereo:
+        scene.camera = eye_camera
+        scene.render.filepath = str(ROOT / "public" / "helmets" / f"{style}-{eye}.png")
+        bpy.ops.render.render(write_still=True)
+    render_visor_maps(scene, visor, stereo, style)
+    scene.camera = camera
+    scene.render.filepath = f"//../../public/helmets/{style}.png"
+    bpy.ops.wm.save_as_mainfile(filepath=str(ROOT / "assets" / "helmets" / f"{style}.blend"), compress=True)
 
 
 def verify():
@@ -236,6 +417,26 @@ def verify():
         clear = float(np.mean(alpha == 0))
         assert .4 < clear < .9, f"{style}: invalid aperture area"
         results.append({"style": style, "size": [width, height], "channels": img.channels, "fullyTransparentPercent": round(clear*100, 2), "centerAlpha": 0, "editableObjects": len(scene.objects)})
+        stereo_pixels = []
+        for eye in ("left", "right"):
+            camera = scene.objects.get(f"Driver {eye} eye stereo camera")
+            assert camera and camera.data.type == "PERSP", f"{style}: missing perspective {eye} camera"
+            assert tuple(camera.rotation_euler) == (0.0, 0.0, 0.0), f"{style}: stereo camera must not toe in"
+            eye_img = bpy.data.images.load(str(ROOT / "public" / "helmets" / f"{style}-{eye}.png"), check_existing=False)
+            assert tuple(eye_img.size) == (1920, 1080) and eye_img.channels == 4
+            eye_pixels = np.empty(width * height * 4, dtype=np.float32)
+            eye_img.pixels.foreach_get(eye_pixels)
+            eye_pixels = eye_pixels.reshape(height, width, 4)
+            assert np.all(eye_pixels[int(height*.4):int(height*.6), int(width*.3):int(width*.7), 3] == 0), f"{style}: stereo opening obstructed"
+            stereo_pixels.append(eye_pixels)
+        assert float(np.max(np.abs(stereo_pixels[0] - stereo_pixels[1]))) > .1, f"{style}: eye renders are identical"
+        assert scene.objects.get("Curved polycarbonate visor - actual projection surface"), f"{style}: missing curved visor geometry"
+        assert scene.objects.get("OPEN GRID mirrored interior print - conformed to visor"), f"{style}: missing physical reference lettering"
+        for eye in ("left", "right"):
+            for coordinate in ("uv", "v"):
+                uv_img = bpy.data.images.load(str(ROOT / "public" / "helmets" / f"{style}-{eye}-visor-{coordinate}.png"), check_existing=False)
+                assert tuple(uv_img.size) == (1920, 1080) and uv_img.channels == 4
+            assert len(scene.objects["Curved polycarbonate visor - actual projection surface"].data.vertices) > 9000
     print("HELMET_ASSET_VERIFICATION=" + json.dumps(results))
 
 
@@ -244,6 +445,8 @@ if __name__ == "__main__":
     parser.add_argument("--style", choices=["all", *STYLES], default="all")
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--samples", type=int, default=64)
+    parser.add_argument("--stereo-only", action="store_true", help="Preserve delivered mono PNGs; render the new per-eye perspective pair")
+    parser.add_argument("--maps-only", action="store_true", help="Update UV projection maps from existing editable Blender scenes")
     parser.add_argument("--verify", action="store_true", help="Check the delivered full-size PNGs and Blender scenes without rendering")
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
     if args.width < 320 or args.width > 8192 or args.samples < 1:
@@ -254,4 +457,10 @@ if __name__ == "__main__":
     (ROOT / "assets" / "helmets").mkdir(parents=True, exist_ok=True)
     (ROOT / "public" / "helmets").mkdir(parents=True, exist_ok=True)
     for style in STYLES if args.style == "all" else [args.style]:
-        build(style, args.width, args.samples)
+        if args.maps_only:
+            bpy.ops.wm.open_mainfile(filepath=str(ROOT / "assets" / "helmets" / f"{style}.blend"))
+            scene = bpy.context.scene
+            stereo = [(eye, scene.objects[f"Driver {eye} eye stereo camera"]) for eye in ("left", "right")]
+            render_visor_maps(scene, scene.objects["Curved polycarbonate visor - actual projection surface"], stereo, style)
+        else:
+            build(style, args.width, args.samples, args.stereo_only)

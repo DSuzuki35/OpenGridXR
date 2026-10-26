@@ -24,6 +24,8 @@
       "showApp": true,
       "showClock": false,
       "showPerformance": true,
+      "showResolution": true,
+      "configuredRenderScale": 100,
       "showFramegen": true,
       "showFramegenFps": true,
       "showModules": true,

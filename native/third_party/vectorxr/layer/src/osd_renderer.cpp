@@ -15,6 +15,13 @@
 
 namespace depthxr {
 using Clock = std::chrono::steady_clock;
+std::string DescribeFrameGenerationCounters(std::uint64_t generated,std::uint64_t submitted,double generated_fps){
+    std::ostringstream out;out.imbue(std::locale::classic());
+    out<<"Gen "<<generated<<" / ";
+    if(submitted)out<<std::fixed<<std::setprecision(1)<<(100.0*generated/submitted)<<"% of submits";else out<<"--";
+    out<<" / "<<std::fixed<<std::setprecision(1)<<(std::isfinite(generated_fps)?std::max(0.0,generated_fps):0.0)<<" fps";
+    return out.str();
+}
 
 namespace {
 const char* XrResultName(XrResult r){switch(r){
@@ -171,6 +178,26 @@ constexpr COLORREF kAttention=RGB(245,185,108);
 
 int OsdTextWidth(int size, const std::string& text, bool bold) { Canvas measure(1,1); return measure.Width(size,text,bold); }
 
+std::array<XrExtent2Di, 2> SubmittedRenderResolution(const XrFrameEndInfo* frame) {
+    if (!frame || !frame->layers) return {};
+    for (std::uint32_t i = 0; i < frame->layerCount; ++i) {
+        const auto* base = frame->layers[i];
+        if (!base || base->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION) continue;
+        const auto* projection = reinterpret_cast<const XrCompositionLayerProjection*>(base);
+        if (projection->viewCount != 2 || !projection->views) continue;
+        const auto left = projection->views[0].subImage.imageRect.extent;
+        const auto right = projection->views[1].subImage.imageRect.extent;
+        if (left.width > 0 && left.height > 0 && right.width > 0 && right.height > 0) return {left, right};
+    }
+    return {};
+}
+
+std::string DescribeRenderResolution(const std::array<XrExtent2Di, 2>& eyes) {
+    if (eyes[0].width <= 0 || eyes[0].height <= 0 || eyes[1].width <= 0 || eyes[1].height <= 0) return "Unavailable";
+    return "L " + std::to_string(eyes[0].width) + " x " + std::to_string(eyes[0].height) +
+           " / R " + std::to_string(eyes[1].width) + " x " + std::to_string(eyes[1].height);
+}
+
 OsdCompactLayout CompactOsdLayout(const OsdSettings& settings, const OsdCompactLayoutOptions& options) {
     OsdCompactLayout layout;
     const std::array<bool,4> headers{settings.compact_show_brand,settings.compact_show_app,settings.compact_show_runtime,settings.compact_show_clock};
@@ -201,11 +228,11 @@ OsdCompactLayout CompactOsdLayout(const OsdSettings& settings, const OsdCompactL
     const int fps_width=layout.framegen_badge?kCompactFpsBadgeWidth:kCompactFpsWidth;
     layout.frame_time_x=layout.fps?28+fps_width+24:28;
     const bool status=settings.compact_show_performance || settings.compact_show_turbo || settings.compact_show_framegen ||
-        settings.compact_show_pivot;
+        settings.compact_show_pivot || settings.show_resolution;
     layout.empty=!count && !layout.fps && !layout.frame_time && !status;
     layout.width=std::max({240,count?x+12:0,
         (layout.fps || layout.frame_time)?56+(layout.fps?fps_width:0)+(layout.frame_time?300:0)+(layout.fps&&layout.frame_time?24:0):0,
-        status?520:0,settings.compact_show_performance?kOsdCompactPerformanceWidth:0});
+        status?520:0,settings.compact_show_performance?kOsdCompactPerformanceWidth:0,settings.show_resolution?820:0});
     if(count) { layout.header_y=y; y+=44; }
     if(layout.fps || layout.frame_time) { layout.metrics_y=y; y+=68; }
     // Status rows stack Performance (it reads with the metrics above), Turbo,
@@ -213,8 +240,9 @@ OsdCompactLayout CompactOsdLayout(const OsdSettings& settings, const OsdCompactL
     // right while that row is shown.
     if(settings.compact_show_performance) { layout.performance_y=y; y+=48; }
     if(settings.compact_show_turbo) { layout.turbo_y=y; y+=48; }
-    if(settings.compact_show_framegen) { layout.framegen_y=y; y+=48; }
+    if(settings.compact_show_framegen) { layout.framegen_y=y; y+=options.framegen_session?76:48; }
     if(settings.compact_show_pivot) { layout.pivot_y=y; y+=options.pivot_snap_line?80:48; }
+    if(settings.show_resolution) { layout.resolution_y=y; y+=72; }
     for(const int row:{layout.pivot_y,layout.framegen_y,layout.turbo_y,layout.performance_y}) if(row>=0) layout.status_y=row;
     layout.status_value_x=settings.compact_show_framegen?150:128;
     layout.height=layout.empty?80:y+6;
@@ -306,9 +334,9 @@ OsdBitmap RasterizeOsd(const OsdSettings& settings, bool compact, const OsdSnaps
     const int header_shift=(settings.show_brand || settings.show_app || settings.show_runtime || settings.show_clock || tag_width)?0:40;
     const int pivot_row_height=pivot_snap_line?84:52;
     const int height=compact?layout.height:210-header_shift+(settings.show_graph?156:0)+
-        (settings.show_performance?kOsdPerformanceRowHeight:0)+(settings.show_turbo?52:0)+(settings.show_framegen&&snapshot.framegen_session?(snapshot.framegen_detail.empty()?52:80):0)+
+        (settings.show_performance?kOsdPerformanceRowHeight:0)+(settings.show_turbo?52:0)+(settings.show_framegen&&snapshot.framegen_session?(snapshot.framegen_detail.empty()&&snapshot.framegen_metrics.empty()?52:80):0)+
         (settings.show_pivot?pivot_row_height:0)+(settings.show_modules?(settings.toolkit_summary.empty()?52:96):0)+
-        (!snapshot.restart.empty()?48:0);
+        (settings.show_resolution?72:0)+(!snapshot.restart.empty()?48:0);
     OsdBitmap output; output.height=height; output.content_width=panel_width; output.empty=compact&&layout.empty;
     Canvas canvas(output.width,height);
     if (!canvas.bits || !canvas.dc) return output;
@@ -376,12 +404,19 @@ OsdBitmap RasterizeOsd(const OsdSettings& settings, bool compact, const OsdSnaps
             if(settings.compact_show_framegen) {
                 canvas.Text(30,layout.framegen_y+2,118,20,"FRAME GEN",muted);
                 canvas.Text(value_x,layout.framegen_y,panel_width-value_x-28,24,snapshot.compact_framegen,white,true);
+                if(snapshot.framegen_session)canvas.Text(30,layout.framegen_y+29,panel_width-58,20,snapshot.framegen_metrics,muted);
             }
             if(settings.compact_show_pivot) {
                 canvas.Text(30,layout.pivot_y+2,80,20,"PIVOT",muted);
                 canvas.Text(value_x,layout.pivot_y,panel_width-value_x-28,24,snapshot.compact_pivot.empty()?snapshot.pivot:snapshot.compact_pivot,white,true);
                 if(pivot_snap_line) canvas.Text(value_x,layout.pivot_y+32,panel_width-value_x-28,24,snapshot.compact_pivot_secondary.empty()?snapshot.pivot_secondary:snapshot.compact_pivot_secondary,white,true);
             }
+        }
+        if(settings.show_resolution) {
+            canvas.Text(28,layout.resolution_y,150,20,"RENDER / EYE",muted);
+            canvas.Text(188,layout.resolution_y,panel_width-216,24,DescribeRenderResolution(snapshot.render_resolution),white,true);
+            canvas.Text(28,layout.resolution_y+32,panel_width-56,22,
+                        "Configured render scale: "+Number(settings.configured_render_scale,settings.configured_render_scale==std::floor(settings.configured_render_scale)?0:1)+"%",muted);
         }
     } else {
         if(settings.show_brand) canvas.Text(28,18,155,22,"OPENGRID XR",accent,true);
@@ -448,10 +483,17 @@ OsdBitmap RasterizeOsd(const OsdSettings& settings, bool compact, const OsdSnaps
                 else canvas.Text(242,y,680,24,value,row=="turbo"?accent:white,true);
                 if(row=="pivot" && pivot_snap_line) { canvas.Text(242,y+32,680,24,snapshot.pivot_secondary,white,true); y+=32; }
                 y+=52;
-                if (row=="framegen" && !snapshot.framegen_detail.empty()) {
-                    canvas.Text(242,y-22,680,20,snapshot.framegen_detail,muted); y+=28;
+                if (row=="framegen" && (!snapshot.framegen_detail.empty()||!snapshot.framegen_metrics.empty())) {
+                    canvas.Text(242,y-22,680,20,snapshot.framegen_metrics.empty()?snapshot.framegen_detail:snapshot.framegen_metrics,muted); y+=28;
                 }
             }
+        }
+        if (settings.show_resolution) {
+            canvas.Text(30,y,210,20,"RENDER / EYE",muted);
+            canvas.Text(242,y,680,24,DescribeRenderResolution(snapshot.render_resolution),white,true);
+            canvas.Text(30,y+32,902,22,
+                        "Configured render scale: "+Number(settings.configured_render_scale,settings.configured_render_scale==std::floor(settings.configured_render_scale)?0:1)+"%",muted);
+            y+=72;
         }
         if (!snapshot.restart.empty()) canvas.Text(30,y,902,20,"RESTART PENDING  /  "+snapshot.restart,kAttention);
     }
@@ -600,6 +642,7 @@ std::pair<OsdPresentation, OsdPresentation> OsdRenderer::Prepare(const OsdSettin
     const bool placed=settings.scale!=settings_.scale || settings.horizontal_degrees!=settings_.horizontal_degrees ||
         settings.vertical_degrees!=settings_.vertical_degrees || settings.distance_meters!=settings_.distance_meters;
     const bool changed=settings.toolkit_summary!=settings_.toolkit_summary || !configured_ || settings.enabled!=settings_.enabled || compact_!=status_.compact ||
+        settings.show_resolution!=settings_.show_resolution || settings.configured_render_scale!=settings_.configured_render_scale ||
         (settings.enabled&&visible_)!=status_.shown || settings.update_hz!=settings_.update_hz ||
         settings.opacity!=settings_.opacity || settings.body_order!=settings_.body_order ||
         settings.show_graph!=settings_.show_graph || settings.show_turbo!=settings_.show_turbo || settings.show_pivot!=settings_.show_pivot || settings.show_modules!=settings_.show_modules ||
@@ -822,5 +865,24 @@ const XrCompositionLayerBaseHeader* OsdRenderer::Append(const XrFrameEndInfo& in
 }
 
 OsdStatus OsdRenderer::Status() const { std::scoped_lock lock(mutex_); return status_; }
+bool OsdRenderer::ApplyControl(OsdControl control) {
+    std::scoped_lock lock(mutex_);
+    if (!configured_ || !settings_.enabled || !graphics_ || !session_ || failed_) return false;
+    if (control == OsdControl::ToggleVisibility) {
+        visible_ = !visible_;
+        if (visible_) snapshot_needed_ = true;
+    } else if (control == OsdControl::CycleLayout) compact_ = !compact_;
+    else return false;
+    // Invalidate asynchronous work made for the previous presentation. A
+    // shown panel submits nothing until its new image is ready, and showing
+    // after a long hide waits for a fresh snapshot rather than old values.
+    updated_ = {}; refresh_last_ = {}; ++raster_generation_;
+    ready_ = false;
+    status_.shown = visible_;
+    status_.compact = compact_;
+    status_.visible = false;
+    status_.message = visible_ ? "Waiting for HUD refresh" : "Hidden by binding";
+    return true;
+}
 void OsdRenderer::SetWorldAnchored(bool anchored) { std::scoped_lock lock(mutex_); world_anchored_=anchored; }
 } // namespace depthxr

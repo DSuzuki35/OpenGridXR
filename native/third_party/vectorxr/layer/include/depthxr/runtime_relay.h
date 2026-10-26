@@ -5,7 +5,11 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
+#include <chrono>
+#include <deque>
+#include <mutex>
 
 namespace depthxr {
 
@@ -17,6 +21,7 @@ struct RuntimeControlDocument {
     std::uint64_t revision{0};
     std::uint64_t expires_at_unix_milliseconds{0};
     std::optional<bool> quadviews_diagnostic_visualization;
+    std::optional<std::string> driving_action;
 };
 
 struct QuadViewDimensions {
@@ -39,9 +44,51 @@ struct RuntimeFrameGenRates {
     double app_fps{0.0};      // real frames per second
     double output_fps{0.0};   // frames submitted to the runtime per second
     double distinct_fps{0.0}; // of those, frames showing something new
+    double generated_fps{0.0}; // distinct synthetic frames successfully submitted
 };
 
+struct RuntimeFrameCounters {
+    std::uint64_t application{}, generated{}, repeated{}, submitted{};
+};
+struct RuntimeBenchmarkFrame {
+    std::uint64_t sequence{}, timestamp_ms{};
+    double frame_ms{}; // application xrEndFrame arrival interval, never GPU time
+};
+struct RuntimeBenchmarkData {
+    std::string session_id, state, mode;
+    std::uint64_t timestamp_ms{};
+    RuntimeFrameCounters counters;
+    std::vector<RuntimeBenchmarkFrame> frames;
+    std::uint32_t multiplier{};
+    double refresh_hz{};
+};
+// Bounded, demand-driven history; rendering threads never touch files.
+class RuntimeBenchmarkRecorder {
+  public:
+    using Clock=std::chrono::steady_clock;
+    static constexpr std::size_t capacity=1024;
+    void Reset(Clock::time_point, std::uint64_t unix_ms);
+    void Demand(Clock::time_point expires);
+    void Application(Clock::time_point, bool rendered);
+    void Submitted(bool success, bool rendered);
+    RuntimeBenchmarkData Snapshot(bool include_frames=true) const;
+  private:
+    mutable std::mutex mutex_;
+    Clock::time_point epoch_{}, expires_{};
+    std::optional<Clock::time_point> previous_;
+    std::uint64_t unix_epoch_{}, sequence_{};
+    RuntimeFrameCounters counters_;
+    std::deque<RuntimeBenchmarkFrame> frames_;
+};
+std::filesystem::path RuntimeBenchmarkPath(const std::filesystem::path&, const std::string&);
+std::filesystem::path RuntimeBenchmarkRequestPath(const std::filesystem::path&, const std::string&);
+// Returns a remaining lease in milliseconds, or zero for invalid/stale requests.
+std::uint64_t ReadRuntimeBenchmarkLease(const std::filesystem::path&, std::string_view session, std::uint64_t now);
+bool WriteRuntimeBenchmark(const std::filesystem::path&, const RuntimeBenchmarkData&, std::string* error=nullptr);
+
 struct RuntimeStatusDocument {
+    RuntimeFrameCounters counters;
+    bool framegen_toggle_available{false};
     bool osd_available{false}, osd_visible{false}, osd_compact{false};
     std::string osd_message;
     std::string turbo_state;
@@ -96,6 +143,10 @@ std::size_t PruneRuntimeRelayFiles(const std::filesystem::path& root,
                                    const RuntimeRelaySessionAliveCheck& alive = RuntimeRelaySessionAlive);
 
 bool ReadRuntimeControl(const std::filesystem::path& path, RuntimeControlDocument* document, std::string* error = nullptr);
+// Consume only a fresh command for this session, and only if its operation succeeds.
+bool ApplyRuntimeControl(const RuntimeControlDocument&, std::string_view session_id, std::uint64_t now,
+                         std::uint64_t* last_applied_revision,
+                         const std::function<bool(const RuntimeControlDocument&)>& apply);
 bool WriteRuntimeStatus(const std::filesystem::path& path, const RuntimeStatusDocument& document, std::string* error = nullptr);
 
 } // namespace depthxr

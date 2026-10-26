@@ -16,6 +16,10 @@ cbuffer Settings : register(b0) {
     float lumaRadius;
     uint lumaPattern;
     uint mode;
+    float contrast;
+    float brightness;
+    float saturation;
+    uint colorFlags;
 };
 float4 vertexMain(uint id : SV_VertexID) : SV_Position {
     return float4(id == 1 ? 3.0 : -1.0, id == 2 ? -3.0 : 1.0, 0.0, 1.0);
@@ -68,9 +72,23 @@ float3 casSharpen(float2 p, float3 e) {
     // Our user intensity includes an exact zero bypass; upstream sharpness=0 is not off.
     return lerp(e,sharpened,strength);
 }
+float3 visorColor(float3 value) {
+    if ((colorFlags & 1) == 0) return value;
+    // Color controls work in display-encoded RGB. CAS uses a linear sRGB view,
+    // so decode/encode only around grading when that shared pass needs it.
+    if ((colorFlags & 2) != 0)
+        value = lerp(1.055 * pow(max(value,0),1.0/2.4) - .055, value * 12.92, step(value,.0031308));
+    value = saturate((value * brightness - .5) * contrast + .5);
+    float gray = dot(value,float3(.2126,.7152,.0722));
+    value = saturate(lerp(gray.xxx,value,saturation));
+    if ((colorFlags & 2) != 0)
+        value = lerp(pow((value + .055)/1.055,2.4), value/12.92, step(value,.04045));
+    return value;
+}
 float4 pixelMain(float4 position : SV_Position) : SV_Target {
     float4 original = sampleAt(position.xy);
-    return float4(mode == 1 ? lumaSharpen(position.xy,original.rgb)
-                            : casSharpen(position.xy,original.rgb), original.a);
+    float3 sharpened = mode == 1 ? lumaSharpen(position.xy,original.rgb)
+                       : mode == 2 ? casSharpen(position.xy,original.rgb) : original.rgb;
+    return float4(visorColor(sharpened),original.a);
 }
 )hlsl";

@@ -27,6 +27,21 @@ const assert = require("node:assert/strict");
       .getByRole("button", { name: "Contour point 1", exact: true })
       .waitFor();
     await page.getByRole("button", { name: "Stream", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: /^Bind controller:/ }).count(), 0, "Stream setup has no controller binding buttons");
+    await page.getByRole("switch", { name: "Mirror output", exact: true }).click();
+    assert.equal(await page.getByRole("switch", { name: "Mirror output", exact: true }).getAttribute("aria-checked"), "true", "Editor setup toggles remain editable");
+    await page.getByRole("button", { name: "Performance HUD", exact: true }).click();
+    const resolution = page.getByRole("switch", { name: "Show render resolution & scale", exact: true });
+    const preview = page.locator(".osd-preview");
+    assert.equal(await preview.getByText("Unavailable", { exact: true }).count(), 1, "Desktop preview cannot invent actual eye resolution");
+    assert.equal(await preview.getByText("Configured render scale", { exact: true }).count(), 1);
+    await resolution.click();
+    assert.equal(await preview.getByText("Rendered / eye", { exact: true }).count(), 0, "Resolution checkbox hides preview metrics");
+    await resolution.click();
+    await page.getByRole("group", { name: "Overlay layout", exact: true }).getByRole("button", { name: "Compact", exact: true }).click();
+    assert.equal(await preview.getByText("Rendered / eye", { exact: true }).count(), 1, "Compact mode retains the optional resolution row");
+    await page.getByRole("group", { name: "Overlay layout", exact: true }).getByRole("button", { name: "Expanded", exact: true }).click();
+    await page.getByRole("button", { name: "Spatial overlays", exact: true }).click();
     const press = async () => {
       await page.waitForFunction(
         async () => (await window.openGrid.inputStatus()).available,
@@ -46,7 +61,7 @@ const assert = require("node:assert/strict");
     };
     await page
       .getByRole("button", {
-        name: "Bind controller: Mirror output",
+        name: "Bind controller: Toggle all spatial overlays",
         exact: true,
       })
       .click();
@@ -73,7 +88,7 @@ const assert = require("node:assert/strict");
     await page.waitForFunction(
       () =>
         document
-          .querySelector('[role="switch"][aria-label="Mirror output"]')
+          .querySelector('[role="switch"][aria-label="Enable spatial overlays"]')
           ?.getAttribute("aria-checked") === "true",
     );
     assert.equal(
@@ -85,18 +100,18 @@ const assert = require("node:assert/strict");
     );
     const saved = await page.evaluate(() => window.openGrid.load());
     await page
-      .getByRole("spinbutton", { name: /^Extra area.*left value$/ })
-      .fill("14");
+      .getByRole("spinbutton", { name: "Source pixel budget value", exact: true })
+      .fill("30");
     await press();
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(
       (await page.evaluate(() => window.openGrid.load())).document.profiles[0]
-        .stream.mirror,
+        .spatialOverlays.enabled,
       true,
       "Dirty editor pauses native fixture actions",
     );
     const stale = structuredClone(saved);
-    stale.document.profiles[0].stream.mirror = false;
+    stale.document.profiles[0].spatialOverlays.enabled = false;
     await app.evaluate(
       ({ BrowserWindow }, state) =>
         BrowserWindow.getAllWindows()[0].webContents.send(
@@ -108,16 +123,16 @@ const assert = require("node:assert/strict");
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(
       await page
-        .getByRole("switch", { name: "Mirror output", exact: true })
+        .getByRole("switch", { name: "Enable spatial overlays", exact: true })
         .getAttribute("aria-checked"),
       "true",
       "Late input event cannot overwrite dirty profile",
     );
     assert.equal(
       await page
-        .getByRole("spinbutton", { name: /^Extra area.*left value$/ })
+        .getByRole("spinbutton", { name: "Source pixel budget value", exact: true })
         .inputValue(),
-      "14",
+      "30",
     );
     await page
       .getByRole("button", { name: "Save profile", exact: true })
@@ -175,7 +190,7 @@ const assert = require("node:assert/strict");
     );
     assert.equal(
       cleaned.document.profiles[0].inputBindings.bindings[0].actionId,
-      "stream.mirror",
+      "spatialOverlays.enabled",
     );
     await page
       .getByRole("button", { name: "Controller bindings", exact: true })

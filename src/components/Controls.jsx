@@ -44,7 +44,8 @@ export function Toggle({
           aria-label={label}
           disabled={disabled}
           onClick={() =>
-            bindingAction && bindings
+            bindingAction &&
+            bindings?.actions.some((action) => action.id === bindingAction)
               ? bindings.toggle(bindingAction)
               : onChange(!checked)
           }

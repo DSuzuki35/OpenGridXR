@@ -60,6 +60,8 @@ struct Session {
     uint32_t maskCalls{}, maskAppliedCalls{};
     uint64_t sharpenAppliedCalls{};
     og::ImageProcessStatus sharpenStatus{og::ImageProcessStatus::Skipped};
+    uint64_t visorColorAppliedCalls{};
+    og::ImageProcessStatus visorColorStatus{og::ImageProcessStatus::Skipped};
     std::unique_ptr<og::ImageProcessor> processor;
     unsigned pendingMaskEvents{};
     uint64_t frames{}, capturedFrames{}, lastStatus{}, lastCapture{}, generation{};
@@ -134,6 +136,9 @@ void status(Session &s, bool active) {
         << ",\"engineLoaded\":" << (s.instance->engineLoaded ? "true" : "false")
         << ",\"engineError\":\"" << s.instance->engineError << "\""
         << ",\"sharpenAppliedCalls\":" << s.sharpenAppliedCalls
+        << ",\"visorColorAppliedCalls\":" << s.visorColorAppliedCalls
+        << ",\"visorColorStatus\":" << int(s.visorColorStatus)
+        << ",\"visorColorSupported\":" << (s.device ? "true" : "false")
         << ",\"sharpenStatus\":" << int(s.sharpenStatus) << ",\"maskCalls\":" << s.maskCalls
         << ",\"frames\":" << s.frames << ",\"maskAppliedCalls\":" << s.maskAppliedCalls
         << ",\"capturedFrames\":" << s.capturedFrames << ",\"captureWidth\":" << s.captureWidth
@@ -393,13 +398,13 @@ XrResult XRAPI_CALL create_session(XrInstance h, const XrSessionCreateInfo *info
                 s->device = reinterpret_cast<const XrGraphicsBindingD3D11KHR *>(n)->device;
                 if (s->device) {
                     s->device->GetImmediateContext(&s->context);
-                    if (i.config.streaming || i.config.sharpening.mode != og::SharpeningMode::Off) {
+                    if (i.config.streaming || og::sharpening_active(i.config.sharpening) || og::scene_color_active(i.config.visorColor)) {
                         // The downstream engine may present from a separate thread.
                         ComPtr<ID3D11Multithread> multithread;
                         if (SUCCEEDED(s->context.As(&multithread)))
                             multithread->SetMultithreadProtected(TRUE);
                     }
-                    if (i.config.sharpening.mode != og::SharpeningMode::Off)
+                    if (og::sharpening_active(i.config.sharpening) || og::scene_color_active(i.config.visorColor))
                         s->processor =
                             std::make_unique<og::ImageProcessor>(s->device.Get(), s->context.Get());
                     ComPtr<IDXGIDevice> dxgi;
@@ -411,6 +416,8 @@ XrResult XRAPI_CALL create_session(XrInstance h, const XrSessionCreateInfo *info
                     }
                 }
             }
+        if (og::scene_color_active(i.config.visorColor) && !s->device)
+            s->visorColorStatus = og::ImageProcessStatus::Unsupported;
         s->channel.open(i.game);
         if (i.engineLoaded)
             s->overlaysAvailable = s->overlays.open(i.game);
@@ -663,10 +670,15 @@ XrResult XRAPI_CALL release_image(XrSwapchain h, const XrSwapchainImageReleaseIn
             index < c.images.size() && !c.projectionRegions.empty()) {
             const auto result =
                 s.processor->process(c.images[index].texture, DXGI_FORMAT(c.info.format),
-                                     c.projectionRegions, s.instance->config.sharpening);
-            s.sharpenStatus = result.status;
-            if (result.status == og::ImageProcessStatus::Applied)
-                ++s.sharpenAppliedCalls;
+                                     c.projectionRegions, s.instance->config.sharpening, s.instance->config.visorColor);
+            if (og::sharpening_active(s.instance->config.sharpening)) {
+                s.sharpenStatus = result.status;
+                if (result.status == og::ImageProcessStatus::Applied) ++s.sharpenAppliedCalls;
+            }
+            if (og::scene_color_active(s.instance->config.visorColor)) {
+                s.visorColorStatus = result.status;
+                if (result.status == og::ImageProcessStatus::Applied) ++s.visorColorAppliedCalls;
+            }
         }
     }
     auto r = c.session->instance->ReleaseSwapchainImage(h, info);
@@ -698,9 +710,9 @@ void remember_projection_regions(Session &session, const XrFrameEndInfo *info) {
         if (!layer || layer->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION)
             continue;
         auto *projection = reinterpret_cast<const XrCompositionLayerProjection *>(layer);
-        if (projection->viewCount != 2 || !projection->views)
+        if ((projection->viewCount != 2 && projection->viewCount != 4) || !projection->views)
             continue;
-        for (uint32_t eye = 0; eye < 2; ++eye) {
+        for (uint32_t eye = 0; eye < projection->viewCount; ++eye) {
             const auto &image = projection->views[eye].subImage;
             auto it = chains.find(image.swapchain);
             if (it == chains.end() || it->second->session != &session ||

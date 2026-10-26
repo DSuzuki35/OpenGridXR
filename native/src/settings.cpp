@@ -69,6 +69,10 @@ Config read_config(const std::wstring &path, const std::string &game) {
     c.sharpening.clamp = float(number(L"LumaClamp", .035, 0, .1));
     c.sharpening.radius = float(number(L"LumaRadius", 1, .1, 6));
     c.sharpening.pattern = unsigned(number(L"LumaPattern", 2, 1, 4));
+    c.visorColor.enabled = number(L"HelmetVisorEnabled", 0, 0, 1) == 1;
+    c.visorColor.contrast = float(number(L"HelmetVisorContrast", 100, 50, 150));
+    c.visorColor.brightness = float(number(L"HelmetVisorBrightness", 100, 50, 150));
+    c.visorColor.saturation = float(number(L"HelmetVisorSaturation", 100, 0, 150));
     c.enhancements = number(L"EnhancementsEnabled", 0, 0, 1) == 1;
     c.enabled = number(L"Enabled", 1, 0, 1) == 1 &&
                 (mode == L"driving" || mode == L"streaming" || mode.empty());

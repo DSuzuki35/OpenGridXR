@@ -40,23 +40,30 @@ bool ir_shape(const IrHeader& h,std::size_t size){
 }
 bool same_schema(const IrHeader&a,const IrHeader&b){
     return a.version==b.version&&a.update==b.update&&a.numVars==b.numVars&&
-        a.varOffset==b.varOffset&&a.rowLength==b.rowLength;
+        a.varOffset==b.varOffset&&a.rowLength==b.rowLength&&a.sessionLength==b.sessionLength&&a.sessionOffset==b.sessionOffset;
+}
+std::optional<std::string> safe_text(const unsigned char*p,std::size_t size){
+    const auto end=std::find(p,p+size,0);if(end==p||end==p+size)return {};
+    if(std::any_of(p,end,[](unsigned char c){return c<32||c>126;}))return {};
+    return std::string(p,end);
 }
 std::string text32(const unsigned char *p){
     auto end=std::find(p,p+32,0);if(end==p+32)return {};return std::string(p,end);
 }
 const char *const Channels[]{"Speed","Gear","RPM","Throttle","ThrottleRaw","Brake","BrakeRaw",
     "Clutch","ClutchRaw","FuelLevel","Lap","LapCompleted","LapCurrentLapTime","LapLastLapTime",
-    "LapBestLapTime","SessionFlags","OnPitRoad","IsOnTrackCar","IsOnTrack"};
+    "LapBestLapTime","SessionFlags","OnPitRoad","IsOnTrackCar","IsOnTrack","LatAccel","LongAccel","VertAccel",
+    "AirTemp","TrackTempCrew","TrackTemp","Precipitation","Skies","TrackWetness","SessionTime","SessionTimeOfDay",
+    "PlayerCarIdx","CarIdxLapDistPct","CarIdxTrackSurface","SolarAltitude","SessionUniqueID","SessionNum"};
 struct IrVariable{
-    std::string name,unit;int type{},offset{};std::size_t descriptor{};
+    std::string name,unit;int type{},offset{},count{};std::size_t descriptor{};
     std::array<unsigned char,144> original{};
 };
 constexpr std::size_t LmuSize=324820,LmuScoring=1632,LmuVehicles=2192,LmuTelemetry=128464;
 constexpr std::size_t VehicleCount=104,ScoringStride=584,TelemetryStride=1888;
 struct LmuSnapshot{
     std::array<unsigned char,100> header{};
-    std::array<unsigned char,116> scoring{};
+    std::array<unsigned char,548> scoring{};
     std::array<unsigned char,VehicleCount*ScoringStride> vehicles{};
     std::array<unsigned char,4> metadata{};
     std::array<unsigned char,540> player{};
@@ -77,13 +84,16 @@ bool lmu_equal(const LmuSnapshot&a,const LmuSnapshot&b){
 bool lock_busy(const Memory*lock){int busy=0;return lock&&(!lock->copy(4,&busy,sizeof(busy))||busy!=0);}
 template<class T> void json_value(std::ostringstream&o,const std::optional<T>&v){if(v)o<<*v;else o<<"null";}
 template<> void json_value(std::ostringstream&o,const std::optional<bool>&v){if(v)o<<(*v?"true":"false");else o<<"null";}
+template<> void json_value(std::ostringstream&o,const std::optional<std::string>&v){if(v)o<<std::quoted(*v);else o<<"null";}
 }
 struct IRacingDecoder::Impl {
     IrHeader schema{};bool configured{};
     std::vector<IrVariable> variables;
     std::vector<unsigned char> row;
+    std::optional<double> trackLength;
+    std::optional<std::string> trackName;
     bool configure(const Memory&m,const IrHeader&h){
-        configured=false;variables.clear();
+        configured=false;variables.clear();trackLength.reset();trackName.reset();
         static constexpr std::size_t widths[]{1,1,4,4,4,8};
         for(int n=0;n<h.numVars;++n){
             IrVariable v;v.descriptor=std::size_t(h.varOffset)+std::size_t(n)*144;
@@ -94,22 +104,43 @@ struct IRacingDecoder::Impl {
             v.name=text32(v.original.data()+16);v.unit=text32(v.original.data()+112);
             bool wanted=std::any_of(std::begin(Channels),std::end(Channels),[&](auto name){return v.name==name;});
             if(!wanted)continue;
-            if(count!=1||std::any_of(variables.begin(),variables.end(),[&](auto&x){return x.name==v.name;}))return false;
+            const bool array=v.name=="CarIdxLapDistPct"||v.name=="CarIdxTrackSurface";
+            if((array?count>128:count!=1)||std::any_of(variables.begin(),variables.end(),[&](auto&x){return x.name==v.name;}))return false;
+            v.count=count;
             variables.push_back(std::move(v));
+        }
+        // Only two WeekendInfo scalars are consumed; no driver/session YAML is exported.
+        if(h.sessionLength>0&&h.sessionLength<=int(MaxRow)){
+            std::string yaml(h.sessionLength,'\0');
+            if(m.copy(h.sessionOffset,yaml.data(),yaml.size())){
+                std::istringstream lines(yaml);std::string line;bool weekend=false;
+                while(std::getline(lines,line)){
+                    if(!line.empty()&&line.back()=='\r')line.pop_back();
+                    if(line=="WeekendInfo:"){weekend=true;continue;}
+                    if(!line.empty()&&line[0]!=' ')weekend=false;
+                    if(!weekend||line.size()>128)continue;
+                    if(line.rfind(" TrackName: ",0)==0){const auto name=line.substr(12);trackName=safe_text(reinterpret_cast<const unsigned char*>(name.c_str()),name.size()+1);}
+                    if(line.rfind(" TrackLength: ",0)==0){
+                        std::istringstream input(line.substr(14));input.imbue(std::locale::classic());double km;std::string unit,extra;
+                        if(input>>km>>unit&&unit=="km"&&!(input>>extra))trackLength=number(km*1000,100,200000);
+                    }
+                }
+            }
         }
         row.resize(h.rowLength);schema=h;configured=true;return true;
     }
     const IrVariable *find(const char*name)const{
         for(const auto&v:variables)if(v.name==name)return &v;return nullptr;
     }
-    std::optional<double> get(const char*name)const{
-        auto v=find(name);if(!v)return {};
+    std::optional<double> get(const char*name,int index=0)const{
+        auto v=find(name);if(!v||index<0||index>=v->count)return {};
+        static constexpr std::size_t widths[]{1,1,4,4,4,8};const auto offset=v->offset+std::size_t(index)*widths[v->type];
         switch(v->type){
-        case 1:if(row[v->offset]>1)return {};return row[v->offset];
-        case 2:return value<std::int32_t>(row.data(),v->offset);
-        case 3:return value<std::uint32_t>(row.data(),v->offset);
-        case 4:return value<float>(row.data(),v->offset);
-        case 5:return value<double>(row.data(),v->offset);
+        case 1:if(row[offset]>1)return {};return row[offset];
+        case 2:return value<std::int32_t>(row.data(),offset);
+        case 3:return value<std::uint32_t>(row.data(),offset);
+        case 4:return value<float>(row.data(),offset);
+        case 5:return value<double>(row.data(),offset);
         default:return {};
         }
     }
@@ -150,6 +181,44 @@ Sample IRacingDecoder::read(const Memory &memory){
         Sample result;result.status=ReadStatus::Valid;result.reason=nullptr;
         result.token=(std::uint64_t(std::uint32_t(h.update))<<32)|h.buffers[latest].tick;
         auto&d=result.data;
+        const auto acceleration=[&](const char*name)->std::optional<double>{
+            auto variable=p.find(name);
+            if(!variable||variable->unit!="m/s^2")return {};
+            return p.bounded(name,-200,200);
+        };
+        d.lateralAccelMps2=acceleration("LatAccel");
+        d.longitudinalAccelMps2=acceleration("LongAccel");
+        d.verticalAccelMps2=acceleration("VertAccel");
+        const auto unitValue=[&](const char*name,const char*unit,double lo,double hi)->std::optional<double>{
+            const auto v=p.find(name);return v&&v->unit==unit?p.bounded(name,lo,hi):std::nullopt;
+        };
+        d.airTempC=unitValue("AirTemp","C",-100,100);d.trackTempC=unitValue("TrackTempCrew","C",-100,150);
+        if(!d.trackTempC)d.trackTempC=unitValue("TrackTemp","C",-100,150);
+        d.rainIntensity=unitValue("Precipitation","%",0,1);
+        d.sessionTimeSeconds=unitValue("SessionTime","s",0,1e9);d.timeOfDaySeconds=unitValue("SessionTimeOfDay","s",0,86400);
+        d.solarAltitudeRadians=unitValue("SolarAltitude","rad",-1.570797,1.570797);
+        if(auto sky=p.int_value("Skies",0,3)){const char*names[]{"clear","partly-cloudy","mostly-cloudy","overcast"};d.cloudCover=names[*sky];}
+        if(auto wet=p.find("TrackWetness");wet&&wet->unit=="irsdk_TrackWetness")if(auto level=p.int_value("TrackWetness",1,7)){
+            const char*names[]{"dry","mostly-dry","very-lightly-wet","lightly-wet","moderately-wet","very-wet","extremely-wet"};d.trackWetnessState=names[*level-1];
+        }
+        d.trackName=p.trackName;
+        const auto session=p.int_value("SessionUniqueID",1,INT32_MAX),sessionNum=p.int_value("SessionNum",0,10000);
+        if(session&&sessionNum)d.sessionId="iracing-"+std::to_string(*session)+"-"+std::to_string(*sessionNum);
+        const auto distances=p.find("CarIdxLapDistPct"),surfaces=p.find("CarIdxTrackSurface");
+        const auto player=p.int_value("PlayerCarIdx",0,127);
+        if(p.trackLength&&player&&distances&&surfaces&&distances->unit=="%"&&surfaces->unit=="irsdk_TrkLoc"&&distances->count==surfaces->count&&*player<distances->count){
+            const auto position=p.get("CarIdxLapDistPct",*player),surface=p.get("CarIdxTrackSurface",*player);
+            if(position&&number(*position,0,1)&&surface&&integer(*surface,0,3)){
+                int nearby=0;bool complete=true;
+                for(int n=0;n<distances->count;++n){if(n==*player)continue;
+                    const auto on=p.get("CarIdxTrackSurface",n);if(on&&*on==-1)continue;
+                    const auto at=p.get("CarIdxLapDistPct",n);
+                    if(!on||!integer(*on,0,3)||!at||!number(*at,0,1)){complete=false;break;}
+                    const double delta=std::abs(*at-*position);if(std::min(delta,1-delta)* *p.trackLength<=100)++nearby;
+                }
+                if(complete){d.carsNearby=nearby;d.carsNearbyRadiusMeters=100;d.carsNearbyMethod="track-distance";}
+            }
+        }
         d.speedMps=p.bounded("Speed",0,200);d.rpm=p.bounded("RPM",0,30000);d.gear=p.int_value("Gear",-1,20);
         d.throttle=p.pedal("ThrottleRaw","Throttle");d.brake=p.pedal("BrakeRaw","Brake");
         d.clutch=p.pedal("ClutchRaw","Clutch");if(d.clutch)d.clutch=1-*d.clutch; // SDK reports clutch engagement.
@@ -192,7 +261,24 @@ Sample LmuDecoder::read(const Memory &memory,const Memory*lock){
         std::uint64_t clockBits{};std::memcpy(&clockBits,&elapsed,sizeof(clockBits));
         result.token=clockBits^(std::uint64_t(value<unsigned>(s.header,24))<<32)^std::uint32_t(id);
         auto&d=result.data;
+        const double scoringTime=value<double>(s.scoring,68);
+        const bool scoringFresh=std::isfinite(scoringTime)&&scoringTime>=0&&std::abs(scoringTime-elapsed)<=2;
+        d.sessionTimeSeconds=number(elapsed,0,1e9);
+        if(scoringFresh){
+            d.airTempC=number(value<double>(s.scoring,228),-100,100);d.trackTempC=number(value<double>(s.scoring,236),-100,150);
+            d.rainIntensity=number(value<double>(s.scoring,220),0,1);d.trackWetness=number(value<double>(s.scoring,332),0,1);
+            d.trackName=safe_text(s.scoring.data(),64);
+            // These expansion fields are verified against the pinned 1.4.2 ABI only.
+            if(version>=14200){
+                d.timeOfDaySeconds=number(value<float>(s.scoring,344),0,86400);
+                if(s.scoring[350]<=10){const char*names[]{"clear","light-clouds","partly-cloudy","mostly-cloudy","overcast","cloudy-drizzle","cloudy-light-rain","overcast-light-rain","overcast-rain","overcast-heavy-rain","overcast-storm"};d.cloudCover=names[s.scoring[350]];}
+            }
+        }
         const auto vx=value<double>(s.player,184),vy=value<double>(s.player,192),vz=value<double>(s.player,200);
+        // LMU mLocalAccel follows mLocalVel: +x left, +y up, +z backward.
+        d.lateralAccelMps2=number(value<double>(s.player,208),-200,200);
+        d.verticalAccelMps2=number(value<double>(s.player,216),-200,200);
+        d.longitudinalAccelMps2=number(-value<double>(s.player,224),-200,200);
         d.speedMps=number(std::hypot(std::hypot(vx,vy),vz),0,200);
         d.gear=integer(value<int>(s.player,352),-1,20);d.rpm=number(value<double>(s.player,356),0,30000);
         d.throttle=number(value<double>(s.player,388),0,1);d.brake=number(value<double>(s.player,396),0,1);
@@ -203,6 +289,18 @@ Sample LmuDecoder::read(const Memory &memory,const Memory*lock){
         for(int n=0;n<count;++n){auto q=s.vehicles.data()+std::size_t(n)*ScoringStride;
             if(value<int>(q,0)==id&&q[196]==1){if(playerScore)return fail(ReadStatus::Invalid,"ambiguous-player-scoring");playerScore=q;}}
         if(playerScore){
+            const auto position=[](const unsigned char*q,int axis){return number(value<double>(q,264+axis*8),-1e7,1e7);};
+            bool complete=true;int nearby=0;
+            for(int n=0;n<count;++n){const auto q=s.vehicles.data()+std::size_t(n)*ScoringStride;
+                if(q==playerScore||value<std::int8_t>(q,197)==-1)continue;
+                if(value<int>(q,0)<0||q[197]>3){complete=false;break;}
+                double distance2=0;
+                for(int axis=0;axis<3;++axis){const auto a=position(playerScore,axis),b=position(q,axis);
+                    if(!a||!b){complete=false;break;}distance2+=(*a-*b)*(*a-*b);}
+                if(!complete)break;if(distance2<=10000)++nearby;
+            }
+            for(int axis=0;axis<3;++axis)if(!position(playerScore,axis))complete=false;
+            if(complete&&scoringFresh){d.carsNearby=nearby;d.carsNearbyRadiusMeters=100;d.carsNearbyMethod="world-distance";}
             d.lapsCompleted=integer(value<short>(playerScore,100),0,32767);
             d.lastLapSeconds=number(value<double>(playerScore,168),.001,86400);
             d.bestLapSeconds=number(value<double>(playerScore,144),.001,86400);
@@ -247,10 +345,16 @@ std::string json_line(const Record&r){
     bool first=true;
     auto field=[&](const char*name,const auto&v){if(!first)o<<',';first=false;o<<'"'<<name<<"\":";json_value(o,v);};
     field("speedMps",r.data.speedMps);field("gear",r.data.gear);field("rpm",r.data.rpm);
+    field("lateralAccelMps2",r.data.lateralAccelMps2);field("longitudinalAccelMps2",r.data.longitudinalAccelMps2);field("verticalAccelMps2",r.data.verticalAccelMps2);
     field("throttle",r.data.throttle);field("brake",r.data.brake);field("clutch",r.data.clutch);
     field("fuelLiters",r.data.fuelLiters);field("lap",r.data.lap);field("lapsCompleted",r.data.lapsCompleted);
     field("lapTimeSeconds",r.data.lapTimeSeconds);field("lastLapSeconds",r.data.lastLapSeconds);
     field("bestLapSeconds",r.data.bestLapSeconds);field("inPits",r.data.inPits);
+    field("airTempC",r.data.airTempC);field("trackTempC",r.data.trackTempC);field("rainIntensity",r.data.rainIntensity);
+    field("cloudCover",r.data.cloudCover);field("trackWetness",r.data.trackWetness);field("trackWetnessState",r.data.trackWetnessState);
+    field("sessionTimeSeconds",r.data.sessionTimeSeconds);field("timeOfDaySeconds",r.data.timeOfDaySeconds);field("solarAltitudeRadians",r.data.solarAltitudeRadians);
+    field("carsNearby",r.data.carsNearby);field("carsNearbyRadiusMeters",r.data.carsNearbyRadiusMeters);field("carsNearbyMethod",r.data.carsNearbyMethod);
+    field("carsVisible",r.data.carsVisible);field("trackName",r.data.trackName);field("sessionId",r.data.sessionId);
     o<<",\"flags\":{";first=true;
     field("yellow",r.data.flags.yellow);field("blue",r.data.flags.blue);field("green",r.data.flags.green);
     field("white",r.data.flags.white);field("checkered",r.data.flags.checkered);

@@ -24,7 +24,7 @@ function toEnhancementsConfig(doc, game) {
   return {
     version: 3,
     core: {
-      enabled: Boolean(p && (f.enabled || o.enabled || p.spatialOverlays?.enabled)),
+      enabled: Boolean(p && (f.enabled || o.enabled || p.spatialOverlays?.enabled || p.helmet?.enabled)),
       overlays: { enabled: Boolean(p?.spatialOverlays?.enabled) },
       logLevel: "info",
       logRetentionFiles: 3,
@@ -46,6 +46,8 @@ function toEnhancementsConfig(doc, game) {
         showApp: o.showApp,
         showClock: o.showClock,
         showPerformance: o.showPerformance,
+        showResolution: o.showResolution,
+        configuredRenderScale: p?.view.renderScale ?? 100,
         showFramegen: o.showFramegen,
         showFramegenFps: o.showFramegen,
         showModules: o.showToolkit,
@@ -122,7 +124,11 @@ function toRuntimeIni(doc) {
       s = p.stream;
     const fields = {
       Enabled: 1,
-      EnhancementsEnabled: p.framegen?.enabled || p.overlay?.enabled || p.spatialOverlays?.enabled ? 1 : 0,
+      EnhancementsEnabled: p.framegen?.enabled || p.overlay?.enabled || p.spatialOverlays?.enabled || p.helmet?.enabled ? 1 : 0,
+      HelmetVisorEnabled: p.helmet?.enabled ? 1 : 0,
+      HelmetVisorContrast: p.helmet?.visorContrast ?? 100,
+      HelmetVisorBrightness: p.helmet?.visorBrightness ?? 100,
+      HelmetVisorSaturation: p.helmet?.visorSaturation ?? 100,
       SharpeningMode: p.sharpening?.mode ?? defaults.sharpening.mode,
       SharpeningStrength:
         p.sharpening?.strength ?? defaults.sharpening.strength,

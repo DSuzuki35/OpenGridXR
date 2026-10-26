@@ -100,6 +100,9 @@ struct OsdSettings {
     // video memory (performance_monitor.h). Its sampler runs only while a
     // layout shows it.
     bool show_performance{true};
+    bool show_resolution{false};
+    // Profile preference, not measured headset resolution or runtime scaling.
+    double configured_render_scale{100.0};
     bool compact_show_runtime{true};
     bool compact_show_brand{true};
     bool compact_show_app{true};

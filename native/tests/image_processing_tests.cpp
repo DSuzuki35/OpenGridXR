@@ -4,6 +4,7 @@
 #include <d3d11_1.h>
 #include <d3d11sdklayers.h>
 #include <cmath>
+#include <algorithm>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -49,7 +50,7 @@ float4 vs(uint i : SV_VertexID) : SV_Position {
 float4 ps(float4 p : SV_Position, uint sample : SV_SampleIndex) : SV_Target {
     float v = pattern == 1 ? .5 : (p.x < 8 ? .25 : .75);
     if (sampleVary != 0) v += (sample % 2 == 0 ? -.04 : .04);
-    return float4(v,v,v,.4);
+    return pattern == 2 ? float4(.8,.2,.1,.4) : float4(v,v,v,.4);
 })";
         ComPtr<ID3DBlob> code, error;
         checked(D3DCompile(shader, strlen(shader), nullptr, nullptr, nullptr, "vs", "vs_5_0",
@@ -296,7 +297,43 @@ static void stateRestoration(Fixture &f) {
     auto preservedCount=*static_cast<UINT*>(mapped.pData); f.context->Unmap(counter.Get(),0);
     require(preservedCount==17,"append UAV counter preserved");
 }
+static void visorColor(Fixture &f) {
+    og::ImageProcessor processor(f.device.Get(),f.context.Get());
+    const std::vector<og::ImageRegion> region{{1,4,3,8,10}};
+    og::SharpeningSettings off;
+    og::SceneColorSettings neutral{true,100,100,100};
+    auto bypass=f.texture(DXGI_FORMAT_R8G8B8A8_UNORM,1,2);
+    auto initial=f.pixels(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM);
+    require(processor.process(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM,region,off,neutral).status==og::ImageProcessStatus::Skipped,"neutral visor adds no image pass");
+    require(f.pixels(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM)==initial,"neutral visor is pixel exact");
+    for(auto format:{DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R8G8B8A8_UNORM_SRGB})
+    for(auto mode:{og::SharpeningMode::Off,og::SharpeningMode::Luma,og::SharpeningMode::Cas})
+    for(unsigned samples:{1u,4u}) {
+        auto image=f.texture(format,samples,2);
+        auto before=f.pixels(image.Get(),format);
+        og::SharpeningSettings sharpen;sharpen.mode=mode;
+        og::SceneColorSettings color{true,125,85,60};
+        require(processor.process(image.Get(),format,region,sharpen,color).status==og::ImageProcessStatus::Applied,"visor changes game RGB with sharpening off or fused");
+        auto after=f.pixels(image.Get(),format);
+        for(size_t i=0;i<after.size();++i) {
+            unsigned x=unsigned(i)%16,y=(unsigned(i)/16)%16,slice=unsigned(i)/256;
+            if(slice!=1||x<4||x>=12||y<3||y>=13){require(after[i]==before[i],"visor grading excludes other eyes and non-projection pixels");continue;}
+            float rgb[3];
+            for(unsigned c=0;c<3;++c)rgb[c]=std::clamp((float((before[i]>>(c*8))&255)/255*.85f-.5f)*1.25f+.5f,0.f,1.f);
+            float gray=rgb[0]*.2126f+rgb[1]*.7152f+rgb[2]*.0722f;
+            for(unsigned c=0;c<3;++c){int expected=int(std::lround(std::clamp(gray+(rgb[c]-gray)*.6f,0.f,1.f)*255));require(std::abs(int((after[i]>>(c*8))&255)-expected)<=2,"visor RGB follows brightness contrast saturation in display space");}
+            require((after[i]>>24)==(before[i]>>24),"visor grading preserves scene alpha");
+        }
+    }
+    og::SceneColorSettings disabled{false,150,50,0};
+    require(processor.process(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM,region,off,disabled).status==og::ImageProcessStatus::Skipped,"disabled helmet ignores grade values");
+    auto invalid=neutral;invalid.contrast=std::numeric_limits<float>::quiet_NaN();
+    require(processor.process(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM,region,off,invalid).status==og::ImageProcessStatus::Invalid,"nonfinite visor input rejected");
+    invalid=neutral;invalid.saturation=151;
+    require(processor.process(bypass.Get(),DXGI_FORMAT_R8G8B8A8_UNORM,region,off,invalid).status==og::ImageProcessStatus::Invalid,"out-of-range visor input rejected");
+}
 static void run(Fixture &f) {
+    visorColor(f);
     og::ImageProcessor processor(f.device.Get(),f.context.Get());
     const std::vector<og::ImageRegion> region{{1,4,3,8,10}};
     for(auto format:{DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,

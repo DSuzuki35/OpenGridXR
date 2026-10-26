@@ -83,6 +83,10 @@ try {
             Require ($row.testData -eq $true -and $row.schemaVersion -eq 1) 'test records unmistakably marked'
             Require ($row.data.speedMps -eq 50 -and $row.data.gear -eq 4 -and $row.data.rpm -eq 6500) 'normalized live fixture values'
             Require ($row.data.fuelLiters -eq 42) 'fuel unit normalization'
+            Require ($row.data.airTempC -eq 22 -and $row.data.trackTempC -eq 35 -and $row.data.rainIntensity -eq 0.25) 'verified weather survives the helper JSON pipe'
+            Require ($row.data.carsNearby -eq 1 -and $row.data.carsNearbyRadiusMeters -eq 100) 'nearby count and radius survive the helper JSON pipe'
+            Require ($row.data.carsNearbyMethod -eq $(if($game -eq 'iracing'){'track-distance'}else{'world-distance'})) 'per-game distance method is explicit'
+            Require ($null -eq $row.data.carsVisible) 'nearby opponents never become rendered visible cars'
         }
     }
     $reader.Dispose();$reader=Launch $Helper "--game auto --once --test-namespace missing-$namespace"
@@ -93,6 +97,7 @@ try {
     foreach($line in ($empty -split "`n" | Where-Object { $_.Trim() })){
         $row=$line|ConvertFrom-Json
         Require ($row.status -eq 'disconnected' -and $null -eq $row.data.speedMps) 'no fabricated disconnected values'
+        Require ($null -eq $row.data.airTempC -and $null -eq $row.data.carsNearby) 'disconnected context stays unavailable'
     }
     $reader.Dispose();$reader=Launch $Helper '--game auto --rate 31'
     Require ($reader.WaitForExit(2000)) 'bad rate rejected promptly'

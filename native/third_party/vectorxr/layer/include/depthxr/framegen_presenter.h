@@ -80,6 +80,10 @@ struct FrameGenStatus {
     double distinct_fps{0.0};
     double gpu_ms{-1.0};
     std::uint64_t generated{0};
+    // Successful, nonempty runtime submissions only; generated excludes exact
+    // copies/repeated images. These are not hardware display acknowledgements.
+    std::uint64_t generated_submitted{0}, repeated_submitted{0}, submitted_success{0};
+    double generated_fps{0.0};
     std::uint64_t repeated{0};
     std::uint64_t failures{0};
     std::uint64_t demoted{0};
@@ -883,7 +887,7 @@ class FrameGenPresenter {
     void LogMemoryBudgetLocked();
     // `distinct`: the submission shows something the one before did not;
     // `generated`: a generated frame (not a real frame or its exact copy).
-    void NoteSubmissionLocked(bool distinct, bool generated = false);
+    void NoteSubmissionLocked(bool distinct, bool generated = false, bool success = true, bool rendered = true);
     // How long the game's xrEndFrame spent in EndFrame (summary).
     void NoteEndCall(std::chrono::steady_clock::time_point entered);
 
@@ -1366,6 +1370,8 @@ class FrameGenPresenter {
     std::deque<std::uint64_t> begun_capture_marks_; // ThreadedFrame::capture_mark, newest last
 
     std::uint64_t generated_{0};
+    std::uint64_t generated_submitted_{0}, repeated_submitted_{0}, submitted_success_{0};
+    mutable std::deque<std::chrono::steady_clock::time_point> generated_submissions_;
     std::uint64_t repeated_{0};
     std::uint64_t failures_{0};
     std::uint64_t demoted_{0};

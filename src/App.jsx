@@ -57,9 +57,11 @@ import {
 import ContourEditor, { TrackArt } from "./components/ContourEditor.jsx";
 import NativeFoveationPanel from "./components/NativeFoveationPanel.jsx";
 import TelemetryPanel from "./components/TelemetryPanel.jsx";
+import BenchmarkPanel from "./components/BenchmarkPanel.jsx";
 import SpatialOverlaysPanel from "./components/SpatialOverlaysPanel.jsx";
 import UpdatesPanel from "./components/UpdatesPanel.jsx";
 import RuntimeOpticsPanel from "./components/RuntimeOpticsPanel.jsx";
+import HelmetEditor from "./components/HelmetEditor.jsx";
 import {
   InputBindingsProvider,
   InputBindingsPage,
@@ -80,6 +82,7 @@ import {
 const NAV = [
   { id: "session", label: "Session", icon: Flag },
   { id: "telemetry", label: "Telemetry", icon: Activity },
+  { id: "benchmark", label: "Lap benchmark", icon: Gauge },
   { id: "view", label: "View & crop", icon: ScanLine },
   { id: "foveation", label: "Foveated rendering", icon: Eye },
   { id: "optics", label: "Runtime optics", icon: Settings2 },
@@ -116,6 +119,7 @@ const BUSY_LABELS = {
   "center-game": "Bring the selected sim to the foreground now…",
 };
 const PAGE = {
+  benchmark: ["MEASURE YOUR SESSION", "Every lap tells a story.", "Compare frame timing, generated frames, traffic and weather."],
   optics: ["HEADSET SETTINGS", "Review your optics.", "Explicit offline changes for Sboys Dream Air and Dream Air SE."],
   session: [
     "YOUR NEXT SESSION",
@@ -135,7 +139,7 @@ const PAGE = {
   helmet: [
     "FIND YOUR FIT",
     "Built around your perspective.",
-    "An original helmet fit guide, ready for your own setup.",
+    "Shape your view and design your own visor strip.",
   ],
   foveation: [
     "FOCUS WHERE IT COUNTS",
@@ -606,14 +610,6 @@ export default function App() {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            <div className="free-card">
-              <Grid2X2 size={18} />
-              <div>
-                <strong>Open by design.</strong>
-                <span>Every feature. Always free.</span>
-              </div>
-              <span className="free-spark">↗</span>
-            </div>
             <button className="help-button" onClick={() => setHelp(true)}>
               <CircleHelp size={16} />
               <span>Quick start & about</span>
@@ -622,7 +618,7 @@ export default function App() {
             <div className="sidebar-version">
               <span>OPENGRID XR</span>
               <span>
-                v0.3.0 <i>PREVIEW</i>
+                v0.3.1 <i>PREVIEW</i>
               </span>
             </div>
           </div>
@@ -1090,91 +1086,11 @@ export default function App() {
 
             {tab === "optics" && <RuntimeOpticsPanel api={api} busy={!!busy} />}
             {tab === "helmet" && (
-              <div className="two-column-layout">
-                <div>
-                  <Panel
-                    title="Original Blender helmet overlay"
-                    icon={Aperture}
-                    action={<span className="badge">PREVIEW ONLY</span>}
-                    className="helmet-preview"
-                  >
-                    <div className="helmet-art helmet-render">
-                      <div className="helmet-road"><svg viewBox="0 0 800 450" aria-hidden="true"><TrackArt id="helmet-track" /></svg></div>
-                      <div className="helmet-visor" style={{ opacity: profile.helmet.visorTint / 100 }} />
-                      <img src={`./helmets/${profile.helmet.style}.png`} alt={`Original ${profile.helmet.style} helmet interior overlay`}
-                        style={{ opacity: profile.helmet.opacity / 100, transform: `translate(${profile.helmet.offsetX}%, ${profile.helmet.offsetY}%) scale(${profile.helmet.scale / 100})` }} />
-                    </div>
-                    <div className="helmet-caption">
-                      <span className="badge subtle">
-                        ORIGINAL / BLENDER RENDER
-                      </span>
-                      <p>
-                        Original rendered artwork with a transparent view.
-                        This desktop preview does not render inside the headset.
-                      </p>
-                    </div>
-                  </Panel>
-                </div>
-                <div className="settings-stack">
-                  <Panel title="Fit & appearance" icon={Settings2}>
-                    <Segmented label="Helmet style" value={profile.helmet.style} onChange={(style) => changeGroup("helmet", { style })} options={[{value:"formula",label:"Formula"},{value:"gt",label:"GT"},{value:"open",label:"Open"}]} />
-                    <Toggle
-                      label="Save helmet preference"
-                      bindingAction="helmet.enabled"
-                      description="Stores your intended appearance"
-                      checked={profile.helmet.enabled}
-                      onChange={(enabled) => changeGroup("helmet", { enabled })}
-                    />
-                    <div className="panel-divider" />
-                    <Range
-                      label="Shell opacity"
-                      value={profile.helmet.opacity}
-                      onChange={(opacity) => changeGroup("helmet", { opacity })}
-                    />
-                    <Range
-                      label="Guide scale"
-                      value={profile.helmet.scale}
-                      min={50}
-                      max={150}
-                      onChange={(scale) => changeGroup("helmet", { scale })}
-                    />
-                    <Range
-                      label="Horizontal position"
-                      value={profile.helmet.offsetX}
-                      min={-50}
-                      max={50}
-                      onChange={(offsetX) => changeGroup("helmet", { offsetX })}
-                    />
-                    <Range
-                      label="Vertical position"
-                      value={profile.helmet.offsetY}
-                      min={-50}
-                      max={50}
-                      onChange={(offsetY) => changeGroup("helmet", { offsetY })}
-                    />
-                    <Range
-                      label="Visor tint"
-                      value={profile.helmet.visorTint}
-                      onChange={(visorTint) =>
-                        changeGroup("helmet", { visorTint })
-                      }
-                    />
-                  </Panel>
-                  <Note tone="violet">
-                    Your visibility contour works independently of helmet
-                    artwork. Shape it in{" "}
-                    <button
-                      className="inline-link"
-                      onClick={() => setTab("view")}
-                    >
-                      View & crop <ArrowUpRight size={11} />
-                    </button>
-                    .
-                  </Note>
-                </div>
-              </div>
+              <HelmetEditor profile={profile}
+                onHelmetChange={(patch) => changeGroup("helmet", patch)}
+                onMaskChange={(patch) => changeGroup("mask", patch)}
+                onViewChange={(patch) => changeGroup("view", patch)} />
             )}
-
             {tab === "stream" && (
               <div className="stream-layout">
                 <div className="stream-main">
@@ -1366,7 +1282,14 @@ export default function App() {
                       <p className="panel-description">
                         Extra image area for smoother framing.
                       </p>
-                      <div className="crop-fields">
+                      <Range label="Global reserve" max={30}
+                        value={Math.round(Object.values(profile.stream.reserve).reduce((sum, value) => sum + value, 0) / 4)}
+                        hint="Sets all four sides to the same amount. Fine-tune individual sides below."
+                        onChange={(value) => changeGroup("stream", { reserve: { left: value, right: value, top: value, bottom: value } })} />
+                      <details className="reserve-details">
+                        <summary>Fine-tune individual sides{new Set(Object.values(profile.stream.reserve)).size > 1 ? " · Individual values" : " · All sides equal"}</summary>
+                        {new Set(Object.values(profile.stream.reserve)).size > 1 && <p className="panel-description">The global control shows the average. Moving it sets all sides equally again.</p>}
+                        <div className="crop-fields">
                         {["left", "right", "top", "bottom"].map((edge) => (
                           <Stepper
                             key={edge}
@@ -1381,6 +1304,7 @@ export default function App() {
                           />
                         ))}
                       </div>
+                      </details>
                     </Panel>
                   </div>
                 </div>
@@ -1646,6 +1570,7 @@ export default function App() {
                 onChange={(patch) => changeGroup("telemetry", patch)}
               />
             )}
+            {tab === "benchmark" && <BenchmarkPanel profile={profile} dirty={dirty||Boolean(busy)} />}
             {tab === "bindings" && <InputBindingsPage />}
 
             {tab === "foveation" && (
@@ -1667,6 +1592,7 @@ export default function App() {
                 runtime={runtime}
                 onRefresh={refreshRuntime}
                 onSetup={() => setTab("setup")}
+                onOpenVectorXR={() => action("project", () => api.openVectorXR())}
               />
             )}
             {tab === "overlay" && (

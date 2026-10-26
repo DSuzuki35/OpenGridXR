@@ -157,6 +157,41 @@ std::vector<std::uint32_t> ReferenceFeather(const std::vector<std::uint32_t>& bi
 }
 }
 int main(int argc, char** argv) {
+    {
+        XrCompositionLayerProjectionView views[2]{{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}, {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}};
+        views[0].subImage.imageRect = {{160, 80}, {2064, 2208}};
+        views[1].subImage.imageRect = {{2400, 80}, {2016, 2160}};
+        XrCompositionLayerProjection projection{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+        projection.viewCount = 2; projection.views = views;
+        const XrCompositionLayerBaseHeader* layers[]{reinterpret_cast<const XrCompositionLayerBaseHeader*>(&projection)};
+        XrFrameEndInfo frame{XR_TYPE_FRAME_END_INFO}; frame.layerCount = 1; frame.layers = layers;
+        auto resolution = SubmittedRenderResolution(&frame);
+        Check(resolution[0].width == 2064 && resolution[0].height == 2208 && resolution[1].width == 2016 && resolution[1].height == 2160,
+              "HUD resolution must use per-eye submitted rectangles, excluding image offsets and allocated texture area");
+        Check(DescribeRenderResolution(resolution) == "L 2064 x 2208 / R 2016 x 2160", "Per-eye dimensions must be labeled separately");
+        views[1].subImage.imageRect.extent.width = 0;
+        Check(DescribeRenderResolution(SubmittedRenderResolution(&frame)) == "Unavailable", "Invalid eye rectangles must not invent resolution");
+        Check(DescribeRenderResolution(SubmittedRenderResolution(nullptr)) == "Unavailable", "No frame must show resolution as unavailable");
+        OsdSettings settings; settings.show_resolution = true; settings.configured_render_scale = 135;
+        settings.show_clock = settings.compact_show_clock = false;
+        OsdSnapshot snapshot; snapshot.render_resolution = resolution;
+        const auto measured = RasterizeOsd(settings, false, snapshot, {}, false);
+        if (const char* path = std::getenv("OSD_RESOLUTION_BMP")) WriteBitmap(path, measured);
+        snapshot.render_resolution = {};
+        const auto unknown = RasterizeOsd(settings, false, snapshot, {}, false);
+        Check(measured.Valid() && measured.pixels != unknown.pixels, "Measured resolution must change actual HUD raster output");
+        settings.show_resolution = false;
+        const auto hidden = RasterizeOsd(settings, false, snapshot, {}, false);
+        snapshot.render_resolution = resolution;
+        Check(hidden.pixels == RasterizeOsd(settings, false, snapshot, {}, false).pixels, "Disabling resolution must hide the actual measurement");
+        const auto compact_hidden = RasterizeOsd(settings, true, snapshot, {}, false);
+        settings.show_resolution = true;
+        const auto compact_shown = RasterizeOsd(settings, true, snapshot, {}, false);
+        if (const char* path = std::getenv("OSD_RESOLUTION_COMPACT_BMP")) WriteBitmap(path, compact_shown);
+        Check(compact_shown.Valid() && compact_shown.height > compact_hidden.height, "Compact HUD must also show both resolution and scale");
+        settings.configured_render_scale = 100;
+        Check(compact_shown.pixels != RasterizeOsd(settings, true, snapshot, {}, false).pixels, "Configured percent must be a separate rendered metric");
+    }
     Check(SUCCEEDED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&context)),"WARP device creation failed");
     {
         OsdTelemetry stats; auto now=std::chrono::steady_clock::now(); stats.Tick(now);
@@ -191,6 +226,7 @@ int main(int argc, char** argv) {
             framegen.framegen="On  /  Extrapolate  /  Auto 4x";
             const auto one_line=RasterizeOsd(settings,false,framegen,stats,false);
             framegen.framegen_detail="23 \xE2\x86\x92 90 fps  /  GPU 8.0 ms";
+            framegen.framegen_metrics=DescribeFrameGenerationCounters(1234567,2469134,45);
             const auto two_lines=RasterizeOsd(settings,false,framegen,stats,false);
             Check(two_lines.Valid() && two_lines.height==one_line.height+28,"Frame Generation's second line did not add its height");
 
@@ -451,7 +487,7 @@ int main(int argc, char** argv) {
         // The tallest compact panel shows the header (18 + 44), metrics (68), the
         // Performance, Turbo and Frame Gen rows (48 each), and Pivot with its
         // snap line (80), with 6 below. It must fit the OSD texture.
-        constexpr int kWorstCompactHeight=18+44+68+48+48+48+80+6;
+        constexpr int kWorstCompactHeight=18+44+68+48+76+48+80+6;
         static_assert(kWorstCompactHeight<=OsdBitmap::texture_height);
         int tallest_compact=0;
         for(const auto* metrics:{"all","fps","frameTime","none"}) for(int flags=0;flags<512;++flags) {
@@ -472,7 +508,7 @@ int main(int argc, char** argv) {
             if(options.compact_show_turbo && options.compact_show_pivot) {
                 options.compact_show_pivot=false;
                 const auto turbo_only=CompactOsdLayout(options,layout_options);
-                Check(layout.pivot_y==layout.turbo_y+(options.compact_show_framegen?96:48) && layout.width==turbo_only.width &&
+                Check(layout.pivot_y==layout.turbo_y+(options.compact_show_framegen?(layout_options.framegen_session?124:96):48) && layout.width==turbo_only.width &&
                       layout.height==turbo_only.height+48,
                     "Adding compact Pivot widened the panel instead of adding a row");
             }
@@ -492,6 +528,16 @@ int main(int argc, char** argv) {
             auto busy=Snapshot();
             busy.framegen_session=true; busy.framegen_badge="ON"; busy.framegen_fps=90;
             busy.framegen="On  /  Interpolate  /  Dynamic"; busy.framegen_detail="45 -> 90 fps  /  GPU 3.1 ms";
+            busy.framegen_metrics=DescribeFrameGenerationCounters(1234567,2469134,45);
+            busy.compact_framegen="Dynamic / 45 -> 90 fps";
+            Check(busy.framegen_metrics=="Gen 1234567 / 50.0% of submits / 45.0 fps","FG HUD uses actual session totals and measured generated rate");
+            Check(DescribeFrameGenerationCounters(0,0,0)=="Gen 0 / -- / 0.0 fps","FG ratio without submissions is unknown");
+            Check(OsdTextWidth(20,busy.framegen_metrics,false)<462,"Actual FG counter row fits smallest compact HUD");
+            auto counter_only=all;counter_only.compact_show_brand=counter_only.compact_show_app=counter_only.compact_show_runtime=counter_only.compact_show_clock=false;
+            counter_only.compact_metrics="none";counter_only.compact_show_performance=counter_only.compact_show_turbo=counter_only.compact_show_pivot=false;counter_only.show_resolution=false;
+            const auto counter_bitmap=RasterizeOsd(counter_only,true,busy,stats,false);
+            Check(counter_bitmap.Valid()&&counter_bitmap.content_width==520,"Actual counter row preserves compact minimum width");
+            if(const char* path=std::getenv("OSD_FRAMEGEN_COUNTER_COMPACT_BMP"))WriteBitmap(path,counter_bitmap);
             busy.compact_framegen="Dynamic  /  45 -> 90 fps";
             busy.pivot="Motion: Active / Continuous + Position / Flight"; busy.compact_pivot="Motion: Cont Active + Position";
             busy.pivot_secondary="Snap: Active / Stacked + Nudge / Check Six / Views";
@@ -522,6 +568,7 @@ int main(int argc, char** argv) {
         XrFrameEndInfo frame{XR_TYPE_FRAME_END_INFO}; frame.layerCount=1; frame.layers=&original;
         renderer.Prepare(settings,Snapshot(),false,false);
         Check(!renderer.Append(frame,true) && creates==0,"Disabled OSD created resources");
+        Check(!renderer.ApplyControl(OsdControl::ToggleVisibility),"A driving command cannot enable an unconfigured HUD");
         settings.enabled=true; renderer.Prepare(settings,Snapshot(),true,false);
         timeouts=2;
         Check(!renderer.Append(frame,true),"First frame waited for CPU rasterization");
@@ -571,6 +618,19 @@ int main(int argc, char** argv) {
         renderer.Prepare(settings,Snapshot(),false,false);
         renderer.Prepare(settings,Snapshot(),true,true); Check(WaitVisible(renderer,frame),"Show binding did not toggle");
         Check(renderer.Status().compact,"Cycle binding did not switch layout");
+        Check(renderer.ApplyControl(OsdControl::ToggleVisibility),"Live HUD hide command was rejected");
+        Check(!renderer.Status().shown && !renderer.Append(frame,true),"Live HUD hide must stop submission immediately");
+        Check(renderer.ApplyControl(OsdControl::CycleLayout) && !renderer.Status().compact && !renderer.Status().shown,
+              "Live layout command must switch layout without showing a hidden HUD");
+        Check(renderer.ApplyControl(OsdControl::ToggleVisibility),"Live HUD show command was rejected");
+        Check(renderer.SnapshotDue() && !renderer.Append(frame,true),"Showing HUD must wait for fresh content");
+        renderer.Prepare(settings,Snapshot(),true,true); // held keyboard controls cannot replay after a relay action
+        Check(renderer.Status().shown && !renderer.Status().compact && WaitVisible(renderer,frame),
+              "Relay controls must preserve keyboard edge state and render the selected layout");
+        Check(renderer.ApplyControl(OsdControl::CycleLayout) && renderer.Status().compact,
+              "Live cycle should return to compact mode");
+        renderer.Prepare(settings,Snapshot(),true,true);
+        Check(WaitVisible(renderer,frame),"Live mode change must redraw the compact HUD");
         settings.enabled=false; renderer.Prepare(settings,Snapshot(),false,false); Check(!renderer.Append(frame,true),"Live disable failed");
         settings.enabled=true; settings.compact=false; settings.horizontal_degrees=-30; renderer.Prepare(settings,Snapshot(),false,false);
         quad=reinterpret_cast<const XrCompositionLayerQuad*>(WaitVisible(renderer,frame));

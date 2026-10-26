@@ -750,14 +750,14 @@ bool ParseToggleBindings(const JsonValue::Object& object,
 bool ParseOsdSettings(const JsonValue::Object& object, OsdSettings& out, std::string& error) {
     NoteUnknownKeys(object, {"enabled", "visibleOnStart", "compact", "horizontalDegrees", "verticalDegrees",
         "distanceMeters", "scale", "opacity", "updateHz", "showGraph", "showRuntime", "showBrand", "showApp", "showTurbo", "showModules",
-        "showClock", "showPivot", "showFramegen", "showFramegenFps", "showPerformance", "compactShowRuntime", "compactShowClock", "compactShowTurbo", "compactShowPivot",
+        "showClock", "showPivot", "showFramegen", "showFramegenFps", "showPerformance", "showResolution", "configuredRenderScale", "compactShowRuntime", "compactShowClock", "compactShowTurbo", "compactShowPivot",
         "compactShowFramegen", "compactShowPerformance",
         "compactShowBrand", "compactShowApp", "compactMetrics",
         "toolkitSummary", "clockFormat", "bodyOrder", "rowOrder", "customColor", "customPresets", "accent", "toggleBinding", "cycleBinding", "toggleBindings", "cycleBindings"});
     for (const auto& [key, target] : {std::pair{"enabled", &out.enabled}, {"visibleOnStart", &out.visible_on_start},
         {"compact", &out.compact}, {"showGraph", &out.show_graph}, {"showRuntime", &out.show_runtime}, {"showBrand", &out.show_brand}, {"showApp", &out.show_app},
         {"showTurbo", &out.show_turbo}, {"showModules", &out.show_modules}, {"showClock", &out.show_clock}, {"showPivot", &out.show_pivot},
-        {"showFramegen", &out.show_framegen}, {"showFramegenFps", &out.show_framegen_fps}, {"showPerformance", &out.show_performance}}) {
+        {"showFramegen", &out.show_framegen}, {"showFramegenFps", &out.show_framegen_fps}, {"showPerformance", &out.show_performance}, {"showResolution", &out.show_resolution}}) {
         std::optional<bool> value;
         if (!ReadOptionalBool(object, key, value, error)) return false;
         if (value) *target = *value;
@@ -795,7 +795,8 @@ bool ParseOsdSettings(const JsonValue::Object& object, OsdSettings& out, std::st
     };
     if (!number("horizontalDegrees", out.horizontal_degrees, -40, 40) ||
         !number("verticalDegrees", out.vertical_degrees, -35, 35) ||
-        !number("distanceMeters", out.distance_meters, 0.5, 3) || !number("scale", out.scale, 25, 150)) return false;
+        !number("distanceMeters", out.distance_meters, 0.5, 3) || !number("scale", out.scale, 25, 150) ||
+        !number("configuredRenderScale", out.configured_render_scale, 50, 200)) return false;
     for (const auto& [key, target] : {std::pair{"opacity", &out.opacity}, {"updateHz", &out.update_hz}}) {
         std::optional<double> value;
         if (!ReadOptionalNumber(object, key, value, error)) return false;

@@ -29,7 +29,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build native/build --config Release --parallel 4
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input)"
+          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math)"
           exit $LASTEXITCODE
       - run: npm run package:installer
       - run: npm run test:update-download
