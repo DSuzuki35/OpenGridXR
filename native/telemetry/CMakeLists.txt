@@ -22,4 +22,9 @@ if(WIN32)
  add_test(NAME native-telemetry-io COMMAND powershell -NoProfile -ExecutionPolicy Bypass
    -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/helper_smoke.ps1"
    -Helper $<TARGET_FILE:OpenGridXR-Telemetry> -Fixture $<TARGET_FILE:opengrid-telemetry-fixture>)
+ add_test(NAME native-telemetry-io-delayed-reader COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+   -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/helper_smoke.ps1"
+   -Helper $<TARGET_FILE:OpenGridXR-Telemetry> -Fixture $<TARGET_FILE:opengrid-telemetry-fixture>
+   -ReaderDelayMs 1200)
+ set_tests_properties(native-telemetry-io native-telemetry-io-delayed-reader PROPERTIES TIMEOUT 40)
 endif()

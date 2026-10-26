@@ -13,21 +13,42 @@ struct Mapping {
     }
     ~Mapping(){if(data)UnmapViewOfFile(data);if(handle)CloseHandle(handle);}
 };
+struct FreezeEvent {
+    HANDLE handle{};
+    explicit FreezeEvent(const std::string&name){
+        if(name.empty())return;
+        if(!valid_test_namespace(name))throw std::runtime_error("invalid freeze event namespace");
+        const auto fullName=L"Local\\OpenGridXR-Test-"+std::wstring(name.begin(),name.end())+L"-freeze";
+        handle=OpenEventW(SYNCHRONIZE,FALSE,fullName.c_str());
+        if(!handle)throw std::runtime_error("test freeze event not available");
+    }
+    ~FreezeEvent(){if(handle)CloseHandle(handle);}
+    bool signaled()const{
+        if(!handle)return false;
+        const auto result=WaitForSingleObject(handle,0);
+        if(result==WAIT_FAILED)throw std::runtime_error("test freeze event wait failed");
+        return result==WAIT_OBJECT_0;
+    }
+};
 int main(int argc,char**argv){try{
-    std::string prefix;unsigned duration=5000,freeze=0;
+    std::string prefix,freezeName;unsigned duration=5000,freeze=0;
     for(int n=1;n<argc;++n){std::string arg=argv[n];if(n+1>=argc)throw std::runtime_error("missing value");
         std::string v=argv[++n];if(arg=="--namespace")prefix=v;else if(arg=="--duration-ms")duration=std::stoul(v);
-        else if(arg=="--freeze-after-ms")freeze=std::stoul(v);else throw std::runtime_error("unknown option");}
+        else if(arg=="--freeze-after-ms")freeze=std::stoul(v);else if(arg=="--freeze-event")freezeName=v;
+        else throw std::runtime_error("unknown option");}
     if(!valid_test_namespace(prefix)||duration>60000||duration<1)throw std::runtime_error("invalid test options");
+    if(freeze&&!freezeName.empty())throw std::runtime_error("choose timed or event-controlled freeze");
+    FreezeEvent freezeEvent(freezeName);
     auto ir=fixture::iracing(),lmu=fixture::lmu();
     Mapping im(mapping_name(Game::IRacing,prefix),ir.size()),lm(mapping_name(Game::Lmu,prefix),lmu.size()),lock(lock_name(prefix),8);
     std::memcpy(im.data,ir.data.data(),ir.size());std::memcpy(lm.data,lmu.data.data(),lmu.size());
     std::memset(lock.data,0,8);
     std::cout<<"{\"ready\":true,\"testData\":true}\n"<<std::flush;
-    auto start=GetTickCount64();unsigned tick=100;
+    auto start=GetTickCount64();unsigned tick=100;bool frozen=false;
     while(GetTickCount64()-start<duration){
         auto elapsed=GetTickCount64()-start;
-        if(!freeze||elapsed<freeze){
+        frozen=frozen||freezeEvent.signaled()||(freeze&&elapsed>=freeze);
+        if(!frozen){
             ++tick;auto slot=tick%2;auto offset=4096+slot*256;
             float lap=32.5f+float(elapsed)/1000;std::memcpy(im.data+offset+36,&lap,4);MemoryBarrier();
             InterlockedExchange(reinterpret_cast<volatile LONG*>(im.data+48+slot*16),LONG(tick));
