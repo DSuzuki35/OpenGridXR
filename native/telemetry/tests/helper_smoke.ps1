@@ -12,10 +12,23 @@ function Launch([string]$Path,[string]$Arguments) {
     $info.RedirectStandardInput=$true
     $process=New-Object System.Diagnostics.Process
     $process.StartInfo=$info
-    if(-not $process.Start()){throw 'process failed to start'}
+    # .NET Framework inherits the console input encoding and immediately emits
+    # its preamble when creating the redirected writer. The protocol has no BOM.
+    $previousInputEncoding=[Console]::InputEncoding
+    try {
+        [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false)
+        if(-not $process.Start()){throw 'process failed to start'}
+    } finally { [Console]::InputEncoding=$previousInputEncoding }
     return $process
 }
 function Require($Value,[string]$Message){if(-not $Value){throw $Message}}
+function Send-Quit($Process) {
+    # Write the ASCII wire protocol directly: Windows PowerShell's StreamWriter
+    # can otherwise prepend a UTF-8 BOM under the hosted runner's console locale.
+    $bytes=[System.Text.Encoding]::ASCII.GetBytes("quit`n")
+    $Process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length)
+    $Process.StandardInput.BaseStream.Flush()
+}
 function Read-Record($Process,[int]$TimeoutMs,[string]$Message) {
     Require ($TimeoutMs -gt 0) $Message
     $task=$Process.StandardOutput.ReadLineAsync()
@@ -50,7 +63,7 @@ try {
         if($row.status -eq 'stale' -and $row.ageMs -ge 1000 -and $staleSeen.ContainsKey($row.game)){$staleSeen[$row.game]=$true}
     }
     $readTask=$reader.StandardOutput.ReadToEndAsync()
-    $reader.StandardInput.WriteLine('quit');$reader.StandardInput.Flush()
+    Send-Quit $reader
     Require ($reader.WaitForExit(2000)) 'helper bounded shutdown after stale samples'
     Require ($reader.ExitCode -eq 0) 'helper exit success'
     Require ($readTask.Wait(1000)) 'helper output drain is bounded'
@@ -85,7 +98,7 @@ try {
     Require ($reader.WaitForExit(2000)) 'bad rate rejected promptly'
     Require ($reader.ExitCode -ne 0) 'rate cap cannot be bypassed'
     $reader.Dispose();$reader=Launch $Helper "--test-namespace missing-$namespace"
-    $reader.StandardInput.WriteLine('quit');$reader.StandardInput.Flush()
+    Send-Quit $reader
     Require ($reader.WaitForExit(1500)) 'stdin shutdown stops idle helper'
     Write-Output 'Telemetry helper shared-memory, rate, stale, no-source and shutdown tests passed'
 } finally {
