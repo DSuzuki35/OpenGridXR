@@ -10,6 +10,56 @@ from pathlib import Path
 import sys
 
 import bpy
+from mathutils import Matrix
+
+WRAP_RADIUS = 2.9
+
+
+def helmet_surface(x, y, depth=0):
+    """Bend developed helmet coordinates around the same axis as the visor.
+
+    Positive Z faces the eyes. The sides wrap back towards the wearer; depth
+    preserves the sculpted rim cross-section and the visor-to-gasket spacing.
+    """
+    theta = x / WRAP_RADIUS
+    return (WRAP_RADIUS * math.sin(theta), y,
+            depth + WRAP_RADIUS * (1 - math.cos(theta)) + .035 * (y / 1.35) ** 2)
+
+
+def wrap_helmet_geometry():
+    """Apply one continuous deformation to every shell detail, in world space."""
+    import bmesh
+    bpy.context.view_layer.update()
+    deps = bpy.context.evaluated_depsgraph_get()
+    for obj in list(bpy.context.scene.objects):
+        if obj.type not in ("MESH", "CURVE"):
+            continue
+        evaluated = obj.evaluated_get(deps)
+        mesh = bpy.data.meshes.new_from_object(evaluated, depsgraph=deps)
+        transform = obj.matrix_world.copy()
+        for vertex in mesh.vertices:
+            vertex.co = transform @ vertex.co
+        # Long faces (notably the deflector) also need vertices between their
+        # endpoints, otherwise a bent outline still contains flat triangles.
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        for _ in range(5):
+            long_edges = [edge for edge in bm.edges if edge.calc_length() > .08]
+            if not long_edges:
+                break
+            bmesh.ops.subdivide_edges(bm, edges=long_edges, cuts=1, use_grid_fill=True)
+        for vertex in bm.verts:
+            vertex.co = helmet_surface(*vertex.co)
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+        bm.to_mesh(mesh)
+        bm.free()
+        replacement = bpy.data.objects.new(obj.name + " wrapped", mesh)
+        bpy.context.collection.objects.link(replacement)
+        name = obj.name
+        bpy.data.objects.remove(obj, do_unlink=True)
+        replacement.name = name
+        replacement.matrix_world = Matrix.Identity(4)
+        replacement["Surface"] = "Shared visor-axis wrap, radius 2.9 model units"
 
 ROOT = Path(__file__).resolve().parents[1]
 STYLES = {
@@ -117,9 +167,8 @@ def light(name, location, power, size, color):
 
 def visor_surface(u, v, lift=0):
     """Interior face of a wrapped polycarbonate visor, in real scene units."""
-    theta = (u - .5) * 1.6
     y = 1.35 - v * 2.7
-    return (2.9 * math.sin(theta), y, -.26 + 2.9 * (1 - math.cos(theta)) + .035 * (y / 1.35) ** 2 + lift)
+    return helmet_surface((u - .5) * 1.6 * WRAP_RADIUS, y, -.26 + lift)
 
 
 def build_visor():
@@ -313,6 +362,7 @@ def build(style, width, samples, stereo_only=False):
         bevel.width = .015
         bevel.segments = 3
     tube("Brow identification trim", [(-.28, cfg["top"]+.21, .04), (.28, cfg["top"]+.21, .04)], .014, accent)
+    wrap_helmet_geometry()
     light("Large cool frontal softbox", (-1.8, 1.8, 3.0), 160, 3.5, (.82, .89, 1))
     light("Warm low fill", (2, -.5, 2), 90, 2.5, (1, .88, .74))
     light("Top rim daylight", (0, 2, 1), 100, 2, (.85, .93, 1))
@@ -370,6 +420,7 @@ def build(style, width, samples, stereo_only=False):
     scene["Stereo projection"] = "Parallel-axis perspective; off-axis shift converges at z=0; no toe-in."
     scene["Style"] = style
     scene["Generator"] = "scripts/render-helmets.py"
+    scene["Helmet wrap radius"] = WRAP_RADIUS
     visor = build_visor()
     for obj in scene.objects:
         obj.select_set(False)

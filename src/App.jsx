@@ -618,7 +618,7 @@ export default function App() {
             <div className="sidebar-version">
               <span>OPENGRID XR</span>
               <span>
-                v0.3.1 <i>PREVIEW</i>
+                v0.3.2 <i>HELMET TEST</i>
               </span>
             </div>
           </div>

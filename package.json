@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "0.3.1",
+  "version": "0.3.2-fixed-helmet.1",
   "description": "The free, open source sim racing XR toolkit by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "GPL-2.0-only",

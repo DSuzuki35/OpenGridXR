@@ -10,7 +10,11 @@ embedded in the supplied assets.
 ## Geometry and stereo
 
 Each style has a padded shell, gasket, stitched seams, cheek pads, fasteners and
-an actual curved polycarbonate visor surface. Editable reference sunstrip and
+an actual curved polycarbonate visor surface. The shell, liner, gasket and all
+attached details wrap around the same vertical axis and 2.9 model-unit radius as
+the visor. They are not a flat ring behind curved glass. The visor stays offset
+in front of the gasket; rim thickness and padding remain three-dimensional.
+Editable reference sunstrip and
 mirrored `OPEN GRID` lettering meshes follow that surface. They can be inspected
 from inside and outside in the `.blend` source; these cutaways are not complete
 wearable helmets for arbitrary viewpoints.
@@ -18,7 +22,7 @@ wearable helmets for arbitrary viewpoints.
 | Asset | Location | Purpose |
 | --- | --- | --- |
 | Editable source | `assets/helmets/<style>.blend` | Geometry, sample print, lights and three cameras |
-| Original mono render | `public/helmets/<style>.png` | Preserved orthographic reference |
+| Mono render | `public/helmets/<style>.png` | Orthographic reference of the current geometry |
 | Stereo shell pair | `public/helmets/<style>-left.png`, `-right.png` | Separate perspective renders of real geometry |
 | Curved projection maps | `public/helmets/<style>-<eye>-visor-uv.png`, `-visor-v.png` | High-precision coordinates for custom print |
 
@@ -84,6 +88,7 @@ From the repository root:
 ```powershell
 blender --background --python scripts/render-helmets.py -- --style all --samples 48
 blender --background --python scripts/render-helmets.py -- --verify
+blender --background --python-exit-code 1 --python tests/helmet-geometry.py
 ```
 
 `--stereo-only` preserves mono PNGs while regenerating scenes, stereo shells and
