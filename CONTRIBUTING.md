@@ -8,6 +8,14 @@ Use Windows x64, Node.js 24 or newer, Visual Studio 2022 Desktop development wit
 
 Keep each change focused. Explain the observable behavior, its resource cost and the checks performed. Run tests appropriate to the changed component. New GPU paths need pixel/state/ownership checks; passing a synthetic runtime does not establish compatibility with a real headset or game.
 
+Local work notes, handoffs and task lists belong in the ignored `.local/` directory. Public documentation describes usable features, constraints and reproducible procedures.
+
+## Installer releases
+
+`npm run package:installer` produces the Windows NSIS installer, blockmap and `latest.yml` under `release/<version>/`. Build native components first. Installed copies use this metadata to find stable releases; unpacked builds cannot self-update. Publish all three files together on the same GitHub Release. Never replace assets for an already published version.
+
+The release workflow builds a draft from a `v<package-version>` tag. Review the installer and metadata before publishing that draft as a stable release. Drafts and prereleases are not offered by the application. The build is unsigned unless signing is configured externally. The updater checks the download hash from the HTTPS release metadata; no publisher certificate is configured in the unsigned build.
+
 ## Performance rules
 
 - Do not block the game frame loop on a browser, IPC request, disk access or CPU image conversion.

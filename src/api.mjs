@@ -33,6 +33,16 @@ function download(value, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const preview = {
+  async runtimeOpticsInspect() { return { available: false, candidates: [], selected: null, message: "Runtime optics require the Windows app.", capabilities: { pimaxNative: { supported: false, message: "Use Pimax Play for native Wide FOV." } } }; },
+  async runtimeOpticsChoose() { throw new Error("Runtime optics require the Windows app."); },
+  async runtimeOpticsPreview() { throw new Error("Runtime optics require the Windows app."); },
+  async runtimeOpticsPreviewRestore() { throw new Error("Runtime optics require the Windows app."); },
+  async runtimeOpticsApply() { throw new Error("Runtime optics require the Windows app."); },
+  async updateStatus() { return { phase: "unsupported", currentVersion: "Browser preview", prompt: false, message: "Install the Windows setup package to enable updates." }; },
+  async checkUpdates() { return this.updateStatus(); },
+  async updateChoice() { throw new Error("Updates require the installed Windows app."); },
+  async installUpdate() { throw new Error("Updates require the installed Windows app."); },
+  onUpdateStatus() { return () => {}; },
   async inputStatus() { return { active:false,running:false,available:false,devices:[],paused:true,message:"Joystick bindings require the Windows app." }; },
   async inputEditorState() { return {}; },
   async inputCaptureStart() { throw new Error("Joystick binding requires the Windows app."); },

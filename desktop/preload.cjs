@@ -5,6 +5,15 @@ contextBridge.exposeInMainWorld(
   "openGrid",
   Object.freeze({
     load: () => invoke("load"),
+    updateStatus: () => invoke("updateStatus"),
+    checkUpdates: () => invoke("checkUpdates"),
+    updateChoice: (choice) => invoke("updateChoice", choice),
+    installUpdate: () => invoke("installUpdate"),
+    onUpdateStatus: (callback) => {
+      const listener = (_event, result) => callback(result);
+      ipcRenderer.on("opengrid:updateStatus", listener);
+      return () => ipcRenderer.removeListener("opengrid:updateStatus", listener);
+    },
     inputStatus: () => invoke("inputStatus"),
     inputEditorState: (state) => invoke("inputEditorState", state),
     inputCaptureStart: (actionId, profileId) => invoke("inputCaptureStart", actionId, profileId),
@@ -32,6 +41,11 @@ contextBridge.exposeInMainWorld(
     launchOutput: (profile) => invoke("launchOutput", profile),
     openDataFolder: () => invoke("openDataFolder"),
     nativeSettings: () => invoke("nativeSettings"),
+    runtimeOpticsInspect: () => invoke("runtimeOpticsInspect"),
+    runtimeOpticsChoose: selection => invoke("runtimeOpticsChoose", selection),
+    runtimeOpticsPreview: (changes, revision) => invoke("runtimeOpticsPreview", changes, revision),
+    runtimeOpticsPreviewRestore: (id, revision) => invoke("runtimeOpticsPreviewRestore", id, revision),
+    runtimeOpticsApply: (token, offlineConfirmed) => invoke("runtimeOpticsApply", token, offlineConfirmed),
     chooseNativeSettings: () => invoke("chooseNativeSettings"),
     previewNativeSettings: (values, revision) =>
       invoke("previewNativeSettings", values, revision),

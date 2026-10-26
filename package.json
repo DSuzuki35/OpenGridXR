@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "The free, open source sim racing XR toolkit by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "GPL-2.0-only",
@@ -15,13 +15,16 @@
     "test:telemetry": "node tests/telemetry-integration.cjs",
     "test:gpu": "node tests/gpu-source-smoke.cjs --stream --window --d3d12",
     "test:input-ui": "node tests/input-ui-smoke.cjs",
-    "package": "npm run build && electron-builder --win dir"
+    "test:updates-optics-ui": "node tests/updates-optics-ui.cjs",
+    "test:update-download": "node tests/update-download.cjs",
+    "package": "npm run build && electron-builder --win dir --publish never",
+    "package:installer": "npm run build && electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "com.dansuzuki.opengrid.xr",
     "productName": "OpenGrid XR",
     "directories": {
-      "output": "release/0.2.1"
+      "output": "release/${version}"
     },
     "files": [
       "dist/**",
@@ -53,12 +56,13 @@
       "LICENSE",
       "THIRD-PARTY-NOTICES.md",
       "README.md",
-      "NEXT-STEPS.md",
       "CONTRIBUTING.md",
       {
         "from": "docs",
         "to": "docs",
-        "filter": ["**/*.md"]
+        "filter": [
+          "**/*.md"
+        ]
       },
       {
         "from": "native/README.md",
@@ -90,10 +94,28 @@
       }
     ],
     "win": {
-      "target": "dir",
+      "target": [
+        "nsis"
+      ],
       "icon": "public/app.ico",
       "signExecutable": false
     },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "scripts/installer.nsh",
+      "artifactName": "OpenGridXR-${version}-Setup-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "DSuzuki35",
+        "repo": "OpenGridXR",
+        "releaseType": "release"
+      }
+    ],
     "asar": true
   },
   "devDependencies": {
@@ -105,5 +127,8 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "vite": "8.3.5"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
   }
 }

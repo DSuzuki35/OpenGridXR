@@ -6,3 +6,4 @@ test-results/
 .superpowers/
 .cache/
 *.log
+.local/

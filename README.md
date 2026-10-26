@@ -4,13 +4,13 @@
 
 [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md) · [Telemetry API](docs/telemetry-api.md) · [Overlay guide](docs/spatial-overlays.md)
 
-Continuing on another machine? Start with [NEXT-STEPS.md](NEXT-STEPS.md), including the target-rig checks and pending runtime optics work.
-
-Free and fully open-source Windows toolkit for iRacing and Le Mans Ultimate. Version 0.2.1 is a development preview with native crop/capture/output, integrated headset frame generation and performance overlay, headset sharpening, native iRacing foveation controls, read-only telemetry, and spatial URL/window overlays. Real sim/headset compatibility and performance still need validation.
+Free and fully open-source Windows toolkit for iRacing and Le Mans Ultimate. Version 0.3.0 is a development preview with native crop/capture/output, integrated headset frame generation and performance overlay, headset sharpening, native iRacing foveation controls, read-only telemetry, and spatial URL/window overlays. Real sim/headset compatibility and performance still need validation.
 
 ## Run
 
-Double-click `Start OpenGrid XR.cmd`, or run `release/0.2.1/win-unpacked/OpenGrid XR.exe`. Keep the complete `win-unpacked` directory together. Close the older OpenGrid window before starting an updated app. The build is unsigned; signing can be performed externally.
+Install the Windows setup package from [GitHub Releases](https://github.com/DSuzuki35/OpenGridXR/releases). The installed app checks stable releases at startup and every six hours. A notification offers **Download update**, **Later**, and **Skip this version**. Downloading never installs automatically: use **Install and restart** when ready. Save your profile and close both sims and Clean Output first. Profiles and backups are preserved. After restarting, use **Setup → Update runtime layer** to update the separately registered native files.
+
+**Setup → Check for updates** checks manually, including a previously skipped version. Source builds and unpacked development builds do not self-update. For development, double-click `Start OpenGrid XR.cmd` or run `release/0.3.0/win-unpacked/OpenGrid XR.exe`; keep that entire directory together. The build is unsigned; signing can be performed externally.
 
 1. Select iRacing or Le Mans Ultimate, then a profile.
 2. In **View & crop**, set rectangular crop and render scale. Enable the custom visibility mask only if wanted. Edit its control points, use arrow keys for fine adjustment, or start from a Formula/GT/Open contour.
@@ -45,7 +45,7 @@ The output uses D3D11 shared textures, so its graphics adapter must be compatibl
 
 ## Helmets
 
-The current helmet page is an **original visual fit guide**. Settings are saved, but production helmet meshes/textures and an in-headset helmet renderer are not included yet. Those will be authored independently in Blender. The native custom contour crop works independently of the preview drawing.
+The helmet page previews original **Formula, GT and Open** interior overlays rendered in Blender. Transparent PNG assets and editable Blender sources are included; see the [helmet asset guide](docs/helmets.md). Style, opacity, scale, position and visor tint can be previewed and saved. These are desktop previews and reusable overlay assets; an in-headset helmet renderer is not included. The native custom contour crop works independently.
 
 ## Telemetry and spatial overlays
 
@@ -79,13 +79,11 @@ Save these values in an OpenGrid profile, locate the existing `rendererDX11OpenX
 
 LMU has no verified native foveation adapter in this build. Do not interpret the UI's geometry illustration as measured GPU cost or FPS. Generic VRS injection and external Quad Views are not enabled automatically for either sim.
 
-**Headset sharpening** provides Luma Sharpen (strength, clamp, radius and sample pattern) and AMD FidelityFX CAS. It processes supported D3D11 projection images before frame generation; the status overlay remains separate and clean stream capture precedes headset sharpening. The original MIT-licensed LumaSharpen algorithm also underlies the Sboys3 implementation. Hardware-specific Sboys3 distortion profiles are deliberately deferred: lens correction belongs to the headset driver/runtime and must not be applied twice as a generic application warp.
+**Headset sharpening** provides Luma Sharpen (strength, clamp, radius and sample pattern) and AMD FidelityFX CAS. It processes supported D3D11 projection images before frame generation; the status overlay remains separate and clean stream capture precedes headset sharpening. The original MIT-licensed LumaSharpen algorithm also underlies the Sboys3 implementation. Lens correction belongs to the headset driver/runtime and must not be applied twice as a generic application warp.
 
-## Included and planned
+## Included capabilities
 
 Included: profile editor and backup/import/export, per-eye contour editor, supersampling/crop, symmetric stream expansion, own OpenXR layer, D3D11 capture, smoothing/horizon stabilization, fullscreen clean output, integrated experimental headset frame generation, configurable VR overlay, Luma/CAS sharpening, native iRacing foveation configuration with review/backups, read-only iRacing/LMU telemetry, up to 15 spatial URL/window overlays, and explicit centering controls.
-
-Later: original in-headset helmets, direct OBS source, horizon-reset UI controls, wider validated graphics/view configurations, hardware-specific distortion integration and more selective streaming-mask optimization. Director, gaze framing and natural-headmotion features are outside this project's initial scope.
 
 ## Wheel, joystick and buttonbox bindings
 
@@ -95,7 +93,7 @@ The native DirectInput reader supports up to 128 buttons and four POV hats per d
 
 Actions work on the saved selected profile while the app remains open, including when a sim is in the foreground. They pause while the editor is dirty, busy or learning a binding. Settings that require a game or Clean Output restart still require it; a binding does not turn a startup setting into a live runtime control. Physical wheel/buttonbox validation on the game PC is still required.
 
-The requested native Pimax and Sboys optics controls are researched but not implemented in this release. See [runtime optics](docs/runtime-optics.md) for exact configuration contracts, verified limitations and the next implementation steps.
+**Runtime optics** offers reviewed offline changes to the Sboys Dream Air and Dream Air SE configuration, with separate target selection, exact backups and restore. Native Pimax optics remain controlled through Pimax Play because a supported external write API is not established. See the [runtime optics guide](docs/runtime-optics.md).
 
 ## Develop and verify
 

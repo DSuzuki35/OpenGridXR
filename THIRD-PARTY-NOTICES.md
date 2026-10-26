@@ -33,3 +33,6 @@ The native engine's NVIDIA Optical Flow interface headers are MIT-licensed; the 
 The iRacing SDK's BSD notice and TinyPedal's MIT notice are retained under `native/telemetry/third_party` and shipped in `licenses/telemetry`. The independent readers use the published telemetry ABI and documented mappings. Restricted game SDK headers are not redistributed. See `native/telemetry/README.md` and its third-party provenance for exact upstream revisions, field mappings and validation limits.
 
 Spatial URL/window capture, GPU texture transport, overlay placement and the game-control helper are original OpenGrid XR implementations. Electron/Chromium provides the browser and window-capture platform; the desktop framework's notices apply as above.
+## Application updater
+
+The desktop app includes [electron-updater](https://github.com/electron-userland/electron-builder), version 6.8.11, under the MIT license. Its runtime dependencies and their license files are distributed inside the application package. Updates are obtained from the OpenGridXR GitHub Releases feed only.

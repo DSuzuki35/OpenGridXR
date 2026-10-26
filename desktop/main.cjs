@@ -20,6 +20,11 @@ const { createSpatialOverlays } = require("./spatial-overlays.cjs");
 const { createGameControl } = require("./game-control.cjs");
 const { createInputHost } = require("./input-host.cjs");
 const { createInputController } = require("./input-controller.cjs");
+const { createUpdateController, ensureUpdateInstall } = require("./update-controller.cjs");
+const { autoUpdater } = require("electron-updater");
+const { createRuntimeOptics } = require("./runtime-optics.cjs");
+const { execFile } = require("node:child_process");
+const { promisify } = require("node:util");
 let win;
 if (process.env.OPENGRIDXR_DATA_DIR)
   app.setPath("userData", path.resolve(process.env.OPENGRIDXR_DATA_DIR));
@@ -53,6 +58,24 @@ else {
         testMode: process.env.OPENGRIDXR_TEST_MODE === "1",
       });
       const testMode = process.env.OPENGRIDXR_TEST_MODE === "1";
+      let editorStatus = { dirty: true, busy: true };
+      const updatePreferences = path.join(data, "update-preferences.json");
+      const installed = app.isPackaged && await fs.access(path.join(path.dirname(app.getPath("exe")), "opengrid-installed")).then(() => true, () => false);
+      const updates = createUpdateController({
+        updater: autoUpdater, enabled: installed && !testMode, currentVersion: app.getVersion(),
+        readPreferences: async () => { try { return JSON.parse(await fs.readFile(updatePreferences, "utf8")); } catch { return {}; } },
+        writePreferences: value => atomicWrite(updatePreferences, JSON.stringify(value)),
+        onChange: value => { if (win && !win.isDestroyed()) win.webContents.send("opengrid:updateStatus", value); },
+        ensureCanInstall: () => ensureUpdateInstall({
+          isReady: () => win && !win.isDestroyed() && !win.webContents.isDestroyed() && !editorStatus.dirty && !editorStatus.busy,
+          ensureStopped: runtime.ensureGamesClosed,
+          confirm: async () => {
+            const result = await dialog.showMessageBox(win, { type: "question", title: "Install OpenGrid XR update", message: "Install the downloaded update and restart OpenGrid XR?", detail: "Your saved profiles and backups are preserved. After restarting, use Setup to update the runtime layer with both sims closed.", buttons: ["Cancel", "Install and restart"], defaultId: 0, cancelId: 0, noLink: true });
+            return result.response === 1;
+          },
+        }),
+      });
+      app.once("before-quit", () => updates.close());
       const telemetry = createTelemetry({
         executable: path.join(app.isPackaged ? path.join(process.resourcesPath, "native") : path.join(__dirname, "../native/build/Release"), "OpenGridXR-Telemetry.exe"),
         ...(testMode && process.env.OPENGRIDXR_TELEMETRY_TEST_NAMESPACE ? { testNamespace: process.env.OPENGRIDXR_TELEMETRY_TEST_NAMESPACE } : {}),
@@ -121,6 +144,17 @@ else {
         backupDir: nativeBackups,
         ensureStopped: testMode ? async () => {} : runtime.ensureGamesClosed,
       });
+      const runtimeOptics = createRuntimeOptics({
+        appData: testMode ? path.join(data, "fixtures", "appData") : app.getPath("appData"),
+        backupDir: path.join(data, "runtime-optics-backups"),
+        ensureStopped: async () => {
+          if (testMode) return;
+          await runtime.ensureGamesClosed();
+          const { stdout } = await promisify(execFile)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -in @('vrserver','vrcompositor','vrmonitor','custom-headset-gui','CustomHeadsetGUI') } | Select-Object -ExpandProperty ProcessName) | ConvertTo-Json -Compress"], { windowsHide: true, timeout: 10000 });
+          if (stdout.trim()) throw new Error("Close SteamVR and the Sboys headset settings app before applying optics changes.");
+        },
+      });
       const snapshot = async () => ({
         ...(await store.load()),
         runtime: await runtime.status(),
@@ -149,8 +183,15 @@ else {
         });
       }
       handle("load", snapshot);
+      handle("updateStatus", () => updates.status());
+      handle("checkUpdates", () => updates.check(true));
+      handle("updateChoice", choice => updates.decide(choice));
+      handle("installUpdate", () => updates.install());
       handle("inputStatus", () => input.status());
-      handle("inputEditorState", (state) => input.editorState(state));
+      handle("inputEditorState", (state) => {
+        editorStatus = { dirty: state?.dirty !== false, busy: state?.busy !== false };
+        return input.editorState(state);
+      });
       handle("inputCaptureStart", (actionId, profileId) => input.captureStart(actionId, profileId));
       handle("inputCaptureStatus", () => input.captureStatus());
       handle("inputCaptureCancel", () => input.captureCancel());
@@ -214,6 +255,14 @@ else {
       });
       handle("listDisplays", displays);
       handle("nativeSettings", () => nativeSettings.inspect());
+      handle("runtimeOpticsInspect", () => runtimeOptics.inspect());
+      handle("runtimeOpticsChoose", selection => runtimeOptics.choose(selection));
+      handle("runtimeOpticsPreview", (changes, revision) => runtimeOptics.preview(changes, revision));
+      handle("runtimeOpticsPreviewRestore", (id, revision) => runtimeOptics.previewRestore(id, revision));
+      handle("runtimeOpticsApply", (token, offlineConfirmed) => {
+        if (offlineConfirmed !== true) throw new Error("Confirm the sim, SteamVR and headset settings app are closed first.");
+        return runtimeOptics.apply(token);
+      });
       handle("chooseNativeSettings", async () => {
         const choice = await dialog.showOpenDialog(win, {
           title: "Locate iRacing OpenXR configuration",
@@ -306,6 +355,7 @@ else {
       win.webContents.on("will-navigate", (event) => event.preventDefault());
       win.once("ready-to-show", () => win.show());
       await win.loadFile(path.join(__dirname, "../dist/index.html"));
+      updates.start();
     })
     .catch((error) => {
       dialog.showErrorBox(

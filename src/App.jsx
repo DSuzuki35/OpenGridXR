@@ -58,6 +58,8 @@ import ContourEditor, { TrackArt } from "./components/ContourEditor.jsx";
 import NativeFoveationPanel from "./components/NativeFoveationPanel.jsx";
 import TelemetryPanel from "./components/TelemetryPanel.jsx";
 import SpatialOverlaysPanel from "./components/SpatialOverlaysPanel.jsx";
+import UpdatesPanel from "./components/UpdatesPanel.jsx";
+import RuntimeOpticsPanel from "./components/RuntimeOpticsPanel.jsx";
 import {
   InputBindingsProvider,
   InputBindingsPage,
@@ -80,6 +82,7 @@ const NAV = [
   { id: "telemetry", label: "Telemetry", icon: Activity },
   { id: "view", label: "View & crop", icon: ScanLine },
   { id: "foveation", label: "Foveated rendering", icon: Eye },
+  { id: "optics", label: "Runtime optics", icon: Settings2 },
   { id: "helmet", label: "Helmet", icon: Aperture },
   { id: "stream", label: "Stream", icon: Radio },
   { id: "framegen", label: "Frame generation", icon: Layers },
@@ -113,6 +116,7 @@ const BUSY_LABELS = {
   "center-game": "Bring the selected sim to the foreground now…",
 };
 const PAGE = {
+  optics: ["HEADSET SETTINGS", "Review your optics.", "Explicit offline changes for Sboys Dream Air and Dream Air SE."],
   session: [
     "YOUR NEXT SESSION",
     "Everything in its place.",
@@ -618,7 +622,7 @@ export default function App() {
             <div className="sidebar-version">
               <span>OPENGRID XR</span>
               <span>
-                v0.2.1 <i>PREVIEW</i>
+                v0.3.0 <i>PREVIEW</i>
               </span>
             </div>
           </div>
@@ -1084,150 +1088,36 @@ export default function App() {
               </div>
             )}
 
+            {tab === "optics" && <RuntimeOpticsPanel api={api} busy={!!busy} />}
             {tab === "helmet" && (
               <div className="two-column-layout">
                 <div>
                   <Panel
-                    title="Original helmet fit guide"
+                    title="Original Blender helmet overlay"
                     icon={Aperture}
                     action={<span className="badge">PREVIEW ONLY</span>}
                     className="helmet-preview"
                   >
-                    <div className="helmet-art">
-                      <svg
-                        viewBox="0 0 640 440"
-                        role="img"
-                        aria-label="Original geometric helmet appearance guide"
-                      >
-                        <defs>
-                          <linearGradient
-                            id="shell-gradient"
-                            x1="0"
-                            y1="0"
-                            x2=".8"
-                            y2="1"
-                          >
-                            <stop stopColor="#62586f" />
-                            <stop offset=".35" stopColor="#282430" />
-                            <stop offset="1" stopColor="#17151d" />
-                          </linearGradient>
-                          <linearGradient id="visor-gradient">
-                            <stop stopColor="#b79ad8" stopOpacity=".25" />
-                            <stop
-                              offset=".5"
-                              stopColor="#514163"
-                              stopOpacity=".6"
-                            />
-                            <stop
-                              offset="1"
-                              stopColor="#a38bb9"
-                              stopOpacity=".15"
-                            />
-                          </linearGradient>
-                          <pattern
-                            id="helmet-grid"
-                            width="25"
-                            height="25"
-                            patternUnits="userSpaceOnUse"
-                          >
-                            <path
-                              d="M25 0H0V25"
-                              stroke="#9f8eba"
-                              strokeOpacity=".05"
-                              fill="none"
-                            />
-                          </pattern>
-                        </defs>
-                        <rect
-                          width="640"
-                          height="440"
-                          fill="url(#helmet-grid)"
-                        />
-                        <path
-                          d="M320 35V405M70 220H570"
-                          stroke="#8b7b9e"
-                          strokeDasharray="3 7"
-                          opacity=".25"
-                        />
-                        <g
-                          transform={`translate(${profile.helmet.offsetX * 1.2} ${profile.helmet.offsetY}) translate(320 220) scale(${profile.helmet.scale / 100}) translate(-320 -220)`}
-                          opacity={0.25 + (profile.helmet.opacity / 100) * 0.75}
-                        >
-                          <path
-                            d="M124 251C111 129 187 57 316 52C449 47 526 133 516 250L480 343C463 376 402 400 320 400C237 400 176 376 159 343Z"
-                            fill="url(#shell-gradient)"
-                            stroke="#74617f"
-                            strokeWidth="2"
-                          />
-                          <path
-                            d="M155 199C195 166 247 154 320 154C393 154 445 166 485 199L469 278C429 305 378 317 320 317C262 317 211 305 171 278Z"
-                            fill="#0d0e15"
-                            stroke="#b69bcf"
-                            strokeWidth="2"
-                          />
-                          <path
-                            d="M161 203C205 174 260 163 320 163C382 163 434 174 479 203L465 271C420 294 371 306 320 306C269 306 220 294 175 271Z"
-                            fill="url(#visor-gradient)"
-                            opacity={profile.helmet.visorTint / 100}
-                          />
-                          <path
-                            d="M183 335C232 356 270 363 320 363C370 363 408 356 457 335"
-                            stroke="#82708f"
-                            strokeWidth="1.5"
-                            fill="none"
-                          />
-                          <path
-                            d="M279 74H361M303 84H337"
-                            stroke="#9b87ac"
-                            strokeWidth="3"
-                          />
-                          <path
-                            d="m293 333 8-5h38l8 5-9 8h-36Z"
-                            fill="#111018"
-                            stroke="#5d4f69"
-                          />
-                          <circle
-                            cx="150"
-                            cy="241"
-                            r="10"
-                            fill="#24202c"
-                            stroke="#766183"
-                          />
-                          <circle
-                            cx="490"
-                            cy="241"
-                            r="10"
-                            fill="#24202c"
-                            stroke="#766183"
-                          />
-                          <path d="M143 241h14m326 0h14" stroke="#9c84ae" />
-                        </g>
-                        <text
-                          x="320"
-                          y="431"
-                          fill="#81728f"
-                          textAnchor="middle"
-                          fontSize="9"
-                          letterSpacing="3"
-                        >
-                          OPENGRID / ORIGINAL GEOMETRY STUDY
-                        </text>
-                      </svg>
+                    <div className="helmet-art helmet-render">
+                      <div className="helmet-road"><svg viewBox="0 0 800 450" aria-hidden="true"><TrackArt id="helmet-track" /></svg></div>
+                      <div className="helmet-visor" style={{ opacity: profile.helmet.visorTint / 100 }} />
+                      <img src={`./helmets/${profile.helmet.style}.png`} alt={`Original ${profile.helmet.style} helmet interior overlay`}
+                        style={{ opacity: profile.helmet.opacity / 100, transform: `translate(${profile.helmet.offsetX}%, ${profile.helmet.offsetY}%) scale(${profile.helmet.scale / 100})` }} />
                     </div>
                     <div className="helmet-caption">
                       <span className="badge subtle">
-                        FIT & APPEARANCE STUDY
+                        ORIGINAL / BLENDER RENDER
                       </span>
                       <p>
-                        This original guide helps explore the fit. Production
-                        helmet assets and in-headset rendering are not included
-                        yet.
+                        Original rendered artwork with a transparent view.
+                        This desktop preview does not render inside the headset.
                       </p>
                     </div>
                   </Panel>
                 </div>
                 <div className="settings-stack">
                   <Panel title="Fit & appearance" icon={Settings2}>
+                    <Segmented label="Helmet style" value={profile.helmet.style} onChange={(style) => changeGroup("helmet", { style })} options={[{value:"formula",label:"Formula"},{value:"gt",label:"GT"},{value:"open",label:"Open"}]} />
                     <Toggle
                       label="Save helmet preference"
                       bindingAction="helmet.enabled"
@@ -1802,6 +1692,7 @@ export default function App() {
               />
             )}
 
+            <UpdatesPanel details={tab === "setup"} dirty={dirty} busy={busy} />
             {tab === "setup" && (
               <div className="setup-layout">
                 <Panel
