@@ -8,7 +8,7 @@ import {
 } from "./model.mjs";
 export const isBrowserPreview = !globalThis.openGrid;
 import {moduleDefaults, validateModuleSettings} from "./modules.mjs";
-import visorTemplates from './visor-template-manifest.json';
+import visorTemplates from './visor-template-manifest.json' with { type: 'json' };
 const key = "opengrid-xr-v1";
 let revision = 0;
 const runtime = {
