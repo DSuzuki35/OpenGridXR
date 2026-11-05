@@ -1,0 +1,13 @@
+{
+  "file_format_version": "1.0.0",
+  "api_layer": {
+    "name": "XR_APILAYER_LMU_quadview",
+    "library_path": ".\\build\\lmu_quadview.dll",
+    "api_version": "1.0",
+    "implementation_version": "1",
+    "description": "LMU QuadView experimental stereo-to-quad engine adapter",
+    "functions": {
+      "xrNegotiateLoaderApiLayerInterface": "xrNegotiateLoaderApiLayerInterface"
+    }
+  }
+}

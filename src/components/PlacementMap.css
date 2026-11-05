@@ -1,0 +1,8 @@
+.spatial-map-interactive > svg { touch-action: none; user-select: none; }
+.spatial-map-interactive .spatial-map-item { cursor: grab; outline: none; }
+.spatial-map-interactive .spatial-map-item:active { cursor: grabbing; }
+.spatial-map-interactive .spatial-map-item[aria-disabled="true"] { cursor: default; }
+.spatial-map-interactive .spatial-map-item:focus-visible .spatial-map-item-shape { stroke: #fff; stroke-width: 3; }
+.spatial-map-interactive .panel-heading { flex-wrap: wrap; gap: 12px; }
+.spatial-map-interactive .segmented button { padding: 7px 10px; font-size: 10px; }
+.spatial-map-interactive > p { font-size: 10px; }

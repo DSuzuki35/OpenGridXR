@@ -1,0 +1,151 @@
+{
+  "name": "opengrid-xr",
+  "version": "0.5.0",
+  "description": "The source-available sim racing XR toolkit for noncommercial use by Dan Suzuki",
+  "author": "Dan Suzuki",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "test:desktop": "node tests/desktop-smoke.cjs && node tests/ui-save-race.cjs",
+    "test:stream-ui": "node tests/stream-ui.cjs",
+    "test:menu-ui": "node tests/quick-menu-renderer-ui.cjs && node tests/quick-menu-integration-ui.cjs",
+    "test:telemetry": "node tests/telemetry-integration.cjs",
+    "test:gpu": "node tests/gpu-source-smoke.cjs --stream --window --d3d12",
+    "test:visor-ui": "node tests/visor-states-ui.cjs",
+    "test:lmu-ui": "node tests/lmu-rendering-ui.cjs",
+    "test:modules-ui": "node tests/modules-ui.cjs",
+    "test:layers-ui": "node tests/layers-ui.cjs",
+    "test:placement-ui": "node tests/placement-map-ui.cjs",
+    "test:support-ui": "node tests/support-ui.cjs",
+    "test:input-ui": "node tests/input-ui-smoke.cjs",
+    "test:updates-ui": "node tests/updates-ui.cjs",
+    "test:update-download": "node tests/update-download.cjs",
+    "package": "npm run build && electron-builder --win dir --publish never",
+    "package:installer": "npm run build && electron-builder --win nsis --publish never"
+  },
+  "build": {
+    "appId": "com.dansuzuki.opengrid.xr",
+    "productName": "OpenGrid XR",
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "dist/**",
+      "desktop/**",
+      "src/model.mjs",
+      "src/steadyxr-import.mjs",
+      "src/modules.mjs",
+      "src/lmu-rendering.mjs",
+      "src/helmet.mjs",
+      "src/spatial-overlays.mjs",
+      "src/input-bindings.mjs",
+      "src/enhancements.mjs",
+      "src/enhancement-defaults.json",
+      "src/color-correction.mjs",
+      "src/color-correction-defaults.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/build/Release",
+        "to": "native",
+        "filter": [
+          "OpenGridXR.dll",
+          "OpenGridXR.json",
+          "OpenGridXR-Output.exe",
+          "OpenGridXR-Enhancements.dll",
+          "OpenGridXR-Telemetry.exe",
+          "OpenGridXR-OverlayHost.exe",
+          "OpenGridXR-Control.exe",
+          "OpenGridXR-Input.exe",
+          "OpenGridXR-Layers.exe",
+          "OpenGridXR-Connection.exe"
+        ]
+      }
+    ],
+    "extraFiles": [
+      "LICENSE",
+      "THIRD-PARTY-NOTICES.md",
+      "README.md",
+      "CONTRIBUTING.md",
+      {
+        "from": "docs",
+        "to": "docs",
+        "filter": [
+          "**/*.md",
+          "images/screenshots/*.png"
+        ]
+      },
+      {
+        "from": "native/README.md",
+        "to": "native/README.md"
+      },
+      {
+        "from": "public/fonts",
+        "to": "licenses/fonts",
+        "filter": [
+          "*-OFL.txt"
+        ]
+      },
+      {
+        "from": "public/licenses",
+        "to": "licenses"
+      },
+      {
+        "from": "native/telemetry/third_party",
+        "to": "licenses/telemetry"
+      },
+      {
+        "from": "native/third_party",
+        "to": "licenses/native",
+        "filter": [
+          "**/*LICENSE*",
+          "**/*NOTICE*",
+          "**/*COPYING*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/app.ico",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "scripts/installer.nsh",
+      "artifactName": "OpenGridXR-${version}-Setup-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "DSuzuki35",
+        "repo": "OpenGridXR",
+        "releaseType": "release"
+      }
+    ],
+    "asar": true
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "lucide-react": "1.61.0",
+    "playwright-core": "1.64.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vite": "8.3.5"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  }
+}

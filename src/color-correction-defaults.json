@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "preset": "neutral",
+  "cycleShortcut": "Ctrl+Alt+F6",
+  "presets": {
+    "sun": { "brightness": 75, "contrast": 100, "saturation": 95, "gamma": 100 },
+    "night": { "brightness": 110, "contrast": 95, "saturation": 95, "gamma": 135 },
+    "custom": { "brightness": 100, "contrast": 100, "saturation": 100, "gamma": 100 }
+  }
+}

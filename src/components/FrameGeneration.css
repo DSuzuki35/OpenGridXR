@@ -1,0 +1,35 @@
+.vectorxr-credit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 17px 19px;
+  margin-bottom: 24px;
+  border: 1px solid #765291;
+  border-left: 3px solid #bb8ae2;
+  border-radius: 6px;
+  background: linear-gradient(110deg, #7f4e9e2b, #33273e40);
+}
+.vectorxr-credit > div { flex: 1 1 260px; }
+.vectorxr-credit-kicker { font: 8px var(--mono); letter-spacing: 1px; color: #c49ee0; }
+.vectorxr-credit h3 { margin: 7px 0; font-size: 20px; color: #eadcf5; font-weight: 550; }
+.vectorxr-credit p { color: #baa5ca; font-size: 11px; line-height: 1.65; max-width: 560px; }
+.vectorxr-credit .button { white-space: nowrap; }
+.synthesis-preview-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.synthesis-preview-heading strong { color: #ddc8ec; font-size: 12px; }
+.synthesis-preview-heading > span { color: #b199c3; font-size: 10px; }
+.synthesis-preview .sequence-frame { height: 155px; }
+.synthesis-preview .sequence-frame > strong { font-size: 10px; padding: 9px 4px; }
+.synthesis-preview .sequence-frame small { display: block; margin-top: 5px; font: 7px var(--mono); letter-spacing: .6px; opacity: .8; }
+.synthesis-preview .frame-road { opacity: .7; }
+.frame-car { position: absolute; top: 39%; width: 19px; height: 29px; border: 1px solid #ded0e8; border-radius: 5px; background: linear-gradient(#c0a4d2 20%, #4d3d5b 20% 50%, #c0a4d2 50%); box-shadow: 0 5px 12px #0008; transform: rotate(90deg); }
+.generated .frame-car { border-style: dashed; background: linear-gradient(#bb8ae2 20%, #66477b 20% 50%, #bb8ae2 50%); }
+.frame-motion-track { position: relative; height: 2px; margin: 13px 10% 0; background: linear-gradient(90deg, #685278, #b68bd6, #685278); }
+.frame-motion-dot { display: block; width: 7px; height: 7px; position: absolute; top: -3px; border-radius: 50%; background: #e3c1fc; box-shadow: 0 0 10px #c499ec; animation: frame-progress 3s linear infinite; }
+.extrapolate .frame-motion-track { background: linear-gradient(90deg, #685278 55%, #b68bd6 55%, #b68bd655); }
+.synthesis-explanation { font-size: 10px; color: #b199c3; line-height: 1.7; margin: 16px 0 0; }
+.synthesis-preview .diagram-caption { font-size: 7px; }
+@keyframes frame-progress { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .frame-motion-dot { animation: none; left: 50%; } .extrapolate .frame-motion-dot { left: 82%; } }
+@media (max-width: 900px) { .synthesis-preview .sequence-frame > strong { font-size: 8px; } .synthesis-preview .sequence-frame small { font-size: 6px; letter-spacing: 0; } }

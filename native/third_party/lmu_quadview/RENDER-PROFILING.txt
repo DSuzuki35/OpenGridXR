@@ -1,0 +1,81 @@
+RENDER PROFILING
+
+1. In Setup, enable diagnostics and logging, then enable render profiling.
+   Choose 30-300 seconds; the default is 120. Launch with normal rendering settings.
+2. Load a track and drive normally. Keep LMU focused on the desktop and press
+   Ctrl+Alt+F9 once. A held key does not repeatedly toggle capture.
+3. Capture ends at the duration boundary. The same shortcut ends it early.
+   Deadlines and periodic checkpoints continue when XR menu frames are rendered.
+4. Exit normally. Any active capture is saved on session/instance teardown and
+   its log is flushed, including when teardown runs on another thread.
+5. The package's logs/ directory contains quad-*.log and matching *-run.json.
+   A completed or partial capture includes render_profile summary and complete.
+   render_profile armed alone means no capture has been triggered.
+
+CPU SLOTS
+
+outer0/1          Original LMU eye render, including native resource-bank handling.
+focus_hook0/1     Complete additional focus path after the original eye render.
+focus_scene0/1    Native SceneRender invoked for the focus view.
+focus_prepare0/1  Focus camera/history/projection preparation.
+focus_restore0/1  Focus completion and restoration of outer camera state.
+outer_copy0/1     Outer image validation, acquisition/wait and transfer.
+outer_wait0/1     Acquisition/wait subset of outer_copy.
+native_prepare0/1 Smaller native resource-bank validation and binding setup.
+native_restore0/1 Native bindings/view/viewport restoration.
+sort_outer0/1, sort_focus0/1
+                 World render-group hooks where available for the active path.
+ui               UI hook, including extra outer-view UI work.
+provider_submit  Downstream xrEndFrame, including provider/runtime waits.
+frame_interval   Time between consecutive scene frames, including frame pacing.
+non_scene_ui, non_scene_provider_submit, non_scene_outer_wait0/1
+                 Corresponding calls in XR frames without a verified scene.
+
+Calls are accumulated per XR frame before computing mean, p50, p95, p99 and max.
+Samples count frames with that scope; calls count invocations. The summary also
+counts scene frames, completed XR frames and non-scene frames. Menu gaps are not
+included in scene cadence, and tokens crossing abandoned frames are discarded.
+Only the verified render thread records measurements. Missing slots mean no
+samples were observed, not zero cost. Up to 65,536 frames are retained per slot;
+overflow is counted as dropped.
+
+CPU values are ELAPSED WALL TIME, including driver/runtime waits. Nested scopes
+overlap: focus_hook includes focus_scene and preparation/restoration; sort
+scopes are within render scopes. Do not sum parents and children or equate these
+measurements to CPU utilization. No single-pass stereo or draw reduction occurs.
+
+GPU SLOTS
+
+outer0/1 and focus0/1 measure original outer and repeated focus rendering.
+Queries are sampled across the full capture, targeting about 480 results per
+slot, with a 512-sample limit. At 120 seconds the interval is about 250 ms.
+DONOTFLUSH polling reads results asynchronously without explicit GPU Flush or
+blocking query waits. Disjoint, failed, dropped and pending results are counted.
+These slots omit copies, UI, provider composition and runtime encoding; they
+cannot be treated as total GPU frame time.
+
+OVERHEAD AND SAVING
+
+Active diagnostics add clock reads, short locks, sample writes and sparse GPU
+queries. Summary sorting/logging can hitch at the capture boundary. Use the same
+profiling configuration for comparisons and disable diagnostics for normal play.
+No particular CPU overhead or performance improvement is claimed.
+
+CPU mean checkpoints are written every 15 seconds during capture. A normal close
+saves partial statistics and flushes the log. Another teardown thread saves
+completed GPU results without touching the D3D11 context; outstanding scopes and
+queries are explicitly omitted. A killed/crashed process may retain checkpoints
+but lose final percentiles and recent samples. No shutdown handler can guarantee
+final saving after forced termination.
+
+Untick Setup -> Enable diagnostics and logging, then relaunch to disable mod
+logging, run metadata, profiling clocks/queries, legacy timing/benchmark triggers,
+pixel statistics and view captures. This overrides saved profiling-on. Existing
+logs remain, and the preference is saved. With diagnostics off there is no
+capture to save at exit. Small disabled-feature checks remain. Provider/runtime
+logs and overlays are controlled separately. The CLI equivalent is
+mod/launch.ps1 -DisableDiagnostics; native enforcement is LMU_QV_DIAGNOSTICS=0.
+
+Captures can contain personal installation paths and run details. Keep them out
+of source commits. Compare the same track, car, grid and actual image sizes when
+evaluating providers; slider labels can map to different dimensions.

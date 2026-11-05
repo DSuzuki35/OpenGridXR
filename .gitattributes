@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.ico binary
+*.woff2 binary
+# Preserve whitespace in upstream source and licence texts.
+native/third_party/** -whitespace
+public/fonts/*-OFL.txt -whitespace

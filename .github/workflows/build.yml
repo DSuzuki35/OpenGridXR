@@ -1,0 +1,65 @@
+name: Build and test
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Build the private enhancements engine
+        shell: pwsh
+        run: ./scripts/build-enhancements.ps1 -SkipTests
+      - name: Build native components
+        shell: pwsh
+        run: |
+          cmake -S native -B native/build -G "Visual Studio 17 2022" -A x64
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build native/build --config Release --parallel 4
+          exit $LASTEXITCODE
+      - name: Run portable native checks
+        shell: pwsh
+        run: ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
+      - name: Package unsigned application
+        run: npm run package
+      - name: Check packaged module settings and lazy pages
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $env:OPENGRIDXR_TEST_EXE = (Resolve-Path "release/$version/win-unpacked/OpenGrid XR.exe").Path
+          npm run test:modules-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:lmu-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:layers-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:input-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:placement-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:stream-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run test:support-ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/quick-menu-editor-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/quick-menu-renderer-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/color-correction-ui.cjs
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenGridXR-windows-x64-development
+          path: release/*/win-unpacked/
+          retention-days: 14

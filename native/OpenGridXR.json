@@ -1,0 +1,11 @@
+{
+  "file_format_version": "1.0.0",
+  "api_layer": {
+    "name": "XR_APILAYER_OPENGRIDXR",
+    "library_path": ".\\OpenGridXR.dll",
+    "api_version": "1.0",
+    "implementation_version": "1",
+    "description": "OpenGrid XR simracing crop, aperture mask and clean streaming output",
+    "disable_environment": "DISABLE_OPENGRIDXR"
+  }
+}
