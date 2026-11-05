@@ -23,7 +23,7 @@ test('system font query is lazy and uses the fixed hidden bounded PowerShell pro
   assert.match(script,/PresentationCore/);
   assert.match(script,/\[System\.Windows\.Media\.Fonts\]::SystemFontFamilies/);
   assert.equal(options.windowsHide,true);
-  assert.equal(options.timeout,5000);
+  assert.equal(options.timeout,30000);
   assert.equal(options.maxBuffer,1024*1024);
   assert.equal(options.encoding,'utf8');
   assert.equal(options.shell,undefined);

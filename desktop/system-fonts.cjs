@@ -45,7 +45,9 @@ function createSystemFonts({run=promisify(execFile),platform=process.platform,no
   async function enumerate() {
     let stdout;
     try {
-      ({stdout}=await run(POWERSHELL,[...ARGS],{windowsHide:true,timeout:5000,maxBuffer:MAX_BYTES,encoding:'utf8'}));
+      // Cold Windows/WPF font caches can exceed five seconds on slower PCs.
+      // This on-demand async query never runs in the game's render path.
+      ({stdout}=await run(POWERSHELL,[...ARGS],{windowsHide:true,timeout:30000,maxBuffer:MAX_BYTES,encoding:'utf8'}));
     } catch(error) {
       return unavailable(error?.killed||error?.code==='ETIMEDOUT'
         ?'System font enumeration timed out. Refresh to try again.'
