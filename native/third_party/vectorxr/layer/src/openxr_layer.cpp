@@ -3004,7 +3004,7 @@ XrResult OpenXrLayer::CreateSession(XrInstance instance,
 }
 
 XrResult OpenXrLayer::DestroySession(XrSession session) {
-    {std::scoped_lock lock(mutex_);if(session==active_session_){desktop_session_running_.store(false);overlays_.setInputFocused(false);}}
+    {std::scoped_lock lock(mutex_);if(session==active_session_){desktop_session_running_.store(false);overlays_.setInputFocused(false);helmet_.cancelVisorCycle();}}
     logger_.Info("xrDestroySession requested by application.");
     SetInputDeviceSessionActive(false);
     TeardownWatch watch(logger_, "xrDestroySession", framegen_.TeardownWait(),
@@ -3230,7 +3230,7 @@ XrResult OpenXrLayer::BeginSession(XrSession session, const XrSessionBeginInfo* 
 }
 
 XrResult OpenXrLayer::EndSession(XrSession session) {
-    {std::scoped_lock lock(mutex_);if(session==active_session_){desktop_session_running_.store(false);overlays_.setInputFocused(false);}}
+    {std::scoped_lock lock(mutex_);if(session==active_session_){desktop_session_running_.store(false);overlays_.setInputFocused(false);helmet_.cancelVisorCycle();}}
     logger_.Info("xrEndSession requested by application.");
     TeardownWatch watch(logger_, "xrEndSession", framegen_.TeardownWait(),
                         [this] { return framegen_.PresenterActivity(); },
@@ -10588,6 +10588,7 @@ XrResult OpenXrLayer::PollEvent(XrInstance instance, XrEventDataBuffer* event_da
         std::scoped_lock lock(mutex_);
         if (change.session == active_session_) {
             observed_session_state_ = change.state;
+            if(change.state!=XR_SESSION_STATE_FOCUSED)helmet_.cancelVisorCycle();
             overlays_.setInputFocused(desktop_session_running_.load()&&change.state==XR_SESSION_STATE_FOCUSED);
             if (change.state == XR_SESSION_STATE_FOCUSED) {
                 eye_gaze_sync_not_focused_ = false;
@@ -17556,6 +17557,10 @@ void OpenXrLayer::PollRuntimeRelay() {
                     }
                     if (action == "osd.toggle") return osd_.ApplyControl(OsdControl::ToggleVisibility);
                     if (action == "osd.cycle") return osd_.ApplyControl(OsdControl::CycleLayout);
+                    if (action == "helmet.visor-cycle") {
+                        DWORD foreground_pid{};GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
+                        return helmet_.cycleVisor(observed_session_state_==XR_SESSION_STATE_FOCUSED&&foreground_pid==GetCurrentProcessId());
+                    }
                     return false;
                 }
                 if (!command.quadviews_diagnostic_visualization || !QuadViewsDiagnosticVisualizationAvailable()) return false;
@@ -17620,6 +17625,7 @@ void OpenXrLayer::PollRuntimeRelay() {
         status.osd_available=overlay.available && resolved_settings_.core.osd.enabled; status.osd_visible=overlay.visible;
         status.osd_compact=overlay.compact; status.osd_message=overlay.message;
         status.framegen_toggle_available=framegen_owns_pacing_.load(std::memory_order_acquire);
+        status.visor_cycle_available=helmet_.status().cycleAvailable;
         status.turbo_reason = turbo_recovery_.Reason();
         if (turbo_yielded_to_framegen_)
             status.turbo_reason = "Frame Generation owns frame pacing in this session.";

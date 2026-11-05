@@ -89,6 +89,7 @@ bool WriteRuntimeBenchmark(const std::filesystem::path&, const RuntimeBenchmarkD
 struct RuntimeStatusDocument {
     RuntimeFrameCounters counters;
     bool framegen_toggle_available{false};
+    bool visor_cycle_available{false};
     bool osd_available{false}, osd_visible{false}, osd_compact{false};
     std::string osd_message;
     std::string turbo_state;

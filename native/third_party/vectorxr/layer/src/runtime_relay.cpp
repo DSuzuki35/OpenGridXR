@@ -306,7 +306,7 @@ bool ReadRuntimeControl(const std::filesystem::path& path, RuntimeControlDocumen
             const auto value = string();
             if (!value || value->empty()) return invalid();
             if (*key == "targetSessionId") parsed.target_session_id = *value;
-            else if (*value == "framegen.toggle" || *value == "osd.toggle" || *value == "osd.cycle") parsed.driving_action = *value;
+            else if (*value == "framegen.toggle" || *value == "osd.toggle" || *value == "osd.cycle" || *value == "helmet.visor-cycle") parsed.driving_action = *value;
             else return invalid();
         } else if (*key == "quadviewsDiagnosticVisualization") {
             parsed.quadviews_diagnostic_visualization = boolean();
@@ -342,7 +342,12 @@ bool ApplyRuntimeControl(const RuntimeControlDocument& control, std::string_view
     if (!last_applied_revision || control.protocol_version != kRuntimeRelayProtocolVersion ||
         session_id.empty() || control.target_session_id != session_id ||
         control.expires_at_unix_milliseconds < now || control.revision <= *last_applied_revision) return false;
-    if (!apply(control)) return false;
+    if (!apply(control)) {
+        // A visor button is a momentary press, not a desired state. Consume a
+        // rejected press too, so restoring focus/readiness cannot replay it.
+        if(control.driving_action=="helmet.visor-cycle")*last_applied_revision=control.revision;
+        return false;
+    }
     *last_applied_revision = control.revision;
     return true;
 }
@@ -361,6 +366,7 @@ bool WriteRuntimeStatus(const std::filesystem::path& path, const RuntimeStatusDo
            << "  \"counters\": {\"application\":" << document.counters.application << ",\"generated\":" << document.counters.generated
            << ",\"repeated\":" << document.counters.repeated << ",\"submitted\":" << document.counters.submitted << ",\"displayed\":null},\n"
            << "  \"capabilities\": { \"benchmark\": true, \"drivingControls\": true, \"framegenToggle\": " << (document.framegen_toggle_available ? "true" : "false")
+           << ", \"visorCycle\": " << (document.visor_cycle_available ? "true" : "false")
            << ", \"quadviewsDiagnosticVisualization\": " << (document.quadviews_diagnostic_visualization_available ? "true" : "false") << ", \"osd\": " << (document.osd_available ? "true" : "false") << " },\n"
            << "  \"state\": { \"quadviewsDiagnosticVisualization\": " << (document.quadviews_diagnostic_visualization_enabled ? "true" : "false")
            << ", \"osdVisible\": " << (document.osd_visible ? "true" : "false")

@@ -2,7 +2,7 @@
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {atomicWrite}=require('./store.cjs');
-const ACTIONS=Object.freeze({'framegen.enabled':'framegen.toggle','overlay.enabled':'osd.toggle','overlay.layout':'osd.cycle'});
+const ACTIONS=Object.freeze({'framegen.enabled':'framegen.toggle','overlay.enabled':'osd.toggle','overlay.layout':'osd.cycle','helmet.visorCycle':'helmet.visor-cycle'});
 const GAME_EXES={iracing:/^iracingsim64(?:dx11)?(?:\.exe)?$/i,lmu:/^(?:le mans ultimate|lemansultimate|lmu)(?:\.exe)?$/i};
 const SESSION=/^[1-9]\d{0,9}-\d{1,16}-[a-zA-Z0-9-]{1,100}$/;
 function alive(pid){try{process.kill(pid,0);return true;}catch{return false;}}
@@ -27,13 +27,14 @@ function createLiveControls({root,now=Date.now,isAlive=alive,delay=ms=>new Promi
     const action=ACTIONS[actionId];if(!action)throw new Error('Unsupported live action.');
     if(pending)throw new Error('A live action is already pending.');
     const fg=action==='framegen.toggle';
-    if(!(fg?profile.framegen?.enabled:profile.overlay?.enabled))throw new Error(`Enable ${fg?'frame generation':'the Performance HUD'} and save before starting the game.`);
+    const visor=action==='helmet.visor-cycle';
+    if(!(visor?profile.helmet?.enabled&&profile.helmet?.visorHotkey:fg?profile.framegen?.enabled:profile.overlay?.enabled))throw new Error(`Enable ${visor?'the helmet and Switch visor while driving':fg?'frame generation':'the Performance HUD'} and save before starting the game.`);
     pending=true;let commandFile,revision;
     try {
       const candidates=await sessions(profile.game);
       if(candidates.length!==1)throw new Error(candidates.length?'Keep only one matching game session running.':'No supported running engine session. Start the game with the updated runtime layer.');
       const {state,name}=candidates[0];
-      if(!(fg?state.capabilities.framegenToggle:state.capabilities.osd))throw new Error('This action is unavailable in the running session. Enable the feature and restart the game.');
+      if(!(visor?state.capabilities.visorCycle:fg?state.capabilities.framegenToggle:state.capabilities.osd))throw new Error('This action is unavailable in the running session. Enable the feature and restart the game.');
       const ack=Number.isSafeInteger(state.acknowledgedRevision)&&state.acknowledgedRevision>=0?state.acknowledgedRevision:0;
       revision=Math.max(now(),lastRevision+1,ack+1);lastRevision=revision;
       const expiry=now()+timeoutMs;

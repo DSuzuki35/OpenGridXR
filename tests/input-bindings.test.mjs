@@ -31,10 +31,25 @@ test("controller menu offers only quick driving actions and existing overlay vis
   const source = createSpatialOverlay();
   p.spatialOverlays.items.push(source);
   assert.deepEqual(new Set(listToggleActions(p).map(action => action.id)), new Set([
-    "framegen.enabled", "overlay.enabled", "overlay.layout", "spatialOverlays.enabled", "centering.game", "colorCorrection.cycle", `spatialOverlays.${source.id}.enabled`,
+    "framegen.enabled", "overlay.enabled", "overlay.layout", "spatialOverlays.enabled", "centering.game", "colorCorrection.cycle", "helmet.visorCycle", `spatialOverlays.${source.id}.enabled`,
   ]));
   assert.throws(() => toggleProfileAction(p, `spatialOverlays.${crypto.randomUUID()}.enabled`));
   assert.throws(() => validateBindings({ enabled: true, bindings: [button(`spatialOverlays.${crypto.randomUUID()}.enabled`)] }, p));
+});
+
+test('visor cycling is a transient button or POV action requiring helmet and live visor switching',()=>{
+  const p=createProfile();
+  const action=()=>listToggleActions(p).find(a=>a.id==='helmet.visorCycle');
+  assert.equal(action()?.disabled,true);
+  p.helmet.enabled=true;p.helmet.visorHotkey=true;
+  assert.equal(action().disabled,false);assert.equal(action().transient,true);assert.equal(action().checked,false);
+  for(const input of [button('helmet.visorCycle'),{...button('helmet.visorCycle'),kind:'pov',index:0,direction:2}]){
+    p.inputBindings.bindings=[input];assert.doesNotThrow(()=>validateProfile(p));
+    assert.doesNotThrow(()=>validateBindings(p.inputBindings));
+  }
+  const before=structuredClone(p);assert.throws(()=>toggleProfileAction(p,'helmet.visorCycle'),/unavailable/);assert.deepEqual(p,before);
+  p.helmet.visorHotkey=false;assert.equal(action().disabled,true);
+  p.helmet.visorHotkey=true;p.helmet.enabled=false;assert.equal(action().disabled,true);
 });
 
 test("game centering accepts buttons and POV bindings but never toggles profile settings", () => {

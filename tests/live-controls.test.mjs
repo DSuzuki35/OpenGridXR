@@ -50,6 +50,23 @@ test('two matching sessions are ambiguous and no command is written',async t=>{
   await fs.writeFile(path.join(f.root,'status',`${other}.json`),JSON.stringify({...f.state,sessionId:other,processId:124}));
   await assert.rejects(createLiveControls({root:f.root,now:()=>1000,isAlive:()=>true}).execute(f.profile,'overlay.enabled'),/one.*session|multiple/i);
 });
+
+test('visor binding dispatches only to a capable session and preserves the saved starting position',async t=>{
+  const f=await fixture(t,{capabilities:{drivingControls:true,visorCycle:true}});
+  f.profile.helmet={enabled:true,visorHotkey:true,visorPosition:'half'};
+  const before=structuredClone(f.profile);let clock=1000;
+  const controls=createLiveControls({root:f.root,now:()=>clock,isAlive:()=>true,delay:async()=>{
+    const command=JSON.parse(await fs.readFile(path.join(f.root,'control',`${session}.json`)));
+    assert.equal(command.drivingAction,'helmet.visor-cycle');assert.equal(command.targetSessionId,session);
+    clock+=25;f.state.acknowledgedRevision=command.revision;await fs.writeFile(f.file,JSON.stringify(f.state));
+  }});
+  await controls.execute(f.profile,'helmet.visorCycle');assert.deepEqual(f.profile,before);
+  for(const helmet of [{enabled:false,visorHotkey:true},{enabled:true,visorHotkey:false}])
+    await assert.rejects(controls.execute({...f.profile,helmet},'helmet.visorCycle'),/helmet|visor/i);
+  delete f.state.capabilities.visorCycle;await fs.writeFile(f.file,JSON.stringify(f.state));
+  await assert.rejects(controls.execute(f.profile,'helmet.visorCycle'),/unavailable|runtime/i);
+  await assert.rejects(fs.access(path.join(f.root,'control',`${session}.json`)));
+});
 test('an editor change detected before dispatch cancels the pending command',async t=>{
   const f=await fixture(t);
   await assert.rejects(createLiveControls({root:f.root,now:()=>1000,isAlive:()=>true,canApply:()=>false}).execute(f.profile,'overlay.enabled'),/discard edits/);

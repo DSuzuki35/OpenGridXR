@@ -2,6 +2,7 @@ import {usesFullRenderArea} from "../model.mjs";
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Aperture, Download, ImagePlus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Button, Note, Panel, Range, Segmented, Toggle } from './Controls.jsx';
+import { BindingButton } from './BindingContext.jsx';
 import ContourEditor, { TrackArt } from './ContourEditor.jsx';
 import { helmetPreviewGeometry, readHelmetGraphic, visorSettings, visorFonts, fitHelmetOpening, composeHelmetRaster } from '../helmet.mjs';
 import { isSimplePolygon, polygonArea } from '../model.mjs';
@@ -195,7 +196,8 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
         <Toggle label="Show helmet" description="Save and preview your helmet appearance" checked={helmet.enabled} onChange={enabled => onHelmetChange({ enabled })} bindingAction="helmet.enabled" />
         <div className="panel-divider" />
         <Segmented label="Visor position" value={openingHelmet.visorPosition ?? 'closed'} onChange={visorPosition => changeOpening({visorPosition})} options={[{value:'closed',label:'Closed'},{value:'half',label:'Half open'},{value:'open',label:'Fully open'}]} />
-        <Toggle label="Switch visor while driving" checked={openingHelmet.visorHotkey ?? false} onChange={visorHotkey => changeOpening({visorHotkey})} description="Ctrl+Alt+V cycles Closed / Half / Open while the sim has focus. Save before starting the session." />
+        <Toggle label="Switch visor while driving" checked={openingHelmet.visorHotkey ?? false} onChange={visorHotkey => changeOpening({visorHotkey})} description="Ctrl+Alt+V or your bound controller button cycles Closed / Half / Open while the sim has focus. Save before starting the session." />
+        {openingHelmet.visorHotkey && <div className="helmet-visor-binding"><span>Cycle visor position</span><BindingButton actionId="helmet.visorCycle" /></div>}
         {openingHelmet.visorHotkey && <Note>Crop reserves the fully open view for every visor position. Opening the visor during a race cannot reveal missing scenery. The shortcut changes the running session only; the saved position is restored on reload.</Note>}
         <Segmented label="Helmet editor section" value={section} onChange={setSection} options={[{ value: 'fit', label: 'Interior' }, { value: 'visor', label: 'Sunstrip' }, { value: 'graphic', label: 'Graphic' }, { value: 'tint', label: 'Visor' }]} />
         {!helmet.enabled && <p className="helmet-editor-muted">Switch on Show helmet to preview your changes.</p>}

@@ -15,7 +15,7 @@ embedded in the supplied assets.
 
 Version **0.5.1 fixes the helmet artwork path for systemwide runtime installations**. Earlier builds could load cropping and frame generation correctly while looking for the helmet's saved files in the wrong directory.
 
-1. Install 0.5.1, close both sims and Clean Output, then use **Setup → Update runtime layer**. Updating the editor alone does not replace the loaded layer.
+1. Install 0.5.1 or later, close both sims and Clean Output, then use **Setup → Update runtime layer**. Updating the editor alone does not replace the loaded layer.
 2. Select the profile for your game, enable **Show helmet**, save and restart the sim in OpenXR.
 3. If the helmet is still missing, test once with HUD/spatial overlays and frame generation disabled, then report which game/runtime and settings reproduce it.
 
@@ -59,6 +59,8 @@ both use the same artwork. No helmet mesh is rendered during a race.
 **Closed**, **Half open** and **Fully open** move the complete visor material, tint, strip and printing behind the stationary brow. These are three discrete positions, not a continuous animation. A clear visor with a short strip may look fully clear already at Half open because the strip is hidden behind the brow.
 
 Enable **Switch visor while driving** to cycle with **Ctrl+Alt+V** while the sim has focus. Save first. A held key does not repeat; switching affects only the current runtime session. Saving/reloading a profile restores its chosen starting position. Native decoding and static texture uploads happen at state changes, not every frame; switching can have a one-time loading cost. An unavailable or inconsistent variant retains the last valid visor.
+
+From **0.5.2**, bind a wheel, joystick or buttonbox button/POV using the gamepad icon next to **Cycle visor position**, or find the same action under **Controller bindings → Helmet**. Enable **Show helmet** and **Switch visor while driving**, learn the input and save before starting the sim. Each press cycles **Closed → Half open → Fully open → Closed**. Keep OpenGrid XR running for controller bindings; the game window and XR session must have focus. The keyboard shortcut remains available. After updating the app, also update the runtime layer with the sims closed.
 
 With live switching, automatic crop fitting always reserves the fully open view. An opaque closed sunstrip cannot justify cutting away scenery that opening it will reveal. With switching disabled, crop can fit the selected static position more tightly. Manual crop edits can override this safety, so use **Fit crop to visor opening** after such edits. Render crop is fixed for the running game session; restart after changing it.
 

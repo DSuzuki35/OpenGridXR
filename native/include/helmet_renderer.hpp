@@ -43,6 +43,7 @@ bool helmet_quad_geometry(const XrView &, float yaw, float pitch, XrPosef &, XrE
 bool helmet_shared_fov(const XrView &left, const XrView &right, XrFovf &);
 struct HelmetStatus {
     bool ready{};
+    bool cycleAvailable{};
     bool imageReduced{}; // Artwork was fitted once to the runtime's padded image limit.
     unsigned uploads{};
     std::string error;
@@ -65,5 +66,7 @@ class HelmetRenderer {
     // Explicit input seam for deterministic tests/hosts; no OS key injection.
     void shortcutSample(HelmetShortcutSample);
     HelmetStatus status() const;
+    bool cycleVisor(bool focused);
+    void cancelVisorCycle();
 };
 } // namespace og

@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "The source-available sim racing XR toolkit for noncommercial use by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -24,7 +24,7 @@
     "test:layers-ui": "node tests/layers-ui.cjs",
     "test:placement-ui": "node tests/placement-map-ui.cjs",
     "test:support-ui": "node tests/support-ui.cjs",
-    "test:input-ui": "node tests/input-ui-smoke.cjs",
+    "test:input-ui": "node tests/input-ui-smoke.cjs && node tests/visor-binding-ui.cjs",
     "test:updates-ui": "node tests/updates-ui.cjs",
     "test:update-download": "node tests/update-download.cjs",
     "package": "npm run build && electron-builder --win dir --publish never",

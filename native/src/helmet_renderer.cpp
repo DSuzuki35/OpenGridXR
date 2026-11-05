@@ -150,6 +150,7 @@ struct HelmetRenderer::Impl {
     std::array<Eye,2> eyes;
     std::array<Eye,2> pendingEyes;
     bool pending{},shortcutHeld{},externalShortcut{};
+    uint64_t cycleDeadline{};
     HelmetShortcutSample shortcut;
     HelmetVisorPosition position{HelmetVisorPosition::Closed},pendingPosition{HelmetVisorPosition::Closed};
     std::string loadedManifest;
@@ -183,7 +184,7 @@ struct HelmetRenderer::Impl {
     void reset() {
         for(auto &eye:eyes)clear(eye);
         for(auto &eye:pendingEyes)clear(eye);
-        pending=false;shortcutHeld=false;externalShortcut=false;shortcut={};loadedManifest.clear();
+        pending=false;cycleDeadline=0;shortcutHeld=false;externalShortcut=false;shortcut={};loadedManifest.clear();
         releaseGraphics();source11.Reset();source12.Reset();sourceQueue.Reset();
         session=XR_NULL_HANDLE; supported=false;
         telemetryMemory.close();telemetryLock.close();telemetrySeeded=telemetryAdvanced=false;
@@ -349,7 +350,7 @@ struct HelmetRenderer::Impl {
         stampKnown=!ec;stamp=modified;
         for(auto &eye:eyes)clear(eye);
         for(auto &eye:pendingEyes)clear(eye);
-        pending=false;loadedManifest.clear();
+        pending=false;cycleDeadline=0;loadedManifest.clear();
         config={};motion={};report.ready=false;report.imageReduced=false;report.error.clear();telemetryMemory.close();telemetryLock.close();
         telemetrySeeded=telemetryAdvanced=false;vehicle={};
         if(ec){releaseGraphics();return;}
@@ -428,13 +429,26 @@ void HelmetRenderer::reset(){auto &p=*impl_;std::lock_guard lock(p.mutex);p.rese
 void HelmetRenderer::viewConfiguration(XrViewConfigurationType type){auto&p=*impl_;std::lock_guard lock(p.mutex);p.viewType=type;p.motion={};}
 void HelmetRenderer::vehicleSample(HelmetVehicleSample sample){auto&p=*impl_;std::lock_guard lock(p.mutex);p.externalVehicle=true;p.vehicle=sample;p.vehicleSetTime=GetTickCount64();}
 void HelmetRenderer::shortcutSample(HelmetShortcutSample sample){auto&p=*impl_;std::lock_guard lock(p.mutex);p.externalShortcut=true;p.shortcut=sample;}
-HelmetStatus HelmetRenderer::status()const{auto&p=*impl_;std::lock_guard lock(p.mutex);return p.report;}
+HelmetStatus HelmetRenderer::status()const{auto&p=*impl_;std::lock_guard lock(p.mutex);auto report=p.report;
+    report.cycleAvailable=p.supported&&p.config.enabled&&p.config.visorHotkey&&p.report.ready;return report;}
+bool HelmetRenderer::cycleVisor(bool focused) {
+    auto&p=*impl_;std::lock_guard lock(p.mutex);
+    const auto now=GetTickCount64();
+    if(!focused||!p.supported||!p.config.enabled||!p.config.visorHotkey||!p.report.ready||p.pending||p.cycleDeadline>now)return false;
+    // Background control delivery only queues an edge. Preparation remains in
+    // the existing frame path, so holding this mutex cannot blank the helmet.
+    p.cycleDeadline=now+500;return true;
+}
+void HelmetRenderer::cancelVisorCycle(){auto&p=*impl_;std::lock_guard lock(p.mutex);p.cycleDeadline=0;}
 void HelmetRenderer::append(const XrFrameEndInfo &info,bool shouldRender,std::vector<const XrCompositionLayerBaseHeader*> &layers) {
     auto&p=*impl_;std::unique_lock lock(p.mutex,std::try_to_lock);
     if(!lock.owns_lock()||!p.supported)return;
     p.report.ready=false;
     p.poll();
-    const bool cycle=helmet_visor_shortcut(p.shortcutHeld,p.config.enabled&&p.config.visorHotkey&&shouldRender,p.keyboard());
+    const auto deadline=p.cycleDeadline;p.cycleDeadline=0;
+    const auto keyboard=p.keyboard();
+    const bool cycle=helmet_visor_shortcut(p.shortcutHeld,p.config.enabled&&p.config.visorHotkey&&shouldRender,keyboard)||
+        (deadline&&GetTickCount64()<=deadline&&keyboard.foreground);
     if(!p.config.enabled||!shouldRender||!info.layerCount||p.maxLayers<layers.size()+2)return;
     if(cycle)p.changeVisor();
     p.finishVisor();

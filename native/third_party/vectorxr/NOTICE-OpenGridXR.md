@@ -18,3 +18,5 @@ OpenGrid XR 0.3.12 passes the runtime swapchain dimensions to the independent he
 OpenGrid XR 0.4.0 adds an LMU-only, process-scoped policy gate for the embedded quad-view provider and preserves submitted rendered FOVs over later locate-cache entries in its shared composition plan. Other providers and processes do not enable quad emulation through this gate. These changes remain MPL-2.0; the separately linked LMU adapter remains in the sibling lmu_quadview directory under its own license.
 
 For integrated LMU launches selecting external QVFR or native quad views, the private engine forwards the adapter's requested quad-view extensions even when a pre-instance probe cannot enumerate the downstream provider. Internal quad emulation remains disabled for those providers.
+
+OpenGrid XR 0.5.2 extends the existing session-scoped live-control relay with a focused, momentary visor-cycle action and capability reporting. Rejected visor presses are consumed to prevent replay after focus returns. The adapted relay/engine files remain MPL-2.0; the separate helmet renderer retains the repository license.

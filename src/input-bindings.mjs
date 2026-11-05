@@ -10,6 +10,7 @@ const SPECS = [
   ["spatialOverlays.enabled", "Toggle all spatial overlays", "Spatial overlays"],
   ["centering.game", "Center VR in game", "Game centering"],
   ["colorCorrection.cycle", "Cycle VR color preset", "VR color correction"],
+  ["helmet.visorCycle", "Cycle visor position", "Helmet"],
 ];
 // Older profiles remain readable, but setup actions are never offered or executed.
 const LEGACY_ACTIONS = new Set([
@@ -59,8 +60,8 @@ export function listToggleActions(profile) {
       label,
       group,
       restartRequired,
-      disabled: (id === "centering.game" && !profile?.centering?.gameShortcut) || (id === 'colorCorrection.cycle' && !profile?.colorCorrection?.enabled),
-      ...(id === 'colorCorrection.cycle' ? {transient:true} : {}),
+      disabled: (id === "centering.game" && !profile?.centering?.gameShortcut) || (id === 'colorCorrection.cycle' && !profile?.colorCorrection?.enabled) || (id === 'helmet.visorCycle' && !(profile?.helmet?.enabled && profile?.helmet?.visorHotkey)),
+      ...(['colorCorrection.cycle','helmet.visorCycle'].includes(id) ? {transient:true} : {}),
       checked:
         key === "layout"
           ? profile?.overlay?.layout === "compact"

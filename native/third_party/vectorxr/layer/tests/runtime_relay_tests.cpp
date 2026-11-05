@@ -77,7 +77,7 @@ int main() {
         const auto control = root / "control-test.json";
         depthxr::RuntimeControlDocument document;
         const std::string prefix = "{\"protocolVersion\":1,\"targetSessionId\":\"1234-1000-1\",\"revision\":7,\"expiresAtUnixMilliseconds\":2000,";
-        for (const auto* action : {"framegen.toggle", "osd.toggle", "osd.cycle"}) {
+        for (const auto* action : {"framegen.toggle", "osd.toggle", "helmet.visor-cycle", "osd.cycle"}) {
             Touch(control, prefix + "\"drivingAction\":\"" + action + "\"}");
             Expect(depthxr::ReadRuntimeControl(control, &document), "A supported driving action should parse without a diagnostic command");
             Expect(document.driving_action == action && !document.quadviews_diagnostic_visualization,
@@ -101,6 +101,11 @@ int main() {
         document.driving_action = "framegen.toggle";
         Expect(!depthxr::ApplyRuntimeControl(document, "1234-1000-1", 1001, &applied, apply) && applied == 7,
                "An unavailable operation must not be acknowledged");
+        document.revision=9;document.driving_action="helmet.visor-cycle";
+        Expect(!depthxr::ApplyRuntimeControl(document,"1234-1000-1",1001,&applied,apply)&&applied==9,
+               "A rejected visor press is consumed, so focus regain cannot replay it");
+        Expect(!depthxr::ApplyRuntimeControl(document,"1234-1000-1",1002,&applied,[](const auto&){return true;}),
+               "An already rejected visor press cannot execute later");
         Touch(control, prefix + "\"quadviewsDiagnosticVisualization\":false}");
         Expect(depthxr::ReadRuntimeControl(control, &document) && document.quadviews_diagnostic_visualization == false,
                "Existing diagnostic commands must remain compatible");
@@ -123,12 +128,13 @@ int main() {
         depthxr::RuntimeStatusDocument status;
         status.session_id = "1234-1000-1";
         status.framegen_toggle_available = true;
+        status.visor_cycle_available = true;
         const auto status_path = root / "status-test.json";
         Expect(depthxr::WriteRuntimeStatus(status_path, status), "Driving capabilities should serialize");
         std::ifstream status_stream(status_path);
         const std::string status_text((std::istreambuf_iterator<char>(status_stream)), std::istreambuf_iterator<char>());
         Expect(status_text.find("\"drivingControls\": true") != std::string::npos &&
-               status_text.find("\"framegenToggle\": true") != std::string::npos,
+               status_text.find("\"framegenToggle\": true") != std::string::npos && status_text.find("\"visorCycle\": true") != std::string::npos,
                "Status must advertise supported driving controls to desktop clients");
     }
 

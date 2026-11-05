@@ -254,6 +254,7 @@ int main(int argc,char **argv){
             check(idleLayers.size()==1,"disabled helmet submits no layers");
         }
         check(spaceCreations==0&&creations==0&&acquisitions==0&&images.empty(),"disabled helmet creates no reference spaces or swapchains");
+        check(!renderer.status().cycleAvailable&&!renderer.cycleVisor(true),"disabled helmet rejects controller cycling without creating resources");
         check(multithread->GetMultithreadProtected()==protectionBefore,"disabled helmet leaves game context protection unchanged");
         {std::ofstream file(config);file<<enabled;}
         std::filesystem::last_write_time(config,std::filesystem::file_time_type::clock::now()+std::chrono::seconds(1));
@@ -411,6 +412,19 @@ int main(int argc,char **argv){
             check(images.size()==2,"completed switch retires previous static swapchains");
         };
         sample(false);shown(0x8000FF00);
+        check(renderer.status().cycleAvailable,"ready live visor advertises controller cycling");
+        check(!renderer.cycleVisor(false),"unfocused controller press cannot change visor");sample(false);shown(0x8000FF00);
+        for(const auto expected:{0x80FF0000u,0x800000FFu,0x8000FF00u}) {
+            const auto beforeCreates=creations;
+            check(renderer.cycleVisor(true),"focused controller cycles to the next visor variant");
+            check(creations==beforeCreates,"queuing a controller press does not prepare images or create swapchains on the background thread");
+            check(!renderer.cycleVisor(true)&&renderer.status().cycleAvailable,"busy transition rejects duplicate press without withdrawing session capability");
+            sample(false);shown(expected);check(renderer.status().cycleAvailable,"completed transition accepts the next press");
+        }
+        check(renderer.cycleVisor(true),"queue before focus loss");sample(false,false);shown(0x8000FF00);sample(false);shown(0x8000FF00);
+        check(renderer.cycleVisor(true),"queue before focus event without an intervening frame");renderer.cancelVisorCycle();sample(false);shown(0x8000FF00);
+        check(renderer.cycleVisor(true),"queue before rendering pause");sample(false,true,false);sample(false);shown(0x8000FF00);
+        check(renderer.cycleVisor(true),"queue before frame timeout");Sleep(520);sample(false);shown(0x8000FF00);
         sample(true);shown(0x80FF0000);
         const auto liveUploads=renderer.status().uploads,liveCreates=creations;
         for(unsigned n=0;n<40;++n)sample(true);
@@ -421,6 +435,7 @@ int main(int argc,char **argv){
         check(layers.size()==3&&pixel(images.at(reinterpret_cast<const XrCompositionLayerQuad*>(layers[1])->subImage.swapchain))==0x80FF0000,"pending variant retains previous image");
         timeout=false;sample(true);shown(0x800000FF);
         {std::ofstream file(half);file<<"invalid";}
+        check(renderer.cycleVisor(true),"controller queues unavailable variant without decoding on the background thread");sample(false);shown(0x800000FF);
         sample(false);sample(true);shown(0x800000FF);
         check(!renderer.status().error.empty()&&renderer.status().ready,"broken variant keeps last valid visor with error");
         writePng(half,0x8000FF00,128,72);sample(false);sample(true);shown(0x800000FF);
@@ -443,7 +458,8 @@ int main(int argc,char **argv){
         renderer.reset();
         {std::ofstream file(config);file<<R"({"version":2,"enabled":true,"leftImage":"OpenGridXR-helmet-iracing-left.png","rightImage":"OpenGridXR-helmet-iracing-right.png","visorHotkey":false,"visorPosition":"open"})";}
         check(initialize(16),"static v2 initialize");sample(false);shown(0x800000FF);sample(true);shown(0x800000FF);
-        check(renderer.status().uploads==2,"static v2 uses selected baked canonical image and ignores shortcut");renderer.reset();
+        check(renderer.status().uploads==2,"static v2 uses selected baked canonical image and ignores shortcut");
+        check(!renderer.status().cycleAvailable&&!renderer.cycleVisor(true),"disabled live visor rejects controller cycling");renderer.reset();
         writePng(left,0x800000FF,4096,2304);
         writePng(half,0x8000FF00,4096,2304);writePng(open,0x80FF0000,4096,2304);
         std::string detailed=live;detailed.replace(detailed.find("\"visorPosition\":\"half\""),22,"\"visorPosition\":\"closed\"");
