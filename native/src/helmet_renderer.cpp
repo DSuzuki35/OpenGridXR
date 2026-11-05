@@ -417,7 +417,9 @@ bool HelmetRenderer::initialize(XrSession session,const void *binding,uint32_t m
        !api.wait||!api.release||!api.destroy||!api.createSpace||!api.destroySpace||!api.locate||!locate)return false;
     p.api=api;p.locateViews=locate;p.session=session;p.maxLayers=maxLayers;p.game=game;
     p.maxWidth=maxSwapchainWidth;p.maxHeight=maxSwapchainHeight;
-    p.directory=directory.empty()?own_directory():directory;
+    // The host supplies the DLL directory. Machine installs keep mutable
+    // manifests/artwork in the current user's runtime, like the main layer.
+    p.directory=directory.empty()?own_directory():og::runtime_data_directory(directory);
     if(p.directory.empty()||!p.retainBinding(binding))return false;
     p.configPath=p.directory/("OpenGridXR-helmet-"+game+".json");
     p.supported=true;p.poll(true);return true;

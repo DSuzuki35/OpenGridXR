@@ -58,6 +58,10 @@ jobs:
           node tests/quick-menu-renderer-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/color-correction-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/full-visor-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/visor-template-export.cjs
           exit $LASTEXITCODE
       - run: npm run test:update-download
       - name: Create draft release with updater metadata

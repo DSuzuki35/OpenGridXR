@@ -57,6 +57,10 @@ jobs:
           node tests/quick-menu-renderer-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/color-correction-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/full-visor-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/visor-template-export.cjs
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         with:

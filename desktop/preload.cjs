@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld(
   "openGrid",
   Object.freeze({
     load: () => invoke("load"),
+    listSystemFonts: options => invoke('listSystemFonts',options),
+    downloadVisorTemplate: request => invoke('downloadVisorTemplate',request),
     layersInventory: () => invoke('layersInventory'),
     layersSetEnabled: request => invoke('layersSetEnabled',request),
     layersRestore: request => invoke('layersRestore',request),

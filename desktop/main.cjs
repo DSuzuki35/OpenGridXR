@@ -341,6 +341,11 @@ else {
         return spatial.menuAction(event,actionId);
       });
       handle("load", snapshot);
+      let systemFonts,visorTemplates;
+      handle('listSystemFonts',options=>(systemFonts ||= require('./system-fonts.cjs').createSystemFonts()).list(options));
+      handle('downloadVisorTemplate',request=>(visorTemplates ||= require('./visor-templates.cjs').createVisorTemplates({
+        assetDirectory:path.join(__dirname,'../dist/templates/visor'),showSaveDialog:options=>dialog.showSaveDialog(win,options),
+      })).download(request));
       handle('layersInventory',()=>layers().inventory());
       handle('layersSetEnabled',request=>layers().setEnabled(request));
       handle('layersRestore',request=>layers().restore(request));

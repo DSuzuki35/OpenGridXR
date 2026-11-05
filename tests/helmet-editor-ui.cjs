@@ -46,7 +46,7 @@ const assert = require('node:assert/strict');
     assert.ok(negativeCurve !== straightText && negativeCurve !== positiveCurve, 'Negative curvature bends in the opposite direction');
     const mirrored = await page.locator('.helmet-render > img').getAttribute('src');
     assert.equal(await page.locator('.helmet-render').getAttribute('data-mirrored'), 'true');
-    await page.getByRole('switch', { name: 'Mirror lettering & graphic', exact: true }).click();
+    await page.getByRole('switch', { name: 'Mirror lettering', exact: true }).click();
     await ready();
     assert.notEqual(await page.locator('.helmet-render > img').getAttribute('src'), mirrored);
     await page.getByLabel('Sunstrip color', { exact: true }).fill('#bd732e');

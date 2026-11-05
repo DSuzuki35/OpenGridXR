@@ -4,7 +4,7 @@
 
 A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**: shape your view, add a helmet or dashboard, adjust the VR image and create a clean stream output. Source-available and free for noncommercial use.
 
-[Download 0.5.0](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
+[Download 0.5.1](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
 
 ## In the headset
 
@@ -45,6 +45,7 @@ There is no global Driving/Streaming switch in 0.5.0. **Stream → Keep full ren
 | Use the headset menu | [Menu and controls](docs/quick-menu.md) |
 | Capture a desktop, window or dashboard | [Spatial overlays, head pointing and hold precision](docs/spatial-overlays.md) |
 | Change helmet, visor or lettering | [Helmet studio](docs/helmets.md) |
+| Design a custom full visor | [PNG / layered PSD templates](docs/visor-templates.md) |
 | Adjust VR brightness and colors | [VR-only presets · Ctrl+Alt+F6](docs/color-correction.md) |
 | Stream to OBS or a second PC | [Clean Output and render area](docs/streaming.md) |
 | Configure LMU quad views or VRS | [LMU rendering and rig checks](docs/lmu-rendering.md) |

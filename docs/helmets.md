@@ -11,6 +11,16 @@ embedded in the supplied assets.
 
 *0.5.0 demo configuration; scene preview is illustrative, not a live game capture.*
 
+## Helmet missing in VR?
+
+Version **0.5.1 fixes the helmet artwork path for systemwide runtime installations**. Earlier builds could load cropping and frame generation correctly while looking for the helmet's saved files in the wrong directory.
+
+1. Install 0.5.1, close both sims and Clean Output, then use **Setup → Update runtime layer**. Updating the editor alone does not replace the loaded layer.
+2. Select the profile for your game, enable **Show helmet**, save and restart the sim in OpenXR.
+3. If the helmet is still missing, test once with HUD/spatial overlays and frame generation disabled, then report which game/runtime and settings reproduce it.
+
+**“Headset validation required” is a general compatibility notice**, not a detected fault or a switch that disables the helmet. This path fix is covered by D3D11 and D3D11-on-D3D12 tests; it does not establish validation on every SteamVR/headset combination.
+
 ## Artwork and display
 
 Each style has a padded shell, gasket, stitched seams, cheek pads, fasteners and
@@ -59,6 +69,14 @@ The visor and helmet stay flat and are composited after frame generation, includ
 Visor positions and detail presets were inspired by [Williem3's Sim-QVFR / ace-quadview](https://github.com/Williem3/Sim-QVFR), credited in the editor and [third-party notices](../THIRD-PARTY-NOTICES.md). This is an independent implementation with original OpenGrid artwork; no Sim-QVFR source or images are included.
 
 ## Customization and saved headset images
+
+For an entire visor design, choose **Graphic → Custom** and use the [PNG / layered PSD templates](visor-templates.md). The existing **Logo / strip** option keeps logo placement unchanged.
+
+For an installed font, choose **Sunstrip → Letter font → Custom**, then select a **System font**. **Refresh system fonts** rechecks fonts installed since opening the app. Profiles store the family name, not font files: install the same family on another PC or choose a replacement. Missing families render with Arial. System-font enumeration runs only when requested in the Windows app.
+
+![Custom system font selection](images/screenshots/visor-fonts.png)
+
+*Actual 0.5.1 editor with a generic demo profile and Segoe UI selected; no live game capture.*
 
 The editor projects strip color, text and uploaded raster graphics through the
 Blender-rendered maps. Lettering bends with the surface and is mirrored by

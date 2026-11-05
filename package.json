@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "The source-available sim racing XR toolkit for noncommercial use by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "build:visor-templates": "node scripts/build-visor-templates.cjs",
     "start": "electron .",
     "test": "node --test tests/*.test.mjs",
     "test:desktop": "node tests/desktop-smoke.cjs && node tests/ui-save-race.cjs",
@@ -17,6 +18,7 @@
     "test:telemetry": "node tests/telemetry-integration.cjs",
     "test:gpu": "node tests/gpu-source-smoke.cjs --stream --window --d3d12",
     "test:visor-ui": "node tests/visor-states-ui.cjs",
+    "test:visor-custom": "node tests/full-visor-bake.cjs && node tests/full-visor-ui.cjs && node tests/visor-template-export.cjs",
     "test:lmu-ui": "node tests/lmu-rendering-ui.cjs",
     "test:modules-ui": "node tests/modules-ui.cjs",
     "test:layers-ui": "node tests/layers-ui.cjs",
@@ -48,6 +50,7 @@
       "src/enhancement-defaults.json",
       "src/color-correction.mjs",
       "src/color-correction-defaults.json",
+      "src/visor-template-manifest.json",
       "package.json"
     ],
     "extraResources": [
@@ -91,6 +94,10 @@
         "filter": [
           "*-OFL.txt"
         ]
+      },
+      {
+        "from": "public/templates",
+        "to": "public/templates"
       },
       {
         "from": "public/licenses",
@@ -137,6 +144,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.2",
+    "ag-psd": "34.1.0",
     "electron": "45.0.0",
     "electron-builder": "26.18.0",
     "lucide-react": "1.61.0",

@@ -5,6 +5,43 @@ import { visorDefaults, visorSettings, helmetPreviewGeometry, readHelmetGraphic,
 
 const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
 
+test('graphic placement defaults old profiles to sunstrip and exchanges only supported placements', () => {
+  const p = createProfile();
+  assert.equal(visorSettings(p.helmet).graphicPlacement, 'sunstrip');
+  delete p.helmet.visor.graphicPlacement;
+  assert.doesNotThrow(() => validateProfile(p));
+  assert.equal(visorSettings(p.helmet).graphicPlacement, 'sunstrip');
+  for (const graphicPlacement of ['sunstrip', 'full']) {
+    p.helmet.visor.graphicPlacement = graphicPlacement;
+    assert.deepEqual(parseProfile(JSON.stringify({version: 1, profile: p})), p);
+  }
+  for (const graphicPlacement of ['', 'visor', null, 0, {}, true]) {
+    p.helmet.visor.graphicPlacement = graphicPlacement;
+    assert.throws(() => validateProfile(p), /placement/i);
+  }
+});
+
+test('graphic mirroring is independent in new profiles and inherits legacy lettering mirroring', () => {
+  const p = createProfile();
+  assert.equal(p.helmet.visor.graphicMirror, true);
+  p.helmet.visor.mirror = false;
+  assert.equal(visorSettings(p.helmet).graphicMirror, true, 'New graphic choice stays independent');
+  delete p.helmet.visor.graphicMirror;
+  for (const mirror of [false, true]) {
+    p.helmet.visor.mirror = mirror;
+    assert.doesNotThrow(() => validateProfile(p));
+    assert.equal(visorSettings(p.helmet).graphicMirror, mirror);
+  }
+  for (const graphicMirror of [true, false]) {
+    p.helmet.visor.graphicMirror = graphicMirror;
+    assert.deepEqual(parseProfile(JSON.stringify({version:1,profile:p})), p);
+  }
+  for (const graphicMirror of [null, 0, 1, '', 'true', [], {}]) {
+    p.helmet.visor.graphicMirror = graphicMirror;
+    assert.throws(() => validateProfile(p), /mirror/i);
+  }
+});
+
 test('Level 3 helmet survives profile export and import without changing driving settings', () => {
   const p = createProfile();
   p.helmet.style = 'level3';
@@ -27,6 +64,28 @@ test('visor fonts allow known Windows families and preserve old profiles', () =>
     p.helmet.visor.font=font; assert.throws(()=>validateProfile(p));
   }
   delete p.helmet.visor.font;assert.doesNotThrow(()=>validateProfile(p));
+});
+
+test('custom visor font families round trip safely while old builtins need no custom family', () => {
+  const p = createProfile();
+  assert.equal(visorSettings(p.helmet).customFont, '');
+  delete p.helmet.visor.customFont;
+  assert.doesNotThrow(() => validateProfile(p));
+  assert.equal(visorSettings(p.helmet).customFont, '');
+  p.helmet.visor.font = 'custom';
+  assert.throws(() => validateProfile(p), /font/i, 'A custom font requires a family');
+  for (const customFont of ['Comic Sans MS', 'Segoe UI', 'a', 'a'.repeat(160), 'Quoted "Font" \\ Family', 'missing", Impact, "missing']) {
+    p.helmet.visor.customFont = customFont;
+    assert.deepEqual(parseProfile(JSON.stringify({version:1,profile:p})), p);
+  }
+  for (const customFont of ['', '   ', null, 1, true, {}, 'a'.repeat(161), 'a\nb', 'a\rb', 'a\tb', 'a\0b', 'a\u007fb', 'a\u0085b', 'a\u2028b', 'a\u2029b']) {
+    p.helmet.visor.customFont = customFont;
+    assert.throws(() => validateProfile(p), /font/i);
+  }
+  p.helmet.visor.font = 'arial'; p.helmet.visor.customFont = '';
+  assert.doesNotThrow(() => validateProfile(p));
+  p.helmet.visor.customFont = 'bad\nfamily';
+  assert.throws(() => validateProfile(p), /font/i, 'Inactive custom fields also reject controls');
 });
 
 test('vertical visor opening accepts continuous angles, preserves legacy profiles and rejects invalid values', () => {

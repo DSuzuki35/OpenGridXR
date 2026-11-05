@@ -476,6 +476,27 @@ int main(int argc,char **argv){
         check(initialize(16),"invalid config fails closed");layers={base};renderer.append(info,true,layers);check(layers.size()==1&&!renderer.status().error.empty(),"invalid paths never rendered");renderer.reset();
         {std::ofstream file(config);file<<enabled;}{std::ofstream file(left);file<<"invalid PNG";}
         check(initialize(16),"invalid PNG initialization safe");layers={base};renderer.append(info,true,layers);check(layers.size()==1&&!renderer.status().error.empty(),"invalid image disables both eyes");renderer.reset();
+        {
+            // The real enhancements host supplies the machine DLL directory,
+            // while the editor writes mutable artwork to the current user's runtime.
+            struct LocalDataScope {
+                std::wstring previous;
+                LocalDataScope() { wchar_t value[32768]{};auto n=GetEnvironmentVariableW(L"LOCALAPPDATA",value,32768);if(n&&n<32768)previous=value; }
+                ~LocalDataScope(){SetEnvironmentVariableW(L"LOCALAPPDATA",previous.empty()?nullptr:previous.c_str());}
+            } localData;
+            const auto machine=root/L"machine",user=root/L"test-user",artwork=user/L"OpenGridXR"/L"runtime";
+            std::filesystem::create_directories(machine);std::filesystem::create_directories(artwork);
+            check(SetEnvironmentVariableW(L"LOCALAPPDATA",user.c_str())!=0,"isolated user data environment");
+            {std::ofstream marker(machine/L"OpenGridXR.machine");marker<<"fixture";}
+            {std::ofstream file(machine/L"OpenGridXR-helmet-iracing.json");file<<R"({"version":1,"enabled":false})";}
+            {std::ofstream file(artwork/L"OpenGridXR-helmet-iracing.json");file<<enabled;}
+            writePng(artwork/L"OpenGridXR-helmet-iracing-left.png",0x8000FF00);
+            check(renderer.initialize(reinterpret_cast<XrSession>(10),d12?static_cast<const void*>(&b12):&b11,16,api,locateViews,"iracing",machine),"machine-installed helmet initializes");
+            layers={base};renderer.append(info,true,layers);
+            check(layers.size()==3&&renderer.status().ready,"machine-installed helmet reads user artwork, not adjacent stale config");
+            for(unsigned eye=1;eye<=2;++eye)check(pixel(images.at(reinterpret_cast<const XrCompositionLayerQuad*>(layers[eye])->subImage.swapchain))==0x8000FF00,"machine-installed eyes use the user's PNG");
+            renderer.reset();check(images.empty(),"machine-installed helmet releases private swapchains");
+        }
         std::filesystem::remove_all(root);CoUninitialize();
         std::cout<<"Helmet "<<(d12?"D3D11On12":"D3D11")<<" WARP mono PNG upload, visor cycling, layer ordering, alpha, cached submission, state, timeout, limits and failures passed.\n";
     }catch(const std::exception&e){std::cerr<<e.what()<<'\n';std::filesystem::remove_all(root);return 1;}

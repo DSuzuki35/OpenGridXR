@@ -1,6 +1,6 @@
 import {usesFullRenderArea} from "../model.mjs";
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Aperture, ImagePlus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Aperture, Download, ImagePlus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Button, Note, Panel, Range, Segmented, Toggle } from './Controls.jsx';
 import ContourEditor, { TrackArt } from './ContourEditor.jsx';
 import { helmetPreviewGeometry, readHelmetGraphic, visorSettings, visorFonts, fitHelmetOpening, composeHelmetRaster } from '../helmet.mjs';
@@ -55,6 +55,9 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
   const [section, setSection] = useState('visor');
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState('');
+  const [templateBusy,setTemplateBusy] = useState('');
+  const [systemFonts,setSystemFonts] = useState({loaded:false,loading:false,available:false,families:[],error:''});
+  const fontSequence=useRef(0);
   const [fitting, setFitting] = useState(false);
   const [fitNotice, setFitNotice] = useState('');
   const [pendingOpening, setPendingOpening] = useState(null);
@@ -78,6 +81,13 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
   const helmet = profile.helmet;
   const openingHelmet = pendingOpening ? { ...helmet, ...pendingOpening } : helmet;
   const visor = visorSettings(openingHelmet);
+  const fullGraphic=visor.graphicPlacement==='full';
+  const loadFonts=async(refresh=false)=>{
+    const sequence=++fontSequence.current;setSystemFonts(current=>({...current,loading:true}));
+    try{const result=await api.listSystemFonts({refresh});if(sequence===fontSequence.current)setSystemFonts({...result,loaded:true,loading:false});}
+    catch(error){if(sequence===fontSequence.current)setSystemFonts({loaded:true,loading:false,available:false,families:[],error:error.message});}
+  };
+  useEffect(()=>{if(section==='visor'&&visor.font==='custom'&&!systemFonts.loaded&&!systemFonts.loading)void loadFonts();},[section,visor.font,systemFonts.loaded,systemFonts.loading]);
   const changeVisor = change => changeOpening({ visor: { ...visor, ...change } });
   const changeOpening = patch => {
     onPreparingChange(true);
@@ -134,6 +144,12 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
     } catch (error) {
       if (sequence === uploadSequence.current) setNotice(error.message);
     } finally { if (sequence === uploadSequence.current) setUploading(false); }
+  };
+  const saveTemplate=async format=>{
+    const profileId=latestProfile.current.id;setTemplateBusy(format);setNotice('');
+    try{const result=await api.downloadVisorTemplate({style:helmet.style,format});if(latestProfile.current.id===profileId)setNotice(result.saved?'Saved '+result.fileName:'Template download cancelled.');}
+    catch(error){if(latestProfile.current.id===profileId)setNotice(error.message);}
+    finally{setTemplateBusy('');}
   };
   const crop = profile.view.crop;
   const changeCrop = (side, value) => {
@@ -208,11 +224,20 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
           <div className="helmet-editor-color-row"><label>Strip color<input type="color" aria-label="Sunstrip color" value={visor.color} onChange={event => changeVisor({ color: event.target.value })} /></label><label>Letter color<input type="color" aria-label="Sunstrip text color" value={visor.textColor} onChange={event => changeVisor({ textColor: event.target.value })} /></label></div>
           <Range label="Sunstrip opacity" value={visor.opacity} onChange={opacity => changeVisor({ opacity })} hint="Lower values let the track show through." />
           <label className="helmet-editor-text">Sponsor or personal text<input aria-label="Sunstrip text" value={visor.text} maxLength={80} placeholder="YOUR TEAM" onChange={event => changeVisor({ text: event.target.value.replace(/[\u0000-\u001f\u007f]/g, '') })} /></label>
-          <label className="helmet-editor-text">Letter font<select aria-label="Letter font" value={visor.font} onChange={event => changeVisor({ font: event.target.value })}>{visorFonts.map(({value, label}) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="helmet-editor-text">Letter font<select aria-label="Letter font" value={visor.font} onChange={event => changeVisor({ font: event.target.value,...(event.target.value==='custom'?{customFont:visor.customFont||({arial:'Arial',arialNarrow:'Arial Narrow',impact:'Impact',georgia:'Georgia',consolas:'Consolas',trebuchet:'Trebuchet MS'}[visor.font])||'Arial'}:{}) })}>{visorFonts.map(({value, label}) => <option key={value} value={value}>{label}</option>)}</select></label>
+          {visor.font==='custom'&&<>
+            <label className="helmet-editor-text">System font<select aria-label="System font" value={visor.customFont} disabled={systemFonts.loading||!systemFonts.available} onChange={event=>changeVisor({customFont:event.target.value})}>
+              {!systemFonts.families.includes(visor.customFont)&&<option value={visor.customFont}>{visor.customFont}</option>}
+              {systemFonts.families.map(family=><option key={family} value={family}>{family}</option>)}
+            </select></label>
+            <Button icon={RefreshCw} disabled={systemFonts.loading} onClick={()=>loadFonts(true)}>{systemFonts.loading?'Loading system fonts…':'Refresh system fonts'}</Button>
+            <p className="helmet-editor-muted">Uses a font installed on this PC. Profiles save its name, not the font file. Another PC needs the same font; unavailable fonts fall back to Arial.</p>
+            {systemFonts.loaded&&(!systemFonts.available||!systemFonts.families.includes(visor.customFont))&&<Note tone="amber">{systemFonts.error||'This font is not installed on this PC. The preview and saved helmet will use Arial until it is installed or replaced.'}</Note>}
+          </>}
           <Range label="Letter size" value={visor.textSize} min={10} max={60} unit="px" onChange={textSize => changeVisor({ textSize })} />
           <Range label="Letter width" value={visor.textWidth} min={10} max={100} onChange={textWidth => changeVisor({ textWidth })} />
           <Range label="Text curvature" value={visor.textCurve} min={-25} max={25} onChange={textCurve => changeVisor({ textCurve })} hint="Zero keeps text straight. Positive values raise the ends; negative values lower them. Match Sunstrip curve to follow the strip." />
-          <Toggle label="Mirror lettering & graphic" description="Read the outside print from inside the helmet" checked={visor.mirror} onChange={mirror => changeVisor({ mirror })} />
+          <Toggle label="Mirror lettering" description="Read the outside lettering from inside the helmet" checked={visor.mirror} onChange={mirror => changeVisor({ mirror })} />
           <details className="helmet-editor-details"><summary>Print position & softness</summary><div className="helmet-editor-controls">
             <Range label="Letter horizontal position" value={visor.textX} min={-50} max={50} onChange={textX => changeVisor({ textX })} />
             <Range label="Letter vertical position" value={visor.textY} min={-25} max={25} onChange={textY => changeVisor({ textY })} />
@@ -226,15 +251,23 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
           <p className="helmet-editor-muted">Set independent headset brightness, contrast, saturation and gamma in Color correction. These settings work with every visor position and while helmet artwork is off. Clean Output stays unchanged.</p>
         </div>}
         {section === 'graphic' && <div className="helmet-editor-controls">
-          <p className="panel-description">Add your own logo or sponsor strip. PNG, JPEG or WebP, up to 4 MB. Images are resized and embedded in the profile.</p>
-          {!visor.enabled && <p className="helmet-editor-muted">Enable Upper sunstrip in the Sunstrip tab to show the graphic.</p>}
+          <Segmented label="Graphic layout" value={visor.graphicPlacement??'sunstrip'} onChange={graphicPlacement=>changeVisor({graphicPlacement})} options={[{value:'sunstrip',label:'Logo / strip'},{value:'full',label:'Custom'}]}/>
+          <Toggle label="Mirror graphic" checked={visor.graphicMirror??visor.mirror} onChange={graphicMirror=>changeVisor({graphicMirror})} description="Flip only the uploaded graphic horizontally, independently of lettering."/>
+          <p className="panel-description">{fullGraphic?'Design the whole visor using the templates below. Export only your artwork as a transparent PNG; transparent pixels keep the view clear.':'Add your own logo or sponsor strip.'} PNG, JPEG or WebP, up to 4 MB. Images are resized and embedded in the profile.</p>
+          {fullGraphic&&<>
+            <div className="helmet-template-downloads">{[['png','PNG template'],['psd','PSD template'],['guide','PNG guide']].map(([format,label])=><Button key={format} icon={Download} disabled={!!templateBusy} onClick={()=>saveTemplate(format)}>{label}</Button>)}</div>
+            <p className="helmet-editor-muted">1600 × 900 authoring canvas. PSD has separate artwork and reference layers; hide reference layers before exporting PNG. The guide matches the selected helmet at its default fit. Import still resizes images to at most 1024 × 512.</p>
+            <Range label="Artwork opacity" value={visor.textOpacity} onChange={textOpacity=>changeVisor({textOpacity})} hint="Shared with upper print opacity."/>
+            <Range label="Artwork softness" value={visor.softness} min={0} max={8} step={.1} unit="px" onChange={softness=>changeVisor({softness})}/>
+          </>}
+          {!fullGraphic&&!visor.enabled && <p className="helmet-editor-muted">Enable Upper sunstrip in the Sunstrip tab to show the graphic.</p>}
           <input ref={upload} type="file" accept="image/png,image/jpeg,image/webp" className="helmet-editor-file" aria-label="Upload visor graphic" onChange={event => { setGraphic(event.target.files?.[0]); event.target.value = ''; }} />
           <Button icon={ImagePlus} disabled={uploading} onClick={() => upload.current?.click()}>{uploading ? 'Preparing image…' : visor.graphic ? 'Replace graphic' : 'Upload graphic'}</Button>
           {visor.graphic && <>
             <div className="helmet-editor-graphic-thumb"><img src={visor.graphic} alt="Your visor graphic" /></div>
-            <Range label="Graphic width" value={visor.graphicWidth} min={5} max={100} onChange={graphicWidth => changeVisor({ graphicWidth })} />
+            {!fullGraphic&&<><Range label="Graphic width" value={visor.graphicWidth} min={5} max={100} onChange={graphicWidth => changeVisor({ graphicWidth })} />
             <Range label="Graphic horizontal position" value={visor.graphicX} min={-50} max={50} onChange={graphicX => changeVisor({ graphicX })} />
-            <Range label="Graphic vertical position" value={visor.graphicY} min={-25} max={25} onChange={graphicY => changeVisor({ graphicY })} />
+            <Range label="Graphic vertical position" value={visor.graphicY} min={-25} max={25} onChange={graphicY => changeVisor({ graphicY })} /></>}
             <Button icon={Trash2} onClick={() => { uploadSequence.current++; setUploading(false); changeVisor({ graphic: '' }); setNotice('Graphic removed.'); }}>Remove graphic</Button>
           </>}
           {notice && <p className="helmet-editor-muted" role="status">{notice}</p>}

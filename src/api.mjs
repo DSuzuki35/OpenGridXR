@@ -8,6 +8,7 @@ import {
 } from "./model.mjs";
 export const isBrowserPreview = !globalThis.openGrid;
 import {moduleDefaults, validateModuleSettings} from "./modules.mjs";
+import visorTemplates from './visor-template-manifest.json';
 const key = "opengrid-xr-v1";
 let revision = 0;
 const runtime = {
@@ -37,6 +38,15 @@ function download(value, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const preview = {
+  async listSystemFonts(){return {available:false,families:[],error:'Installed font selection requires the Windows app.'};},
+  async downloadVisorTemplate(request){
+    const format=visorTemplates.formats[request?.format];
+    if(!visorTemplates.styles.includes(request?.style)||!format)throw Error('Unsupported visor template.');
+    const filename=format.file.replace('{style}',request.style),response=await fetch('templates/visor/'+filename);
+    if(!response.ok)throw Error('Template unavailable. Build the application assets first.');
+    const url=URL.createObjectURL(await response.blob()),anchor=document.createElement('a');anchor.href=url;anchor.download=filename;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return {saved:true,fileName:filename};
+  },
   async layersInventory() { return { entries: [], backups: [], errors: ['Open the Windows app to inspect and edit OpenXR layer registrations. Browser preview is read only.'] }; },
   async layersSetEnabled() { throw new Error('Editing OpenXR layers requires the Windows app.'); },
   async layersRestore() { throw new Error('Restoring OpenXR layers requires the Windows app.'); },

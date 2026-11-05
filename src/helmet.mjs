@@ -8,14 +8,16 @@ export const visorFonts = [
   { value: 'arial', label: 'Arial' }, { value: 'arialNarrow', label: 'Arial Narrow' },
   { value: 'impact', label: 'Impact' }, { value: 'georgia', label: 'Georgia' },
   { value: 'consolas', label: 'Consolas' }, { value: 'trebuchet', label: 'Trebuchet MS' },
+  { value: 'custom', label: 'Custom' },
 ];
 export const visorDefaults = () => ({
   enabled: true, height: 30, curve: 12, color: '#64538d', opacity: 55,
-  text: '', textColor: '#ffffff', textSize: 44, font: 'arial', mirror: true,
+  text: '', textColor: '#ffffff', textSize: 44, font: 'arial', customFont: '', mirror: true,
   textWidth: 52, textCurve: 0, textX: 0, textY: 0, textOpacity: 100, softness: .6,
-  graphic: '', graphicWidth: 40, graphicX: 0, graphicY: 0,
+  graphic: '', graphicPlacement: 'sunstrip', graphicMirror: true, graphicWidth: 40, graphicX: 0, graphicY: 0,
 });
-export const visorSettings = (helmet) => ({ ...visorDefaults(), ...(helmet.visor ?? { enabled: false }) });
+export const visorSettings = (helmet) => ({ ...visorDefaults(), ...(helmet.visor ?? { enabled: false }),
+  graphicMirror: helmet.visor?.graphicMirror ?? helmet.visor?.mirror ?? true });
 
 // Shared by the composition preview and saved output artwork. Stream opacity is
 // applied to the complete raster by the consumer, independent of shell opacity.
@@ -74,7 +76,12 @@ export function validateVisor(visor) {
   const defaults = visorDefaults();
   for (const key of Object.keys(visor)) if (!Object.hasOwn(defaults, key)) invalid('settings contain an unsupported field.');
   for (const key of ['enabled', 'mirror']) if (typeof visor[key] !== 'boolean') invalid(`${key} must be true or false.`);
+  if (visor.graphicMirror !== undefined && typeof visor.graphicMirror !== 'boolean') invalid('graphic mirror must be true or false.');
   if (visor.font !== undefined && !visorFonts.some(({value}) => value === visor.font)) invalid('font must be a supported family.');
+  if (visor.customFont !== undefined && (typeof visor.customFont !== 'string' || visor.customFont.length > 160 || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(visor.customFont)))
+    invalid('custom font must be a family name of at most 160 characters on one line.');
+  if (visor.font === 'custom' && !(typeof visor.customFont === 'string' && visor.customFont.trim())) invalid('custom font requires a family name.');
+  if (visor.graphicPlacement !== undefined && !['sunstrip', 'full'].includes(visor.graphicPlacement)) invalid('graphic placement must be sunstrip or full.');
   for (const [key, min, max] of [
     ['height', 5, 55], ['curve', -25, 25], ['opacity', 0, 100], ['textSize', 10, 60],
     ['graphicWidth', 5, 100], ['graphicX', -50, 50], ['graphicY', -25, 25],
@@ -194,6 +201,7 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
   };
   let shell = await loadImage(shellUrl);
   const visor = helmet.visor;
+  const graphicMirror = visor.graphicMirror ?? visor.mirror;
   // Bake the opening once. Move the padded exterior without stretching it;
   // interpolate the interior (and its projected print) between the new edges.
   // Angles use a declared 100-degree reference, not a measured headset FOV.
@@ -271,7 +279,8 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
   context.scale(width / 800, height / 450);
   const visorPosition = helmet.visorPosition ?? 'closed';
   const visorLift = visorPosition === 'half' ? (bottom - top) / height * 225 * openingY : 0;
-  if (visorPosition !== 'open' && (visor.enabled || helmet.visorTint > 0)) {
+  const fullGraphic = visor.graphicPlacement === 'full' && Boolean(visor.graphic);
+  if (visorPosition !== 'open' && (visor.enabled || helmet.visorTint > 0 || fullGraphic)) {
     // Move all projected glass and print together; the shell drawn last hides
     // the raised visor behind the brow. Closed remains byte-compatible in layout.
     context.save();
@@ -296,16 +305,26 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
     paint.globalAlpha = (visor.textOpacity ?? 100) / 100; paint.clip();
     paint.filter = `blur(${visor.softness ?? .6}px)`;
     if (visor.mirror) { paint.translate(800, 0); paint.scale(-1, 1); }
-    if (visor.graphic) {
+    if (visor.graphic && !fullGraphic) {
       const graphic = await loadImage(visor.graphic);
       const boxWidth = visor.graphicWidth * 8, boxHeight = visor.graphicWidth * 2;
       const scale = Math.min(boxWidth / graphic.naturalWidth, boxHeight / graphic.naturalHeight);
       const w = graphic.naturalWidth * scale, h = graphic.naturalHeight * scale;
+      paint.save();
+      // The legacy print context mirrors lettering. Cancel that transform only
+      // when this graphic has its own different mirror choice.
+      if (graphicMirror !== visor.mirror) { paint.translate(800, 0); paint.scale(-1, 1); }
       paint.drawImage(graphic, 400 + visor.graphicX * 8 - w / 2, centerY + visor.graphicY * 4.5 - h / 2, w, h);
+      paint.restore();
     }
     if (visor.text) {
       const families = { arial: 'Arial, sans-serif', arialNarrow: '"Arial Narrow", sans-serif', impact: 'Impact, sans-serif', georgia: 'Georgia, serif', consolas: 'Consolas, monospace', trebuchet: '"Trebuchet MS", sans-serif' };
-      paint.fillStyle = visor.textColor; paint.font = `800 ${visor.textSize}px ${families[visor.font ?? 'arial'] ?? families.arial}`;
+      // Keep the installed family as one CSS string, even with quotes or
+      // backslashes. Missing fonts use the same Arial fallback as old profiles.
+      const family = visor.font === 'custom'
+        ? `"${(visor.customFont ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}", Arial, sans-serif`
+        : families[visor.font ?? 'arial'] ?? families.arial;
+      paint.fillStyle = visor.textColor; paint.font = `800 ${visor.textSize}px ${family}`;
       paint.textAlign = 'center'; paint.textBaseline = 'middle'; paint.letterSpacing = '2px';
       paint.translate(400 + (visor.textX ?? 0) * 8, centerY + (visor.textY ?? 0) * 4.5);
       const textWidth = (visor.textWidth ?? 52) * 8, textCurve = visor.textCurve ?? 0;
@@ -366,6 +385,21 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
     return raster;
     };
     context.save(); fit(); context.drawImage(reshape(project(backgroundTexture)), 0, 0, 800, 450); context.restore();
+    if (fullGraphic) {
+      // Full artwork uses the canonical visor UV canvas, independently of the
+      // strip path and its lettering fit. Preserve image aspect with transparent
+      // margins; the template itself controls placement instead of logo sliders.
+      const graphic = await loadImage(visor.graphic);
+      const fullTexture = document.createElement('canvas'); fullTexture.width = 1600; fullTexture.height = 900;
+      const fullPaint = fullTexture.getContext('2d'); fullPaint.scale(2, 2);
+      fullPaint.globalAlpha = (visor.textOpacity ?? 100) / 100;
+      fullPaint.filter = `blur(${visor.softness ?? .6}px)`;
+      if (graphicMirror) { fullPaint.translate(800, 0); fullPaint.scale(-1, 1); }
+      const scale = Math.min(800 / graphic.naturalWidth, 450 / graphic.naturalHeight);
+      const w = graphic.naturalWidth * scale, h = graphic.naturalHeight * scale;
+      fullPaint.drawImage(graphic, (800 - w) / 2, (450 - h) / 2, w, h);
+      context.save(); fit(); context.drawImage(reshape(project(fullTexture)), 0, 0, 800, 450); context.restore();
+    }
     if (visor.enabled) {
       let print = project(texture);
       if (helmet.openingAngle !== undefined || helmet.openingWidth !== undefined) {
