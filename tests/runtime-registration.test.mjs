@@ -117,6 +117,62 @@ test('runtime status notices same-size replacements even when modification time 
   await fs.writeFile(file,'changed');await fs.utimes(file,old,old);
   assert.equal((await f.runtime.status()).updateRequired,true);
 });
+
+test('fresh status detects changed contents even when Windows metadata is unchanged; save checks reuse hashes',async t=>{
+  const f=await fixture(t,{HKLM:0});
+  const file=path.join(f.machineDirectory,'OpenGridXR.dll');
+  const originalStat=fs.stat, frozen=await originalStat(file,{bigint:true});
+  t.mock.method(fs,'stat',async function(target,options){
+    if(target===file&&options?.bigint)return frozen;
+    return originalStat.call(this,target,options);
+  });
+  const read=fs.readFile;let reads=0;
+  t.mock.method(fs,'readFile',async function(target,...args){
+    if(target===file)reads++;
+    return read.call(this,target,...args);
+  });
+  assert.equal((await f.runtime.status()).updateRequired,false);
+  const firstReads=reads;
+  assert.equal((await f.runtime.status({cached:true})).updateRequired,false);
+  assert.equal(reads,firstReads,'ordinary save status reuses unchanged binary hashes');
+  await fs.writeFile(file,'changed');
+  assert.equal((await f.runtime.status()).updateRequired,true,'explicit refresh and launch checks hash current bytes');
+});
+test('fresh status bypasses an old digest published by a concurrent cached check',async t=>{
+  const f=await fixture(t,{HKLM:0}),file=path.join(f.machineDirectory,'OpenGridXR.dll');
+  const stat=fs.stat,read=fs.readFile,access=fs.access,frozen=await stat(file,{bigint:true});
+  let captured=false,blockAccess=false,readCaptured,returnOldRead,allowFreshAccess;
+  const capturedGate=new Promise(resolve=>{readCaptured=resolve;});
+  const readGate=new Promise(resolve=>{returnOldRead=resolve;});
+  const accessGate=new Promise(resolve=>{allowFreshAccess=resolve;});
+  t.mock.method(fs,'stat',async function(target,options){
+    return target===file&&options?.bigint?frozen:stat.call(this,target,options);
+  });
+  t.mock.method(fs,'readFile',async function(target,...args){
+    const bytes=await read.call(this,target,...args);
+    if(target===file&&!captured){captured=true;readCaptured();await readGate;}
+    return bytes;
+  });
+  t.mock.method(fs,'access',async function(target,...args){
+    if(blockAccess)await accessGate;
+    return access.call(this,target,...args);
+  });
+  const older=f.runtime.status({cached:true});
+  let fresh;
+  try {
+    await capturedGate;
+    await fs.writeFile(file,'changed');
+    // Pause the fresh check after entry, before it compares any files. The old
+    // check then publishes its earlier bytes into the shared digest cache.
+    blockAccess=true;fresh=f.runtime.status();
+    returnOldRead();await older;
+    allowFreshAccess();
+    assert.equal((await fresh).updateRequired,true,'fresh checks ignore peer cache publications');
+  } finally {
+    returnOldRead();allowFreshAccess();await Promise.allSettled([older,fresh]);
+  }
+});
+
 test('clean output refuses an outdated installed runtime before sending new preview flags',async t=>{
   const f=await fixture(t,{HKLM:0});
   await fs.writeFile(path.join(f.runtimeDir,'OpenGridXR-Output.exe'),'old output binary');

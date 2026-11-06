@@ -150,23 +150,24 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
   let outputFraming = null;
   // Reuse one LMU service so saves do not repeat registry/Steam discovery.
   const lmu = () => lmuRendering ||= require('./lmu-rendering.cjs').createLmuRendering({dataDir,runtimeDir});
-  // status() runs after every save. Include identity and change time so a
-  // same-size replacement with a preserved modification time is rehashed.
+  // Ordinary save checks reuse hashes when file metadata is unchanged.
+  // Explicit refresh, launch and install checks rehash: Windows can preserve
+  // all available metadata across an in-place same-size replacement.
   const digests = new Map();
   const digestKey = stat => `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
-  async function digest(file) {
+  async function digest(file, useCache) {
     const key = digestKey(await fs.stat(file, {bigint:true})), cached = digests.get(file);
-    if (cached?.key === key) return cached.value;
+    if (useCache && cached?.key === key) return cached.value;
     const value = createHash("sha256").update(await fs.readFile(file)).digest("hex");
     // A concurrent installation must not seed a stale cache entry.
     if (digestKey(await fs.stat(file, {bigint:true})) === key) digests.set(file, {key, value});
     else digests.delete(file);
     return value;
   }
-  async function sameContents(a, b) {
+  async function sameContents(a, b, useCache) {
     const [left, right] = await Promise.all([fs.stat(a), fs.stat(b)]);
     if (left.size !== right.size) return false;
-    const [x, y] = await Promise.all([digest(a), digest(b)]);
+    const [x, y] = await Promise.all([digest(a, useCache), digest(b, useCache)]);
     return x === y;
   }
   async function registrations() {
@@ -221,7 +222,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     } catch { return null; }
     finally { await handle?.close().catch(() => {}); }
   }
-  async function status() {
+  async function status({cached = false} = {}) {
     const available = (
       await Promise.all(
         FILES.map((f) =>
@@ -247,7 +248,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     if (registered && available) {
       for (const file of FILES) {
         try {
-          if (!(await sameContents(path.join(sourceDir, file), path.join(runtimeDir, file)))) {
+          if (!(await sameContents(path.join(sourceDir, file), path.join(runtimeDir, file), cached))) {
             updateRequired = true;
             break;
           }
@@ -262,7 +263,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
         if (await fs.access(path.join(runtimeDir,provider)).then(()=>true,()=>false)) executableFiles.push(provider);
         for (const file of executableFiles) {
           try {
-            if (!(await sameContents(path.join(runtimeDir,file), path.join(machineDirectory,file)))) {updateRequired=true;break;}
+            if (!(await sameContents(path.join(runtimeDir,file), path.join(machineDirectory,file), cached))) {updateRequired=true;break;}
           } catch {updateRequired=true;break;}
         }
       }

@@ -504,7 +504,7 @@ else {
         }
         return {
           ...state,
-          runtime: await runtime.status(),
+          runtime: await runtime.status({cached:true}),
           ...(pendingNativeError ? { pendingNativeError } : {}),
         };
       });
@@ -520,7 +520,7 @@ else {
         }
         return {
           ...state,
-          runtime: await runtime.status(),
+          runtime: await runtime.status({cached:true}),
           ...(pendingNativeError ? { pendingNativeError } : {}),
         };
       });
