@@ -1,0 +1,53 @@
+STEREO VRS (NVIDIA, EXPERIMENTAL) — 0.2.0
+
+Select Stereo VRS in the launcher. This uses native OpenXR stereo; QVFR and
+VectorXR are not required. A compatible NVIDIA GPU and NVAPI driver are required
+for coarse shading. Other hardware continues rendering ordinary full-rate stereo.
+Check diagnostics for nv_vrs ready / world_vrs counters, not just the selector.
+
+Auto uses XR_EXT_eye_gaze_interaction when the active runtime exposes it. Missing,
+inactive, invalid or offscreen gaze falls back to the fixed region for that frame.
+Fixed skips gaze input. Focus width/height are percentages of each projected eye
+image; positive offsets move right/up. The region remains inside the image.
+Shading rates: 1x1 is the control; 2x2 reduces peripheral shader work; 4x4 is more
+aggressive and may visibly degrade peripheral detail. Intersecting 16-pixel tiles
+remain full rate. This is shading-rate reduction, not higher-resolution focus.
+
+VRS keeps the original two eye draws and adds no focus scene traversals. Only
+verified world-sort scopes use coarse shading. UI/shadows/unverified passes keep
+normal shading. Runtime resolution and native in-game crop remain in effect;
+quad-only resolution/crop/blur controls are disabled for this mode.
+
+Benchmark overlay and recording remain available. Focus dimensions are zero in
+VRS because no separate focus images exist. Compare matched scene, pose, runtime
+resolution and image quality after warmup. No measured LMU speedup is promised.
+CPU upload experiments remain Quad Views-only. Known conflicting QVFR/VectorXR/
+OpenXR Toolkit layers are disabled only for this launched game process. Do not
+combine with another VRS injector or driver-forced VRSS.
+
+Late-attaching OpenXR input applications are not a generic compatibility target:
+this layer is pinned to LMU. It adds its gaze action to normal app attachment;
+for LMU without action sets it privately attaches at first locate. OpenXR permits
+one attachment per session. No stored gaze history is written.
+
+All 0.1.2 features remain available in their applicable modes. Native single-pass
+stereo is unfinished and is not a 0.2.0 feature. Restart LMU to change render mode.
+
+VALIDATION SCOPE
+Native/WARP, fake OpenXR, gaze/projection and launcher/DPI suites pass with the
+LLVM-MinGW build. A real NVIDIA D3D11 probe verified moving full-rate focus,
+2x2/4x4 peripheral shading, the 1x1 control and state restoration. Ten consecutive
+final-production probe processes exited cleanly after dynamic-map updates.
+LMU/Pimax logs confirmed gaze input and VRS initialization in an earlier live
+run. These checks establish implementation behavior, not a measured LMU speedup
+or broad headset/image-quality compatibility. A matched awake-headset A/B
+benchmark is still required before making performance claims.
+
+
+NVIDIA VRS hardware check (0.5.2+)
+----------------------------------
+Close LMU and run tools\check-hardware-vrs.cmd. It needs no game or headset.
+Result code 0 means: VRS reduces pixel shading on this GPU, per-eye shading-rate
+maps apply correctly, a steady focus causes no re-upload, and the normal 1x1
+shading is restored afterwards. The log is written to
+tools\hardware-vrs-check.log.

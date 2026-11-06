@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -38,13 +39,10 @@ namespace LmuQuadViewLauncher
         public bool CpuUploadBatch { get; set; }
         public bool CpuOuterReuse { get; set; }
         public bool OuterSsr { get; set; }
+        // Machine preference, not a rendering setting: on by default, inert on CPUs without two asymmetric L3 domains.
+        public bool CpuCacheAffinity { get; set; }
         public int RenderProfileSeconds { get; set; }
         public bool NativeOuterResolution { get; set; }
-        public bool DynamicFocusEnabled { get; set; }
-        public decimal DynamicFocusMinPercent { get; set; }
-        public decimal DynamicFocusMaxPercent { get; set; }
-        public decimal DynamicFocusReservePercent { get; set; }
-        public decimal OuterBlur { get; set; }
         public decimal OuterPercent { get; set; }
         public decimal InnerPercent { get; set; }
         public decimal CropWidthPercent { get; set; }
@@ -60,29 +58,34 @@ namespace LmuQuadViewLauncher
             GameDirectory = @"D:\SteamLibrary\steamapps\common\Le Mans Ultimate";
             Backend = "Native"; FoveationMode = "auto"; QuadViewsManifest = ""; VectorXrManifest = "";
             VrsPeripheralRate = 2;
-            NativeOuterResolution = true; OuterPercent = 25; InnerPercent = 100;
+            NativeOuterResolution = false; OuterPercent = 25; InnerPercent = 100;
             RenderProfileSeconds=120;
-            DiagnosticsEnabled=true;
+            DiagnosticsEnabled=false;
+            CpuCacheAffinity=true;
             BenchmarkY=-0.25m;BenchmarkDistance=1.2m;BenchmarkWidth=0.65m;
             BenchmarkVisibilityDevice=BenchmarkRecordingDevice="";
             BenchmarkVisibilityName=BenchmarkRecordingName="";
             BenchmarkVisibilityButton=BenchmarkRecordingButton=-1;
             FocusWidthPercent = FocusHeightPercent = 50;
             CropWidthPercent = CropHeightPercent = 100;
-            DynamicFocusMinPercent=70;DynamicFocusMaxPercent=100;DynamicFocusReservePercent=2;
         }
     }
     public static class QvfrSettings
     {
+        // Independent copy used when a portable profile is applied over local settings.
+        public static LauncherSettings Clone(LauncherSettings source)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            var copy = new LauncherSettings();
+            foreach (var property in typeof(LauncherSettings).GetProperties())
+                if (property.CanRead && property.CanWrite) property.SetValue(copy, property.GetValue(source, null), null);
+            return copy;
+        }
         const string Begin = "# BEGIN LMU QUAD VIEW MOD PROFILE";
         const string End = "# END LMU QUAD VIEW MOD PROFILE";
         public static void Validate(LauncherSettings s)
         {
             if (s == null) throw new ArgumentNullException("settings");
-            if(s.DynamicFocusMinPercent<25||s.DynamicFocusMaxPercent>200||s.DynamicFocusMinPercent>s.DynamicFocusMaxPercent)
-                throw new ArgumentException("Dynamic focus requires 25 <= minimum <= maximum <= 200 percent of baseline FOV.");
-            if(s.DynamicFocusReservePercent<1||s.DynamicFocusReservePercent>30)
-                throw new ArgumentException("Dynamic focus GPU reserve must be between 1 and 30 percent.");
             if(s.BenchmarkTemplate<0||s.BenchmarkTemplate>1)throw new ArgumentException("Select Minimal or Detailed benchmark template.");
             if(s.BenchmarkX < -2 || s.BenchmarkX > 2 || s.BenchmarkY < -2 || s.BenchmarkY > 2 || s.BenchmarkDistance < 0.3m || s.BenchmarkDistance > 5 || s.BenchmarkWidth < 0.2m || s.BenchmarkWidth > 2)throw new ArgumentException("Benchmark placement is outside the supported range.");
             ValidateBinding(s.BenchmarkVisibilityDevice,s.BenchmarkVisibilityButton);
@@ -97,7 +100,6 @@ namespace LmuQuadViewLauncher
             if (s.Backend != "Native" && s.Backend != "QVFR" && s.Backend != "VectorXR" && s.Backend != "VRS") throw new ArgumentException("Choose Native, QVFR, VectorXR or Stereo VRS.");
             if(s.VrsPeripheralRate!=1&&s.VrsPeripheralRate!=2&&s.VrsPeripheralRate!=4)throw new ArgumentException("VRS peripheral shading blocks must be 1x1, 2x2 or 4x4.");
             if (s.FoveationMode != "auto" && s.FoveationMode != "fixed") throw new ArgumentException("Choose Auto or Fixed foveation.");
-            if (s.OuterBlur < 0 || s.OuterBlur > 3) throw new ArgumentException("Outer smoothing must be between 0 and 3 pixels.");
             if (s.OuterPercent < 10 || s.OuterPercent > 400 || s.InnerPercent < 25 || s.InnerPercent > 400 ||
                 s.FocusWidthPercent < 10 || s.FocusWidthPercent > 90 || s.FocusHeightPercent < 10 || s.FocusHeightPercent > 90)
                 throw new ArgumentException("Resolution or focus size is outside the supported range.");
@@ -125,7 +127,7 @@ namespace LmuQuadViewLauncher
             s.VectorXrManifest = Value(x, "VectorXrManifest", "");
             s.DebugFocus = Boolean.Parse(Value(x, "DebugFocus", "false"));
             s.RenderProfiling = Boolean.Parse(Value(x, "RenderProfiling", "false"));
-            s.DiagnosticsEnabled=Boolean.Parse(Value(x,"DiagnosticsEnabled","true"));
+            s.DiagnosticsEnabled=Boolean.Parse(Value(x,"DiagnosticsEnabled","false"));
             s.BenchmarkEnabled=Boolean.Parse(Value(x,"BenchmarkEnabled","false"));
             s.BenchmarkTemplate=Int32.Parse(Value(x,"BenchmarkTemplate","0"),CultureInfo.InvariantCulture);
             s.BenchmarkX=Decimal.Parse(Value(x,"BenchmarkX","0"),CultureInfo.InvariantCulture);
@@ -145,13 +147,9 @@ namespace LmuQuadViewLauncher
             s.CpuUploadBatch=Boolean.Parse(Value(x,"CpuUploadBatch","false"));
             s.CpuOuterReuse=Boolean.Parse(Value(x,"CpuOuterReuse","false"));
             s.OuterSsr=Boolean.Parse(Value(x,"OuterSsr","false"));
+            s.CpuCacheAffinity=Boolean.Parse(Value(x,"CpuCacheAffinity","true"));
             s.RenderProfileSeconds=Int32.Parse(Value(x,"RenderProfileSeconds","120"),CultureInfo.InvariantCulture);
-            s.NativeOuterResolution = Boolean.Parse(Value(x, "NativeOuterResolution", "true"));
-            s.DynamicFocusEnabled=Boolean.Parse(Value(x,"DynamicFocusEnabled","false"));
-            s.DynamicFocusMinPercent=Decimal.Parse(Value(x,"DynamicFocusMinPercent","70"),CultureInfo.InvariantCulture);
-            s.DynamicFocusMaxPercent=Decimal.Parse(Value(x,"DynamicFocusMaxPercent","100"),CultureInfo.InvariantCulture);
-            s.DynamicFocusReservePercent=Decimal.Parse(Value(x,"DynamicFocusReservePercent","2"),CultureInfo.InvariantCulture);
-            s.OuterBlur = Decimal.Parse(Value(x, "OuterBlur", "0"), CultureInfo.InvariantCulture);
+            s.NativeOuterResolution = Boolean.Parse(Value(x, "NativeOuterResolution", "false"));
             s.OuterPercent = Decimal.Parse(Value(x, "OuterPercent", "25"), CultureInfo.InvariantCulture);
             s.InnerPercent = Decimal.Parse(Value(x, "InnerPercent", "100"), CultureInfo.InvariantCulture);
             s.CropWidthPercent = Decimal.Parse(Value(x, "CropWidthPercent", "100"), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
@@ -191,12 +189,9 @@ namespace LmuQuadViewLauncher
                 new XElement("CpuUploadBatch",s.CpuUploadBatch),
                 new XElement("CpuOuterReuse",s.CpuOuterReuse),
                 new XElement("OuterSsr",s.OuterSsr),
+                new XElement("CpuCacheAffinity",s.CpuCacheAffinity),
                 new XElement("RenderProfileSeconds",s.RenderProfileSeconds),
                 new XElement("NativeOuterResolution", s.NativeOuterResolution), new XElement("UseRuntimeSettings", true),
-                new XElement("DynamicFocusEnabled",s.DynamicFocusEnabled),
-                new XElement("DynamicFocusMinPercent",s.DynamicFocusMinPercent),new XElement("DynamicFocusMaxPercent",s.DynamicFocusMaxPercent),
-                new XElement("DynamicFocusReservePercent",s.DynamicFocusReservePercent),
-                new XElement("OuterBlur", s.OuterBlur),
                 new XElement("OuterPercent", s.OuterPercent), new XElement("InnerPercent", s.InnerPercent),
                 new XElement("CropWidthPercent", s.CropWidthPercent), new XElement("CropHeightPercent", s.CropHeightPercent),
                 new XElement("FocusWidthPercent", s.FocusWidthPercent), new XElement("FocusHeightPercent", s.FocusHeightPercent),
@@ -246,17 +241,50 @@ namespace LmuQuadViewLauncher
         public static void SaveProfile(string path, LauncherSettings s)
         {
             Validate(s); if (s.Backend != "QVFR") return;
-            string old = File.Exists(path) ? File.ReadAllText(path) : "";
+            string old = "";
+            Encoding encoding = new UTF8Encoding(false);
+            if (File.Exists(path))
+            {
+                var bytes=File.ReadAllBytes(path);int skip=0;
+                encoding=new UTF8Encoding(false,true);
+                if(StartsWith(bytes,new byte[]{0xff,0xfe,0,0})){encoding=new UTF32Encoding(false,true,true);skip=4;}
+                else if(StartsWith(bytes,new byte[]{0,0,0xfe,0xff})){encoding=new UTF32Encoding(true,true,true);skip=4;}
+                else if(StartsWith(bytes,new byte[]{0xff,0xfe})){encoding=new UnicodeEncoding(false,true,true);skip=2;}
+                else if(StartsWith(bytes,new byte[]{0xfe,0xff})){encoding=new UnicodeEncoding(true,true,true);skip=2;}
+                else if(StartsWith(bytes,new byte[]{0xef,0xbb,0xbf})){encoding=new UTF8Encoding(true,true);skip=3;}
+                try{old=encoding.GetString(bytes,skip,bytes.Length-skip);}
+                catch(DecoderFallbackException error){throw new InvalidDataException("QVFR settings have an unsupported or invalid text encoding. The file was not changed. Save it as UTF-8 and retry.",error);}
+                if(old.IndexOf('\0')>=0)throw new InvalidDataException("QVFR settings contain null characters. The file was not changed. Save it as UTF-8 and retry.");
+            }
             string updated = ProfileText(old, s);
-            if (updated != old) WriteAtomic(path, updated, true);
+            if (updated != old) { WriteAtomic(path, updated, true, encoding); PruneBackups(path, KeptBackups); }
         }
-        static void WriteAtomic(string path, string text, bool backup)
+        internal const int KeptBackups = 3;
+        static bool StartsWith(byte[] bytes,byte[] prefix) { return bytes.Length>=prefix.Length&&prefix.SequenceEqual(bytes.Take(prefix.Length)); }
+        // 0.3.3: every profile change used to leave another backup forever. Keep the newest few.
+        internal static void PruneBackups(string path, int keep)
+        {
+            try
+            {
+                path = Path.GetFullPath(path);
+                var directory = Path.GetDirectoryName(path);
+                var prefix = Path.GetFileName(path) + ".lmu-backup-";
+                var backups = new DirectoryInfo(directory).GetFiles(prefix + "*")
+                    .Where(f => (f.Attributes&FileAttributes.ReparsePoint)==0&&Regex.IsMatch(f.Name.Substring(prefix.Length), "^[0-9a-f]{32}$"))
+                    .OrderByDescending(f => f.LastWriteTimeUtc).ThenByDescending(f => f.Name, StringComparer.Ordinal).ToList();
+                foreach (var stale in backups.Skip(Math.Max(0, keep)))
+                    try { stale.Delete(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+            catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+        static void WriteAtomic(string path, string text, bool backup) { WriteAtomic(path, text, backup, new UTF8Encoding(false)); }
+        static void WriteAtomic(string path, string text, bool backup, Encoding encoding)
         {
             path = Path.GetFullPath(path); Directory.CreateDirectory(Path.GetDirectoryName(path));
             string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
             try
             {
-                File.WriteAllText(temp, text, new UTF8Encoding(false));
+                File.WriteAllText(temp, text, encoding);
                 if (File.Exists(path)) File.Replace(temp, path, backup ? path + ".lmu-backup-" + Guid.NewGuid().ToString("N") : null);
                 else File.Move(temp, path);
             }

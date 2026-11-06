@@ -14,7 +14,7 @@ Use Windows PowerShell with either:
   including the Windows SDK and x64 MSVC tools. `build-msvc.cmd` finds Visual
   Studio through `vswhere` and initializes the x64 compiler environment.
 - A Windows x64 MinGW-w64 toolchain with `gcc.exe`, `g++.exe` and `windres.exe`
-  on `PATH`. Release 0.2.1 uses the MSVC native build and test path.
+  on `PATH`. Release 0.3.0 uses the MSVC native build and test path.
 
 The launcher also needs the .NET Framework x64 C# compiler at
 `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` and .NET Framework 4.8.
@@ -50,13 +50,22 @@ service and GUI layout tests, writes layout artifacts under `mod/build/gui-qa`,
 and produces `mod/build/LMU-QuadView-Launcher.exe` plus its `.exe.config`.
 Packaging requires both builds and the native stereo-check executable; it does
 not compile missing outputs. The default ZIP name is derived from `VERSION`
-(`dist/LMU-Quad-View-Mod-0.2.1.zip` for this release). Packaging refuses to overwrite
+(`dist/LMU-Quad-View-Mod-0.3.0.zip` for this release). Packaging refuses to overwrite
 an existing archive; use a new destination for a repeat verification:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package.ps1 -OutputDirectory .\dist\verification
 if ($LASTEXITCODE -ne 0) { throw 'Packaging failed' }
 ```
+
+For a signed release, connect SimplySign Desktop with the code-signing certificate,
+then run `tools/sign-release.ps1 -Thumbprint <certificate-thumbprint>` after both
+builds and before `package.ps1 -RequireSigned`. The signing script signs the DLL,
+launcher and packaged stereo-check executable with SHA-256/RFC3161 and verifies
+all three. Packaging rejects invalid signatures, missing timestamps or mixed
+signers and computes hashes from the signed bytes. Rebuilding invalidates the
+previous signatures; sign again. No credentials or private keys belong in this
+repository. See [Certum's signing instructions](https://files.certum.eu/documents/manual_en/CS-Code_Signing_in_the_Cloud_Signtool_jarsigner_signing.pdf).
 
 The script execution-policy flag applies to these developer commands only.
 End users launch the EXE directly.

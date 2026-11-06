@@ -12,6 +12,8 @@ static void* testReturnAddress(unsigned){return reinterpret_cast<void*>(syntheti
 
 namespace lmuqv {
 unsigned originalCalls=0,viewRequests=0;
+bool renderableFrame=false;
+std::vector<std::string> nativeMessages;
 bool xr_runtime_sizes(unsigned,uint32_t& ow,uint32_t& oh,uint32_t& w,uint32_t& h){ow=650;oh=642;w=2224;h=2182;return true;}
 bool xr_vrs_active(){return false;}
 bool xr_vrs_focus(unsigned,VrsFocus&){return false;}
@@ -19,15 +21,16 @@ bool xr_vrs_render_focus(unsigned,const float*,VrsFocus&){return false;}
 void xr_vrs_scene_complete(unsigned){}
 bool xr_quad_active(){return true;}
 bool xr_frame_views(XrView (&)[4]){++viewRequests;return false;}
-bool xr_frame_full_outer_fov(XrFovf (&)[2]){return false;}
+bool xr_frame_full_outer_fov(XrFovf (&)[2]){return renderableFrame;}
 bool xr_copy_outer(unsigned,ID3D11Texture2D*){return false;}
 void xr_scene_focus_complete(unsigned){}
 ID3D11RenderTargetView* xr_outer_rtv(unsigned){return nullptr;}
 OuterTarget xr_outer_target(unsigned){return {};}
-void log_line(const char*){}
+void log_line(const char* message){nativeMessages.emplace_back(message);}
 void flush_log(){}
 }
 static void original(void*,bool){++lmuqv::originalCalls;}
+static void originalView(void*,void*,void*,bool,bool){++lmuqv::originalCalls;}
 static XrResult XRAPI_CALL enumerateOriginal(XrInstance,XrSystemId,XrViewConfigurationType,uint32_t cap,uint32_t* count,XrViewConfigurationView* views){
     *count=2;
     if(cap>=2)for(unsigned eye=0;eye<2;++eye){views[eye].recommendedImageRectWidth=5928;views[eye].recommendedImageRectHeight=5798;}
@@ -41,6 +44,41 @@ static void require(bool condition,const char* message){
 }
 int main(){
     using namespace lmuqv;
+    {
+        std::vector<std::byte> globals(0x1b1c760),renderer(0x83000),pass(0x94);
+        base=reinterpret_cast<std::uintptr_t>(globals.data());syntheticCaller=base+0x5de951;
+        *address<std::uintptr_t>(0x1b12be8)=reinterpret_cast<std::uintptr_t>(renderer.data());
+        *address<unsigned>(0x1b1c654)=2224;*address<unsigned>(0x1b1c658)=2182;
+        *address<float>(0x199cc18)=1.f;
+        ViewSnapshot view{};view.eye_index=0;
+        view.main_passes.begin=reinterpret_cast<std::uintptr_t>(pass.data());view.main_passes.end=view.main_passes.begin+pass.size();
+        nativeOuterExpected=&view;nativeViewOriginal=originalView;nativeOuterOptIn=true;nativeRuntimeSettings=true;
+        nativeOuterWarmupView=&view;nativeOuterWarmupCalls=0;
+        for(unsigned n=0;n<140;++n)nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(nativeOuterWarmupCalls==0&&!nativeOuterFailed&&originalCalls==140,"non-renderable frames consumed warmup or disabled outer bank");
+        renderableFrame=true;
+        for(unsigned n=0;n<120;++n)nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(nativeOuterWarmupCalls==120&&!nativeOuterFailed,"renderable warmup failed");
+        // Missing primary wrappers simulate resources not yet created.
+        nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(!nativeOuterFailed&&nativeOuterPrepareFailures==1&&nativeOuterRetryCalls==120,"first missing bank permanently disabled outer rendering");
+        for(unsigned n=0;n<120;++n)nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(nativeOuterPrepareFailures==1&&nativeOuterRetryCalls==0,"bank retried during cooldown");
+        nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(!nativeOuterFailed&&nativeOuterPrepareFailures==2,"second resource retry missing");
+        for(unsigned n=0;n<120;++n)nativeViewHook(&view,nullptr,nullptr,true,false);
+        nativeViewHook(&view,nullptr,nullptr,true,false);
+        require(nativeOuterFailed&&nativeOuterPrepareFailures==3&&!nativeQuadSubmissionBlocked,"retry budget did not retain safe full-resolution fallback");
+        nativeOuterFailed=false;nativeOuterPrepareFailures=nativeOuterRetryCalls=0;nativeMessages.clear();
+        *address<float>(0x199cc18)=0.77f;
+        nativeViewHook(&view,nullptr,nullptr,true,false);
+        bool scaleReported=false;
+        for(const auto& message:nativeMessages)if(message.find("reason=render_scale")!=std::string::npos&&message.find("Bilinear")!=std::string::npos)scaleReported=true;
+        require(scaleReported,"unsupported FSR precheck lacks actionable reason");
+        nativeOuterFailed=false;nativeOuterPrepareFailures=nativeOuterRetryCalls=0;
+        nativeOuterExpected=nullptr;nativeOuterWarmupView=nullptr;nativeOuterWarmupCalls=0;
+        nativeOuterFull[0]=nativeOuterFull[1]=0;renderableFrame=false;originalCalls=0;nativeMessages.clear();
+    }
     {
         nativeEnumerateOriginal=enumerateOriginal;nativeRuntimeSettings=true;base=0x10000000;
         XrViewConfigurationView views[2]{};for(auto& v:views)v.type=XR_TYPE_VIEW_CONFIGURATION_VIEW;

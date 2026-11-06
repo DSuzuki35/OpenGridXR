@@ -9,7 +9,6 @@ const {pathToFileURL} = require('node:url');
 const {atomicWrite} = require('./store.cjs');
 const {protectedTarget,verifySignatures:checkSignatures} = require('./lmu-steam.cjs');
 const run=promisify(execFile);
-const SUPPORTED_HASH='66942337813B301B87D12EDFA330F33354A2A4B8CD9B048885CBF77EB6F940CF';
 const NAMES={qvfr:'XR_APILAYER_MBUCCHIA_quad_views_foveated',vectorxr:'XR_APILAYER_DIENERTECH_VECTORXR'};
 const DISABLES=['DISABLE_OPENGRIDXR','DISABLE_XR_APILAYER_MBUCCHIA_quad_views_foveated','DISABLE_QUAD_VIEWS_FOVEATED','DISABLE_XR_APILAYER_DIENERTECH_VECTORXR','DISABLE_XR_APILAYER_MBUCCHIA_toolkit'];
 async function hashFile(file){const hash=createHash('sha256'); for await(const chunk of createReadStream(file))hash.update(chunk); return hash.digest('hex').toUpperCase();}
@@ -20,7 +19,6 @@ async function validateExecutable(file,{stat=fs.stat,hash=hashFile}={}){
   if(path.basename(file).toLowerCase()!=='le mans ultimate.exe')throw new Error('Hooked rendering requires Le Mans Ultimate.exe.');
   const info=await stat(file).catch(()=>null); if(!info?.isFile())throw new Error('LMU executable not found.');
   const sha256=await hash(file);
-  if(sha256.toUpperCase()!==SUPPORTED_HASH)throw new Error('LMU executable differs from the supported build; native hooks cannot be enabled.');
   return {supported:true,sha256,executable:file};
 }
 function validateLayerMetadata(document){
@@ -81,7 +79,7 @@ async function isolationSwitches(manifests){
   }
   return [...switches];
 }
-function buildEnvironment(settings,{parent=process.env,runtimeDir,manifestDirectory,provider,disables=DISABLES,log='',capture}={}){
+function buildEnvironment(settings,{parent=process.env,runtimeDir,manifestDirectory,provider,disables=DISABLES,log='',capture,preferences={}}={}){
   const env={...parent};
   const disabledNames=new Set([...DISABLES,...disables,...(provider?[provider.disable]:[])].map(key=>key.toUpperCase()));
   for(const key of Object.keys(env))if(/^(LMU_QV_|OPENGRIDXR_LMU_|OPENGRIDXR_STATUS_DIR$|OPENGRIDXR_CONFIG$|OPENGRIDXR_ENHANCEMENTS_CONFIG$|XR_API_LAYER_PATH$|XR_ENABLE_API_LAYERS$)/i.test(key)||disabledNames.has(key.toUpperCase()))delete env[key];
@@ -90,17 +88,22 @@ function buildEnvironment(settings,{parent=process.env,runtimeDir,manifestDirect
   const vrs=settings.mode==='stereoVrs';
   Object.assign(env,{OPENGRIDXR_LMU_INTEGRATED:'1',OPENGRIDXR_LMU_PROVIDER:settings.provider,OPENGRIDXR_STATUS_DIR:safePath(runtimeDir),
     LMU_QV_MODE:vrs?'vrs':'quad',LMU_QV_USE_RUNTIME_SETTINGS:vrs?'0':'1',LMU_QV_FOVEATION_MODE:settings.gaze,
-    LMU_QV_DIAGNOSTICS:'1',LMU_QV_LOG:log,LMU_QV_BENCHMARK:'0',LMU_QV_DYNAMIC_FOCUS:'0',
+    LMU_QV_DIAGNOSTICS:capture?'1':'0',LMU_QV_LOG:capture?log:'',LMU_QV_BENCHMARK:'0',LMU_QV_DYNAMIC_FOCUS:'0',
+    LMU_QV_CPU_AFFINITY:preferences.cpuCacheAffinity===true?'x3d':'off',
+    LMU_QV_CPU_UPLOAD_BATCH:!vrs&&settings.cpuUploadBatch?'1':'0',
+    LMU_QV_CPU_UPLOAD_REUSE:!vrs&&!settings.cpuUploadBatch&&(settings.cpuUploadReuse||settings.cpuOuterReuse)?'1':'0',
+    LMU_QV_CPU_OUTER_REUSE:!vrs&&!settings.cpuUploadBatch&&settings.cpuOuterReuse?'1':'0',
+    LMU_QV_OUTER_SSR:!vrs&&settings.nativeOuterResolution&&settings.outerSsr?'1':'0',
     LMU_QV_NATIVE_OUTER:!vrs&&settings.nativeOuterResolution?'1':'0',LMU_QV_VRS_EXCLUSIVE:vrs?'1':'0',
     LMU_QV_VECTORXR_DIRECT_INPUTS:!vrs&&settings.provider==='vectorxr'?'1':'0',
     LMU_QV_OUTER_SHADING_RATE:String(vrs?settings.peripheralShadingRate:2),LMU_QV_DEBUG_FOCUS:settings.debugFocus?'1':'0',
-    LMU_QV_OUTER_BLUR:String(vrs?0:settings.outerSmoothing),LMU_QV_CROP_WIDTH_PERCENT:'100',LMU_QV_CROP_HEIGHT_PERCENT:'100',
+    LMU_QV_OUTER_BLUR:'0',LMU_QV_CROP_WIDTH_PERCENT:'100',LMU_QV_CROP_HEIGHT_PERCENT:'100',
     LMU_QV_FOCUS_OFFSET_X_PERCENT:String(settings.focusOffsetX),LMU_QV_FOCUS_OFFSET_Y_PERCENT:String(settings.focusOffsetY),
     LMU_QV_FOCUS_WIDTH_PERCENT:String(vrs?settings.focusWidth:100),LMU_QV_FOCUS_HEIGHT_PERCENT:String(vrs?settings.focusHeight:100),
     LMU_QV_OUTER_PIXELS_PERCENT:'100',LMU_QV_FOCUS_PIXELS_PERCENT:'100',LMU_QV_FOCUS_BOX_PERCENT:'100',
     LMU_QV_CAPTURE_DIR:capture?.directory||'',LMU_QV_CAPTURE_TRIGGER:capture?.trigger||'',
     LMU_QV_PIXEL_STATS:capture?'scene':'0',LMU_QV_GPU_TIMING_TRIGGER:'',LMU_QV_BENCH_CONTROL:''});
-  for(const key of ['PROFILE','STEREO_AUDIT','STEREO_SHADER_CAPTURE','STEREO_DRAW_PROOF','CPU_UPLOAD_REUSE','CPU_UPLOAD_BATCH','CPU_OUTER_REUSE','OUTER_SSR'])env[`LMU_QV_${key}`]='0';
+  for(const key of ['PROFILE','STEREO_AUDIT','STEREO_SHADER_CAPTURE','STEREO_DRAW_PROOF'])env[`LMU_QV_${key}`]='0';
   return env;
 }
 const BEGIN='# BEGIN OPENGRIDXR LMU PROFILE',END='# END OPENGRIDXR LMU PROFILE';
@@ -125,20 +128,26 @@ function createLmuRendering({dataDir,runtimeDir,qvfrSettingsPath=path.join(proce
   const localFile=path.join(dataDir,'lmu-installation.json'),runs=path.join(dataDir,'lmu-runs');
   let installation,discovery,compatibilityCache,currentRun=null;
   async function paths(){
-    if(!installation){try{const doc=await readJson(localFile);installation={executable:typeof doc.executable==='string'?doc.executable:'',qvfrManifest:typeof doc.qvfrManifest==='string'?doc.qvfrManifest:''};}catch(error){if(error.code!=='ENOENT')throw new Error(`Could not read LMU installation paths: ${error.message}`);installation={executable:'',qvfrManifest:''};}}
+    if(!installation){try{const doc=await readJson(localFile);installation={executable:typeof doc.executable==='string'?doc.executable:'',qvfrManifest:typeof doc.qvfrManifest==='string'?doc.qvfrManifest:'',cpuCacheAffinity:doc.cpuCacheAffinity===true};}catch(error){if(error.code!=='ENOENT')throw new Error(`Could not read LMU installation paths: ${error.message}`);installation={executable:'',qvfrManifest:'',cpuCacheAffinity:false};}}
     if(!discovery)discovery=await discover();
     return {...installation,executable:installation.executable||discovery.executables[0]||'',qvfrManifest:installation.qvfrManifest||discovery.providers.find(p=>p.provider==='qvfr')?.file||''};
+  }
+  async function preferences(){await paths();return {cpuCacheAffinity:installation.cpuCacheAffinity};}
+  async function setPreferences(value){
+    if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==1||typeof value.cpuCacheAffinity!=='boolean')throw new Error('Invalid LMU machine preference.');
+    await paths();const next={...installation,cpuCacheAffinity:value.cpuCacheAffinity};
+    await atomicWrite(localFile,JSON.stringify(next,null,2)+'\n');installation=next;return {...await preferences(),restartRequired:true};
   }
   async function setPath(kind,file){if(!['executable','qvfrManifest'].includes(kind))throw new Error('Unsupported LMU installation path.');await paths();file=safePath(file);if(kind==='qvfrManifest')await readProviderManifest(file);else if(path.basename(file).toLowerCase()!=='le mans ultimate.exe')throw new Error('Select Le Mans Ultimate.exe.');const next={...installation,[kind]:file};await atomicWrite(localFile,JSON.stringify(next,null,2)+'\n');installation=next;compatibilityCache=null;return status();}
   async function compatibility(file){
     if(!file)return {supported:false,message:'Choose an installed LMU executable.'};
     const stat=await fs.stat(file).catch(()=>null),key=`${file}|${stat?.size}|${stat?.mtimeMs}`;
     if(compatibilityCache?.key===key)return compatibilityCache.value;
-    let value;try{value={...await validateGame(file),message:'Executable matches the pinned build. Hook anchors are checked again inside the game.'};}catch(error){value={supported:false,message:error.message};}
+    let value;try{value={...await validateGame(file),message:'LMU executable found. Native code anchors and resource guards determine hook compatibility during startup.'};}catch(error){value={supported:false,message:error.message};}
     compatibilityCache={key,value};return value;
   }
   async function captureStatus(){if(!currentRun?.capture)return {state:'inactive'};const files=['outer0.bmp','outer1.bmp','app0.bmp','app1.bmp'];const captured=await Promise.all(files.map(file=>fs.access(path.join(currentRun.capture.directory,file)).then(()=>true,()=>false)));return {runId:currentRun.id,state:captured.every(Boolean)?'complete':!isAlive(currentRun.pid)?'stopped':currentRun.triggered?'requested':'armed',directory:currentRun.capture.directory,files:files.filter((_,i)=>captured[i]),message:'Four scene views are captured once after the trigger, with matching FOV and pose metadata in the run log.'};}
-  async function status(){const local=await paths();let qvfr={available:false,message:'Choose a QVFR manifest or install QVFR.'};if(local.qvfrManifest)try{const p=await readProviderManifest(local.qvfrManifest);qvfr={available:true,manifest:p.file,message:'QVFR manifest and library found.'};}catch(error){qvfr.message=error.message;}return {paths:local,compatibility:await compatibility(local.executable),supportedHash:SUPPORTED_HASH,sourceVersion:'0.2.1',providers:{qvfr,vectorxr:{available:!!(await fs.stat(path.join(runtimeDir,'OpenGridXR-Enhancements.dll')).catch(()=>null))?.isFile(),embedded:true}},capture:await captureStatus(),validation:'Headset/provider validation is still required for the integrated path.'};}
+  async function status(){const local=await paths();let qvfr={available:false,message:'Choose a QVFR manifest or install QVFR.'};if(local.qvfrManifest)try{const p=await readProviderManifest(local.qvfrManifest);qvfr={available:true,manifest:p.file,message:'QVFR manifest and library found.'};}catch(error){qvfr.message=error.message;}return {paths:local,compatibility:await compatibility(local.executable),preferences:await preferences(),sourceVersion:'0.5.4',providers:{qvfr,vectorxr:{available:!!(await fs.stat(path.join(runtimeDir,'OpenGridXR-Enhancements.dll')).catch(()=>null))?.isFile(),embedded:true}},capture:await captureStatus(),validation:'Headset/provider validation is still required for the integrated path.'};}
   async function prepare(profile){
     const {validateLmuRendering}=await import(pathToFileURL(path.join(__dirname,'../src/lmu-rendering.mjs')).href);validateLmuRendering(profile.lmuRendering,profile.game);
     if(profile.game!=='lmu'||!profile.lmuRendering||profile.lmuRendering.mode==='off')throw new Error('Choose quad views or stereo VRS in the saved LMU profile.');
@@ -192,7 +201,7 @@ function createLmuRendering({dataDir,runtimeDir,qvfrSettingsPath=path.join(proce
     if(plan.provider){const doc=structuredClone(plan.provider.document);doc.api_layer.library_path=plan.provider.library;delete doc.api_layer.disable_environment;delete doc.api_layer.enable_environment;await atomicWrite(path.join(manifestDirectory,'QVFR.json'),JSON.stringify(doc,null,2));}
     const capturePlan=capture?{directory:path.join(directory,'views'),trigger:path.join(directory,'capture.request')}:null;
     if(capturePlan)await fs.mkdir(capturePlan.directory);
-    const env=buildEnvironment(plan.settings,{runtimeDir,manifestDirectory,provider:plan.provider,disables:plan.disables,log,capture:capturePlan});
+    const env=buildEnvironment(plan.settings,{runtimeDir,manifestDirectory,provider:plan.provider,disables:plan.disables,log,capture:capturePlan,preferences:await preferences()});
     // Freeze the saved launch settings while runtime assets remain beside the DLL.
     for(const [file,key] of [['OpenGridXR.ini','OPENGRIDXR_CONFIG'],['OpenGridXR-enhancements-lmu.json','OPENGRIDXR_ENHANCEMENTS_CONFIG']]){
       const destination=path.join(directory,file);await fs.copyFile(path.join(runtimeDir,file),destination);env[key]=destination;
@@ -212,6 +221,6 @@ function createLmuRendering({dataDir,runtimeDir,qvfrSettingsPath=path.join(proce
     }
   }
   async function triggerCapture(runId){if(!currentRun?.capture||currentRun.id!==runId||!isAlive(currentRun.pid))throw new Error('No active owned capture run.');if(currentRun.triggered)throw new Error('This capture was already requested.');await fs.writeFile(currentRun.capture.trigger,'',{flag:'wx'});currentRun.triggered=true;return captureStatus();}
-    return {status,setPath,preview,launch,captureStatus,triggerCapture,prepareAutomatic};
+    return {status,setPath,preferences,setPreferences,preview,launch,captureStatus,triggerCapture,prepareAutomatic};
 }
-module.exports={SUPPORTED_HASH,buildEnvironment,readProviderManifest,qvfrProfileText,validateExecutable,createLmuRendering,discoverInstallations,isolationSwitches};
+module.exports={buildEnvironment,readProviderManifest,qvfrProfileText,validateExecutable,createLmuRendering,discoverInstallations,isolationSwitches};

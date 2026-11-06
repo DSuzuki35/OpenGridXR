@@ -1,0 +1,40 @@
+PORTABLE VECTORXR BACKEND
+
+Architecture: LMU -> LMU quad-view adapter -> VectorXR -> active OpenXR runtime.
+The adapter renders four views. VectorXR supplies their view configuration and
+composes them for the runtime. Select one software quad-view provider per launch.
+
+Install VectorXR separately: https://github.com/DienerTech/vectorxr
+VectorXR is not bundled. Enable its Quadviews profile for Le Mans Ultimate.exe.
+In this launcher's Rendering page, select VectorXR. Setup autodetects standard
+64-bit installations; use its VectorXR manifest selector for other locations.
+Keep the headset's OpenXR runtime active. Quest with Virtual Desktop can use VDXR.
+
+VectorXR owns resolution, focus dimensions and tracking settings. Configure them
+in its app; QVFR-specific sliders are disabled while VectorXR is selected. Choose
+Fixed when gaze tracking is unavailable. Auto requests tracking only when the
+provider reports the required support. Restart LMU after changing launch settings.
+
+The launcher's Focus position controls remain available with VectorXR. They add
+horizontal/vertical offsets in Fixed and Auto without changing VectorXR's size
+or resolution. Positive means right/up, negative left/down; units are percent of
+the full projected view, from -50 to +50. Auto keeps following gaze. Reset offsets
+restores zero. Large offsets may place part of the box outside the visible view.
+Save and restart LMU to apply. Offsets are applied by the mod, not its provider.
+
+The launcher creates an explicit provider manifest for this game process using
+the original provider DLL path. It does not rewrite installed manifests or global
+OpenXR registration. Duplicate implicit providers and conflicting Toolkit layers
+are disabled only for the launched game. No Toolkit overlay is required.
+
+Eligible single-sample 2D color swapchains request sampled usage so VectorXR can
+use them directly. Other swapchain metadata is preserved. Unsupported sampled
+requests retry the original usage; fatal errors are propagated. Provider logs can
+confirm whether direct inputs are used. This capability does not guarantee a
+particular frame-time gain or alter LMU's separate per-eye scene draws.
+
+Setup -> Enable diagnostics and logging controls this mod's logs and profiling.
+Untick and relaunch for normal play without mod diagnostics. The preference is
+saved; old logs are retained. VectorXR and runtime logging have separate controls.
+Necessary per-process manifests still exist under runtime/ with diagnostics off.
+For measurements, re-enable diagnostics and follow RENDER-PROFILING.txt.

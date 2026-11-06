@@ -117,11 +117,34 @@ class GuiLayoutTests {
         if(pageName=="RenderingPage") {
             var provider=(ComboBox)Named(form,"ProviderSelector");
             foreach(var item in provider.Items)Check(TextRenderer.MeasureText(item.ToString(),provider.Font).Width+SystemInformation.VerticalScrollBarWidth<provider.Width,"Provider name is clipped");
+            foreach(var name in new[]{"outer","inner","focusWidth","focusHeight","focusOffsetX","focusOffsetY","cropWidth","cropHeight"}){
+                var setting=(PercentSetting)typeof(Launcher).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(form);
+                var allowed=Named(setting,"AllowedRange");
+                typeof(DarkScrollPage).GetMethod("Reveal",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(page,new object[]{allowed});
+                Settle(form);FullyVisible(allowed);TextFits(allowed);
+            }
+            int selected=provider.SelectedIndex;provider.SelectedIndex=1;scroll.Value=0;Settle(form);
+            Screenshot(form,Path.Combine(output,stem+"-ranges.png"));
+            provider.SelectedIndex=selected;scroll.Value=0;Settle(form);
         }
         if(pageName=="BenchmarkPage") {
             foreach(var name in new[]{"BenchmarkEnabled","BenchmarkTemplate","BenchmarkVisibilityButton","BenchmarkRecordButton"})FullyVisible(Named(form,name));
             foreach(var name in new[]{"BenchmarkVisibilityButton","BenchmarkRecordButton","AssignVisibility","AssignRecording","ClearVisibility","ClearRecording","BenchmarkReportButton","BenchmarkDiagnoseButton"})TextFits(Named(form,name));
             var preview=(PictureBox)Named(form,"BenchmarkPreview");Check(preview.Image!=null,"Benchmark preview bitmap missing");
+        }
+        if(pageName=="ProfilesPage") {
+            foreach(var name in new[]{"ProfileName","ProfileSave"}) {
+                var control=Named(form,name);control.Focus();Settle(form);FullyVisible(control);
+                if(control is Button)TextFits(control);
+            }
+            scroll.Value=scroll.Maximum;Settle(form);
+            foreach(var name in new[]{"ProfileLoad","ProfileRename","ProfileDelete","ProfileExport","ProfileImport"}) {
+                var control=Named(form,name);FullyVisible(control);TextFits(control);
+            }
+            var hint=Named(form,"ProfileSaveHint");
+            var wrapped=TextRenderer.MeasureText(hint.Text,hint.Font,new Size(hint.ClientSize.Width,Int32.MaxValue),TextFormatFlags.WordBreak);
+            Check(wrapped.Height<=hint.ClientSize.Height,"Profile save explanation is clipped");
+            scroll.Value=0;Settle(form);
         }
         NumericSpacing(page);BrandAlignment(form);
         NoNativeScrollBars(form);
@@ -146,8 +169,15 @@ class GuiLayoutTests {
         foreach(var name in new[]{"SaveButton","LaunchButton","CoffeeButton"})FullyVisible(Named(form,name));
         NoNativeScrollBars(form);
         if(pageName=="SetupPage") {
-            foreach(var name in new[]{"CpuOuterReuse","OuterSsr"}) {
-                var control=Named(form,name);control.Focus();Settle(form);FullyVisible(control);TextFits(control);
+            foreach(var name in new[]{"FocusOutline","CpuCacheAffinity","CpuOuterReuse","OuterSsr","UpdateAutomatic","UpdateCheck","AutoStartIntegrity"}) {
+                var control=Named(form,name);
+                if(control.Enabled)control.Focus();
+                else {
+                    // Disabled default experiments cannot receive keyboard
+                    // focus. Scroll to them and still check full reachability.
+                    typeof(DarkScrollPage).GetMethod("Reveal",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(page,new object[]{control});
+                }
+                Settle(form);FullyVisible(control);TextFits(control);
             }
         }
         if(pageName=="RenderingPage") {
@@ -163,11 +193,10 @@ class GuiLayoutTests {
             var wrapped=TextRenderer.MeasureText(cropHint.Text,cropHint.Font,new Size(cropHint.ClientSize.Width,Int32.MaxValue),TextFormatFlags.WordBreak);
             Check(wrapped.Height<=cropHint.ClientSize.Height,"Crop explanation is clipped");
             Screenshot(form,Path.Combine(output,stem+"-crop.png"));
-            foreach(var name in new[]{"DynamicFocusEnabled","DynamicFocusMinPercent","DynamicFocusMaxPercent","DynamicFocusReservePercent"}) {
-                var control=Named(form,name);control.Focus();Settle(form);FullyVisible(control);
-            }
-            TextFits(Named(form,"DynamicFocusEnabled"));
-            Screenshot(form,Path.Combine(output,stem+"-dynamic-focus.png"));
+            Check(form.Controls.Find("DynamicFocusCard",true).Length==0,"Removed dynamic focus controls remain in rendering page");
+        }
+        if(pageName=="SetupPage") {
+            foreach(var name in new[]{"AutoStartInstall","AutoStartRemove"}) {var control=Named(form,name);control.Focus();Settle(form);FullyVisible(control);TextFits(control);}
         }
         Screenshot(form,Path.Combine(output,stem+"-"+pageName+"-bottom.png"));
         Console.WriteLine(stem+" "+pageName+": text/ancestor bounds, footer reachability, dark scrolling PASS; scroll="+scroll.Maximum);
@@ -179,8 +208,32 @@ class GuiLayoutTests {
             string output=args.Length>0?Path.GetFullPath(args[0]):Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"gui-qa");
             Directory.CreateDirectory(output);
             using(var form=new Launcher()) {
+                form.Opacity=0;form.ShowInTaskbar=false;form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-16000,-16000);
+                form.Show();Settle(form);
                 var flags=BindingFlags.Instance|BindingFlags.NonPublic;
-                var experiments=new LauncherSettings {CpuOuterReuse=true,OuterSsr=true,DiagnosticsEnabled=false,StereoDrawAudit=true,StereoShaderCapture=true,StereoPairProof=true};
+                foreach(var control in Descendants(form))
+                    Check(!control.Text.Contains("Outer smoothing")&&(control.AccessibleName==null||!control.AccessibleName.Contains("Outer smoothing")),"Removed smoothing UI remains accessible");
+                var settingsOutline=(CheckBox)typeof(Launcher).GetField("outline",flags).GetValue(form);
+                Check(Descendants(Named(form,"SetupPage")).Contains(settingsOutline),"Focus settingsOutline must be in Settings");
+                Check(!Descendants(Named(form,"RenderingPage")).Contains(settingsOutline),"Focus settingsOutline remains in Rendering");
+                Check(Named(form,"SetupNav").Text.Trim()=="Settings","Settings navigation text missing");
+                ((Button)Named(form,"SetupNav")).PerformClick();Settle(form);
+                Check(((Label)typeof(Launcher).GetField("header",flags).GetValue(form)).Text=="Settings","Settings page title missing");
+                settingsOutline.Checked=true;
+                Check(((LauncherSettings)typeof(Launcher).GetMethod("Values",flags).Invoke(form,null)).DebugFocus,"Settings settingsOutline toggle no longer saves preference");
+                var unsavedLocal=new LauncherSettings {Backend="QVFR",GameDirectory=@"F:\Unsaved LMU",QuadViewsManifest=@"F:\Unsaved QVFR.json",FocusAspectRatio=1.25m,OuterPercent=400};
+                typeof(Launcher).GetMethod("Fill",flags).Invoke(form,new object[]{unsavedLocal});
+                var profileLocal=(LauncherSettings)typeof(Launcher).GetMethod("CurrentForProfiles",flags).Invoke(form,null);
+                Check(profileLocal.GameDirectory==unsavedLocal.GameDirectory&&profileLocal.QuadViewsManifest==unsavedLocal.QuadViewsManifest&&profileLocal.FocusAspectRatio==unsavedLocal.FocusAspectRatio,"Loading profile discarded unsaved local values when current rendering is invalid");
+                typeof(Launcher).GetMethod("ShowProfilesPage",flags).Invoke(form,null);
+                Check(form.AcceptButton==Named(form,"ProfileLoad"),"Profiles page Enter can trigger Launch LMU");
+                typeof(Control).GetMethod("OnEnter",flags).Invoke(Named(form,"ProfileName"),new object[]{EventArgs.Empty});
+                Check(form.AcceptButton==Named(form,"ProfileSave"),"Profile name Enter does not save profile");
+                typeof(Control).GetMethod("OnEnter",flags).Invoke(Named(form,"ProfileList"),new object[]{EventArgs.Empty});
+                Check(form.AcceptButton==Named(form,"ProfileLoad"),"Profile list Enter does not load profile");
+                typeof(Launcher).GetMethod("ShowPage",flags).Invoke(form,new object[]{false});
+                Check(form.AcceptButton==Named(form,"LaunchButton"),"Rendering default launch button was not restored");
+                var experiments=new LauncherSettings {CpuOuterReuse=true,OuterSsr=true,NativeOuterResolution=true,DiagnosticsEnabled=false,StereoDrawAudit=true,StereoShaderCapture=true,StereoPairProof=true};
                 typeof(Launcher).GetMethod("Fill",flags).Invoke(form,new object[]{experiments});
                 var experimentValues=(LauncherSettings)typeof(Launcher).GetMethod("Values",flags).Invoke(form,null);
                 Check(experimentValues.CpuOuterReuse&&experimentValues.OuterSsr,"GUI lost performance experiment preferences");
@@ -196,14 +249,14 @@ class GuiLayoutTests {
                 Check(experimentValues.CpuOuterReuse&&experimentValues.OuterSsr&&experimentValues.StereoDrawAudit&&experimentValues.StereoPairProof,"Mode switching destroys experiment or diagnostic preferences");
                 experiments.CpuUploadBatch=true;typeof(Launcher).GetMethod("Fill",flags).Invoke(form,new object[]{experiments});
                 Check(Named(form,"CpuUploadBatch").Enabled&&!Named(form,"CpuOuterReuse").Enabled,"Saved conflicting CPU options must allow turning off the winning batch option");
-                var vrs=new LauncherSettings {Backend="VRS",VrsPeripheralRate=4,FocusAspectRatio=2,FocusWidthPercent=30,FocusHeightPercent=60,CropWidthPercent=75,NativeOuterResolution=true,StereoDrawAudit=true,CpuUploadReuse=true,RenderProfiling=true,DebugFocus=true};
+                var vrs=new LauncherSettings {Backend="VRS",DiagnosticsEnabled=true,VrsPeripheralRate=4,FocusAspectRatio=2,FocusWidthPercent=30,FocusHeightPercent=60,CropWidthPercent=75,NativeOuterResolution=true,StereoDrawAudit=true,CpuUploadReuse=true,RenderProfiling=true,DebugFocus=true};
                 typeof(Launcher).GetMethod("Fill",flags).Invoke(form,new object[]{vrs});
                 var vrsValues=(LauncherSettings)typeof(Launcher).GetMethod("Values",flags).Invoke(form,null);
                 Check(vrsValues.Backend=="VRS","GUI lost VRS selection");
                 var outline=(CheckBox)typeof(Launcher).GetField("outline",flags).GetValue(form);
                 Check(!outline.Enabled&&outline.Checked&&vrsValues.DebugFocus,"VRS must disable quad outline while preserving its saved preference");
                 Check(vrsValues.VrsPeripheralRate==4,"GUI lost VRS peripheral rate");
-                Check(!Named(form,"DynamicFocusEnabled").Enabled&&!Named(form,"DynamicFocusMinPercent").Enabled&&!Named(form,"CropWidthPercent").Enabled&&!Named(form,"OuterResolution").Enabled&&!Named(form,"CpuUploadReuse").Enabled&&!Named(form,"StereoDrawAudit").Enabled,"VRS enables quad-only controls");
+                Check(!Named(form,"CropWidthPercent").Enabled&&!Named(form,"OuterResolution").Enabled&&!Named(form,"CpuUploadReuse").Enabled&&!Named(form,"StereoDrawAudit").Enabled,"VRS enables quad-only controls");
                 Check(vrsValues.CropWidthPercent==75&&vrsValues.NativeOuterResolution&&vrsValues.StereoDrawAudit&&vrsValues.CpuUploadReuse,"Selecting VRS destroys saved quad settings");
                 Check(Named(form,"RenderProfileSeconds").Enabled,"VRS disabled render profiling");
                 var vrsWidth=(PercentSetting)typeof(Launcher).GetField("focusWidth",flags).GetValue(form);
@@ -250,7 +303,7 @@ class GuiLayoutTests {
                 var normalized=(LauncherSettings)typeof(Launcher).GetMethod("Values",flags).Invoke(form,null);
                 Check(Math.Abs(normalized.FocusWidthPercent-22.801511m)<.00001m&&normalized.FocusHeightPercent==50,"Equal UI axes did not reach the provider correctly");
                 Check(normalized.FocusAspectRatio==original.FocusAspectRatio,"Calibration lost on save");
-                var vector=new LauncherSettings {Backend="VectorXR",FoveationMode="fixed",RenderProfiling=true,RenderProfileSeconds=180,VectorXrManifest=@"E:\VectorXR\layer.json",QuadViewsManifest=@"E:\QVFR\layer.json"};
+                var vector=new LauncherSettings {Backend="VectorXR",DiagnosticsEnabled=true,FoveationMode="fixed",RenderProfiling=true,RenderProfileSeconds=180,VectorXrManifest=@"E:\VectorXR\layer.json",QuadViewsManifest=@"E:\QVFR\layer.json"};
                 typeof(Launcher).GetMethod("Fill",flags).Invoke(form,new object[]{vector});
                 var vectorValues=(LauncherSettings)typeof(Launcher).GetMethod("Values",flags).Invoke(form,null);
                 Check(vectorValues.RenderProfiling,"Profiling GUI setting lost");
@@ -296,6 +349,7 @@ class GuiLayoutTests {
                     Page(form,"RenderingPage","RenderingNav",output,stem);
                     Page(form,"SetupPage","SetupNav",output,stem);
                     Page(form,"BenchmarkPage","BenchmarkNav",output,stem);
+                    Page(form,"ProfilesPage","ProfilesNav",output,stem);
                     ((ComboBox)Named(form,"ProviderSelector")).SelectedIndex=3;
                     ((Button)Named(form,"RenderingNav")).PerformClick();
                     ((DarkScrollBar)Named(Named(form,"RenderingPage"),"PageScrollBar")).Value=0;Settle(form);

@@ -1,14 +1,39 @@
 # LMU rendering
 
-OpenGrid includes the LMU-specific renderer from [LMU Quad View Mod v0.2.1](https://github.com/DSuzuki35/LMU-Quad-View-Mod/tree/v0.2.1), commit `bf1189a6d841866b90eab2673b538eb06b471965`. Its native adapter is linked into `OpenGridXR.dll`; it is not a second registered OpenGrid API layer. Provider and headset combinations require their own validation; the earlier standalone result does not establish compatibility of every integrated configuration.
+OpenGrid **0.5.4** includes the LMU renderer from [LMU Quad View Mod v0.5.4](https://github.com/DSuzuki35/LMU-Quad-View-Mod/tree/v0.5.4), commit `aa04884be7d8f52e585ffe9ad2d58be10a1ccd8f`. Its adapter is linked into `OpenGridXR.dll`. Save your profile, update the installed runtime layer, then restart LMU to use the new renderer.
 
 ![LMU provider and focus settings](images/screenshots/quad-views.png)
 
-*0.5.0 demo configuration. The preview is illustrative, not a live game capture.*
+*0.5.4 demo configuration. The preview is illustrative, not a live game capture.*
 
 ## Use
 
-Enable the LMU rendering module in Settings, select an LMU profile and open **LMU rendering**. Ordinary stereo remains the default. Select **Quad views** or **Stereo VRS**, save the profile, select the game executable and use **Check launch** before launching offline. Unknown executable hashes are rejected; native hook anchors are also checked in the game process.
+1. Enable the LMU rendering module in Settings and select an LMU profile.
+2. Open **LMU quad views & VRS** and choose **Quad views** or **Stereo VRS**. Ordinary stereo remains the default.
+3. Save the profile and update the runtime layer, then launch LMU in VR normally through Steam.
+
+For the optional offline launcher, select the game executable and use **Check launch** first. Executable resource, code-anchor, x64 function-boundary and independently anchored data-layout checks run in the native adapter; the launcher records the executable hash for diagnostics without requiring one fixed hash. A future game update can still fail those guards.
+
+**Quad views can add roughly 3–4 ms of CPU frametime**, depending on the scene and system. Use them with sufficient CPU headroom and compare your own frametimes. No new performance gain has been measured for this OpenGrid integration.
+
+## Rendering and hardening in 0.5.4
+
+The complete v0.5.4 native renderer includes per-eye Stereo VRS maps, updates only when shading-rate tile data changes, cached pass validation, reduced frame-loop allocations, asynchronous bounded diagnostics, unlocked runtime calls with ownership reservations, outer-image prefetch and corrected late frame-begin ordering. Normal launches keep profiling and verbose diagnostics off. A bounded startup/error record remains available on the LMU page, including failures before a live session and the CPU scheduling outcome.
+
+Under **Advanced rendering settings**, these optional quad-view controls default off:
+
+| Option | Behavior |
+| --- | --- |
+| CPU upload reuse | Reuses verified uploads across focus views; disables batching. |
+| CPU upload batching | Batches verified uploads; disables upload reuse and outer reuse. |
+| CPU outer reuse | Reuses verified outer-view CPU work; enables upload reuse and disables batching. |
+| Outer SSR | Outer-view screen-space reflections; requires **Native outer resolution**. |
+
+![Optional LMU CPU optimizations and local AMD cache-core preference](images/screenshots/quad-optimizations.png)
+
+Save and restart LMU after a change. Compare frametimes and inspect image quality on your rig. These quad-only flags are disabled in Stereo VRS even if an inactive profile retains their values. The obsolete **Outer smoothing** control has been removed; old saved smoothing values are ignored.
+
+**Prefer AMD 3D V-Cache cores** defaults off for new installations and when no preference has been saved. An explicit saved on/off choice is preserved for this PC. On eligible asymmetric dual-CCD AMD systems it requests the cache-rich cores through Windows CPU sets, respecting existing affinity and CPU-set restrictions. Unsupported or ambiguous topologies keep their Windows scheduling policy. This preference applies to quad views and Stereo VRS on the next LMU launch and is excluded from profile import/export. It is a scheduling preference, not a measured speedup or an SPS/MVR feature.
 
 ### Normal Steam launch (experimental)
 
@@ -16,9 +41,9 @@ Save the LMU profile and install/update the runtime layer, then launch LMU in VR
 
 Remove the old OpenGrid `--lmu-steam-launch` option from Steam if you added it previously, preserving any unrelated launch options. The automatic path does not start a helper, alter EAC, reorder globally registered layers, or disable other tools. Existing per-game features in standalone tools can still conflict and should not duplicate the configured OpenGrid effects.
 
-For QVFR, saving/installing prepares a byte-identical local copy of the installed provider under `runtime/providers/qvfr/OpenGridXR-QVFR.dll`. Its existing signature is preserved; it is not shipped as part of OpenGrid. A QVFR instance already present downstream is reused. Otherwise the private copy is inserted below the adapter, isolating its singleton state from a registered QVFR above OpenGrid that saw LMU's original stereo request. Saving backs up and updates only the LMU block in the provider's per-user settings. Other game blocks and the original provider DLL are preserved. The native pinned-executable and hook-anchor guards remain active.
+For QVFR, saving/installing prepares a byte-identical local copy of the installed provider under `runtime/providers/qvfr/OpenGridXR-QVFR.dll`. Its existing signature is preserved; it is not shipped as part of OpenGrid. A QVFR instance already present downstream is reused. Otherwise the private copy is inserted below the adapter, isolating its singleton state from a registered QVFR above OpenGrid that saw LMU's original stereo request. Saving backs up and updates only the LMU block in the provider's per-user settings. Other game blocks and the original provider DLL are preserved. The native executable-resource and hook-anchor guards remain active.
 
-The adapter owns its startup settings until instance destruction; explicit offline/capture launches keep precedence. Automatic starts disable dynamic focus, capture, benchmark and experimental profiling controls. Their native diagnostics use `runtime/logs/xr-layer.log`. Actual rendered-view status remains the evidence that quad rendering is active.
+The adapter owns its startup settings until instance destruction; explicit offline/capture launches keep precedence. Automatic starts clear inherited LMU experiment controls and disable dynamic focus, capture, benchmark, profiling and verbose diagnostics. Requested offline diagnostics use `runtime/logs/xr-layer.log`. Actual rendered-view status remains the evidence that quad rendering is active.
 
 The automatic path was tested on 3 November 2026 on the Dream Air SE / SBoys3 / SteamVR / QVFR rig after removing the Steam launch option. The tester reached the VR cockpit. EAC reported successful in-game initialization at 15:07:43 UTC; the legacy handoff record was unchanged. Fresh native status reported quad/QVFR, ready hooks, four valid rendered FOVs, 322 x 302 outer images and 2576 x 2410 focus images per eye. The default automatic-path log recorded successful quad submissions through frame 4920. Both OpenGrid DLLs and the installed application passed Authenticode verification. This confirms that protected startup and four-view rendering worked in this session; multiplayer-server acceptance and extended visual driving tests were not established.
 
@@ -30,7 +55,7 @@ The optional **Legacy launch option (diagnostics)** section retains the explicit
 "C:\Program Files\OpenGrid XR\OpenGrid XR.exe" --lmu-steam-launch %command%
 ```
 
-Steam Play runs a short headless OpenGrid handoff, which reads the saved LMU profile and starts the original `start_protected_game.exe` with `+XR`. It uses the same per-process provider isolation, pinned game-build checks, frozen rendering configuration and static focus settings as the offline launcher. The editor can stay open. Save changes before launching; unsaved edits are not used. Remove the OpenGrid launch option to undo the setup, restoring any previous options you used.
+Steam Play runs a short headless OpenGrid handoff, which reads the saved LMU profile and starts the original `start_protected_game.exe` with `+XR`. It uses the same per-process provider isolation, executable checks, frozen rendering configuration and static focus settings as the offline launcher. The editor can stay open. Save changes before launching; unsaved edits are not used. Remove the OpenGrid launch option to undo the setup, restoring any previous options you used.
 
 Both OpenGrid DLLs and the protected launcher must pass Windows signature verification. The handoff refuses a direct `Le Mans Ultimate.exe` target and never falls back to an offline launch. EAC is not changed or disabled. A valid signature does not establish EAC approval: **online QuadView compatibility requires a separate protected-launch rig test**. A successful bootstrapper start is not proof that the game loaded the layer or rendered four views. Check the actual rendered views and game/EAC logs.
 
@@ -54,6 +79,8 @@ Stereo VRS keeps two native eye renders and does not add focus passes. Supported
 
 The adapter owns the four-direction crop, including asymmetric top/bottom crops. It supplies native outer geometry, focus geometry, HUD and submission from one rendered-frame snapshot. Later tracking queries can return fresh data without replacing metadata for pixels already rendered. Application submission poses and existing focus-pose compensation are preserved.
 
+OpenGrid 0.5.4 allows parallel tracking queries to return fresh provider poses while preserving the rendered snapshot during submission. Unsafe same-thread reentry is rejected and counted. Reading the rendered FOV does not change that snapshot. Each outer-image wait requests at most the smaller of a positive predicted frame period and 5 ms, using 5 ms when no positive period is available. Runtime scheduling can overrun that requested timeout. A timeout retains the acquired image for a later retry instead of releasing an image that has not become ready. Startup or hook-validation failures are reported explicitly. The adapter does not silently switch a partially configured quad session to stereo.
+
 Cropped outer images are embedded into their original full-FOV output before submission. The focus is fitted inside the cropped outer. OpenGrid's former independent stereo crop and dimension adjustment are bypassed for this coordinated quad path. VectorXR composition uses the submitted rendered FOVs rather than overwriting them with later cached locate results.
 
 OpenGrid processes borrowed images before their release. The aperture uses the original full-eye tangent coordinates projected into each outer/focus image. This final-image mask provides visual coverage; it does not imply that hidden focus pixels were never shaded. Sharpening uses the actual image regions.
@@ -66,7 +93,7 @@ Clean output merges owned raw outer and high-resolution focus images from the se
 
 The offline and legacy Steam launchers use process-local explicit manifests and environment settings. They disable installed standalone OpenGrid, LMU adapter and competing quad providers for that child, then load the owned OpenGrid copy and exactly the selected external provider when needed. Global registry settings and parent-process environment are not modified. The automatic implicit-layer path preserves the registered chain and uses the private provider routing described above. Existing standalone launcher protection remains in the vendored upstream source.
 
-The supported LMU executable SHA-256 is `66942337813B301B87D12EDFA330F33354A2A4B8CD9B048885CBF77EB6F940CF`. This is a pinned build, not a promise that future LMU releases work unchanged. Provider/runtime/device support still matters after the hash passes. The integrated path is Windows x64 / D3D11.
+The integrated path is Windows x64 / D3D11. The native adapter verifies LMU identity, executable resources, hook anchors, function boundaries and independently anchored data layouts before installing hooks. Passing those checks does not establish compatibility with every game update, provider, runtime or headset. Historical rig evidence below predates the 0.5.4 renderer update; repeat it for your configuration.
 
 ## Verify at the rig
 

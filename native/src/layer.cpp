@@ -5,6 +5,7 @@
 #include "settings.hpp"
 #include "runtime_paths.hpp"
 #include "lmu_integration.hpp"
+#include "lmu_diagnostics.hpp"
 #include "lmu_mask.hpp"
 #include "lmu_stream.hpp"
 #include <algorithm>
@@ -115,6 +116,22 @@ struct Swapchain {
     bool valid{};
 };
 std::recursive_mutex guard;
+thread_local std::unique_lock<std::recursive_mutex>* runtimeSubmissionHostLock=nullptr;
+struct RuntimeSubmissionHostScope {
+    std::unique_lock<std::recursive_mutex>* previous;
+    explicit RuntimeSubmissionHostScope(std::unique_lock<std::recursive_mutex>& lock):previous(runtimeSubmissionHostLock){runtimeSubmissionHostLock=&lock;}
+    ~RuntimeSubmissionHostScope(){runtimeSubmissionHostLock=previous;}
+};
+XrResult lmu_runtime_submit(XrSession session,PFN_xrEndFrame submit,const XrFrameEndInfo* info){
+    auto* lock=runtimeSubmissionHostLock;
+    if(!lock||!lock->owns_lock())return submit(session,info);
+    // The adapter has reserved the frame and released its own state lock.
+    // Reacquire the host lock before adapter callbacks touch host resources.
+    lock->unlock();
+    XrResult result;
+    try{result=submit(session,info);}catch(...){lock->lock();throw;}
+    lock->lock();return result;
+}
 std::unordered_map<XrInstance, std::unique_ptr<Instance>> instances;
 std::unordered_map<XrSession, std::unique_ptr<Session>> sessions;
 std::unordered_map<XrSwapchain, std::unique_ptr<Swapchain>> chains;
@@ -195,8 +212,10 @@ std::string lmu_status(const Session& s) {
     std::ostringstream out;
     constexpr double degrees=180/3.14159265358979323846;
     const auto& frame=s.lmuFrame;
+    const auto diagnostics=og::lmu::diagnostic_snapshot();
     out<<"{\"mode\":\""<<(s.instance->lmuQuad?"quad":"stereoVrs")<<"\",\"provider\":\""<<s.instance->lmuProvider
-       <<"\",\"hookStatus\":\"ready\",\"frameId\":"<<frame.id<<",\"focusFovValid\":"<<(s.lmuSubmitted?"true":"false")
+       <<"\",\"hookStatus\":"<<og::lmu::diagnostic_detail::quoted(diagnostics.state)
+       <<",\"diagnostics\":"<<og::lmu::diagnostic_json(diagnostics)<<",\"frameId\":"<<frame.id<<",\"focusFovValid\":"<<(s.lmuSubmitted?"true":"false")
        <<",\"focusLeftHorizontal\":"<<(frame.views[2].fov.angleRight-frame.views[2].fov.angleLeft)*degrees
        <<",\"focusLeftVertical\":"<<(frame.views[2].fov.angleUp-frame.views[2].fov.angleDown)*degrees
        <<",\"focusRightHorizontal\":"<<(frame.views[3].fov.angleRight-frame.views[3].fov.angleLeft)*degrees
@@ -209,6 +228,12 @@ std::string lmu_status(const Session& s) {
     if(s.lmuSubmitted)for(unsigned slot=0;slot<4;++slot){if(slot)out<<',';const auto& f=frame.views[slot].fov;
         out<<"{\"angleLeft\":"<<f.angleLeft<<",\"angleRight\":"<<f.angleRight<<",\"angleUp\":"<<f.angleUp<<",\"angleDown\":"<<f.angleDown<<'}';}
     out<<"]}";return out.str();
+}
+void lmu_failure(const std::string& fallbackReason) {
+    const auto diagnostic=og::lmu::diagnostic_snapshot();
+    // Keep the engine's specific refusal when the failed downstream call has
+    // already recorded one; generic OpenXR errors must not erase the cause.
+    og::lmu::report_diagnostic("unavailable",diagnostic.state=="unavailable"?diagnostic.reason.c_str():fallbackReason.c_str());
 }
 void status(Session &s, bool active) {
     if (s.instance->game.empty())
@@ -587,8 +612,10 @@ XrResult XRAPI_CALL create_session(XrInstance h, const XrSessionCreateInfo *info
         return XR_ERROR_HANDLE_INVALID;
     auto &i = *it->second;
     auto result = i.CreateSession(h, info, out);
-    if (XR_FAILED(result))
+    if (XR_FAILED(result)) {
+        if(i.lmuIntegrated)lmu_failure("OpenXR session creation failed (XrResult "+std::to_string(result)+")");
         return result;
+    }
     auto s = std::make_unique<Session>();
     s->instance = &i;
     s->handle = *out;
@@ -1005,7 +1032,8 @@ XrResult XRAPI_CALL begin_frame(XrSession h, const XrFrameBeginInfo *info) {
     return result;
 }
 XrResult XRAPI_CALL end_frame(XrSession h, const XrFrameEndInfo *info) {
-    LOCK;
+    std::unique_lock<std::recursive_mutex> lock(guard);
+    RuntimeSubmissionHostScope submissionScope(lock);
     auto it = sessions.find(h);
     if (it == sessions.end())
         return XR_ERROR_HANDLE_INVALID;
@@ -1110,10 +1138,14 @@ XrResult XRAPI_CALL create_instance(const XrInstanceCreateInfo *info,
     // The integrated adapter owns one instance. A duplicate must not undo the
     // first instance's environment before its deferred engine/session startup.
     if (og::lmu::settings.enabled) return XR_ERROR_LIMIT_REACHED;
-    if (!og::lmu::prepare_saved(i->config, i->game)) return XR_ERROR_INITIALIZATION_FAILED;
+    if (!og::lmu::prepare_saved(i->config, i->game)) {
+        if(i->game=="lmu")og::lmu::report_diagnostic("unavailable","Could not prepare saved LMU rendering settings");
+        return XR_ERROR_INITIALIZATION_FAILED;
+    }
     const bool integrationRequested=i->config.enabled&&i->game=="lmu"&&og::lmu::environment("OPENGRIDXR_LMU_INTEGRATED")=="1";
     if(integrationRequested){
-        if(!og::lmu::configure(i->config,i->game,{lmu_image,lmu_submit})){og::lmu::restore_environment();return XR_ERROR_VALIDATION_FAILURE;}
+        og::lmu::report_diagnostic("starting","Preparing LMU rendering integration");
+        if(!og::lmu::configure(i->config,i->game,{lmu_image,lmu_submit,lmu_runtime_submit})){lmu_failure("LMU rendering configuration is invalid");og::lmu::restore_environment();return XR_ERROR_VALIDATION_FAILURE;}
         i->lmuIntegrated=true;i->lmuQuad=og::lmu::settings.quad;
         i->lmuProvider=og::lmu::settings.provider;i->lmuExpansionUnsupported=og::lmu::settings.expansionUnsupported;
     }
@@ -1138,6 +1170,7 @@ XrResult XRAPI_CALL create_instance(const XrInstanceCreateInfo *info,
         XrNegotiateLoaderInfo loader{XR_LOADER_INTERFACE_STRUCT_LOADER_INFO, XR_LOADER_INFO_STRUCT_VERSION, sizeof(XrNegotiateLoaderInfo), 1, 1, XR_MAKE_VERSION(1,0,0), XR_CURRENT_API_VERSION};
         XrNegotiateApiLayerRequest api{XR_LOADER_INTERFACE_STRUCT_API_LAYER_REQUEST, XR_API_LAYER_INFO_STRUCT_VERSION, sizeof(XrNegotiateApiLayerRequest)};
         if (!negotiate || XR_FAILED(negotiate(&loader, "XR_APILAYER_MBUCCHIA_quad_views_foveated", &api)) || !api.getInstanceProcAddr || !api.createApiLayerInstance) {
+            lmu_failure("QVFR provider is unavailable or loader negotiation failed");
             og::lmu::reset(); return XR_ERROR_INITIALIZATION_FAILED;
         }
         strcpy_s(providerNext.layerName, "XR_APILAYER_MBUCCHIA_quad_views_foveated");
@@ -1194,7 +1227,7 @@ XrResult XRAPI_CALL create_instance(const XrInstanceCreateInfo *info,
     }
     XrApiLayerNextInfo adapterNext=*next;
     if(i->lmuIntegrated){
-        if(i->lmuQuad&&i->lmuProvider=="vectorxr"&&!i->engineLoaded){og::lmu::reset();return XR_ERROR_INITIALIZATION_FAILED;}
+        if(i->lmuQuad&&i->lmuProvider=="vectorxr"&&!i->engineLoaded){lmu_failure(i->engineError);og::lmu::reset();return XR_ERROR_INITIALIZATION_FAILED;}
         strcpy_s(adapterNext.layerName,"XR_APILAYER_LMU_quadview");
         adapterNext.nextGetInstanceProcAddr=i->gipa;
         adapterNext.nextCreateApiLayerInstance=create;
@@ -1204,7 +1237,7 @@ XrResult XRAPI_CALL create_instance(const XrInstanceCreateInfo *info,
     }
     auto r = create(info, &forwarded, out);
     if (XR_FAILED(r)) {
-        if(i->lmuIntegrated)og::lmu::reset();
+        if(i->lmuIntegrated){lmu_failure("OpenXR instance creation failed (XrResult "+std::to_string(r)+")");og::lmu::reset();}
         return r;
     }
     i->handle = *out;

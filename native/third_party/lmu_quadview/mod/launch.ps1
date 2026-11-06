@@ -61,10 +61,7 @@ foreach($offset in @($FocusOffsetXPercent,$FocusOffsetYPercent)) {
 }
 if($Mode -ne 'quad' -and ($FocusOffsetXPercent -ne 0 -or $FocusOffsetYPercent -ne 0)) {throw 'Focus offsets require quad mode'}
 $gameExecutable = Join-Path $GameDirectory 'Le Mans Ultimate.exe'
-$expectedHash = '66942337813B301B87D12EDFA330F33354A2A4B8CD9B048885CBF77EB6F940CF'
-if ((Get-FileHash -LiteralPath $gameExecutable -Algorithm SHA256).Hash -ne $expectedHash) {
-    throw 'LMU executable version differs from reconstructed build'
-}
+$gameHash = (Get-FileHash -LiteralPath $gameExecutable -Algorithm SHA256).Hash
 if (Get-Process -Name 'Le Mans Ultimate' -ErrorAction SilentlyContinue) {
     throw 'LMU is already running. Close it before starting this diagnostic instance.'
 }
@@ -139,7 +136,7 @@ $info.Environment['LMU_QV_FOCUS_OFFSET_Y_PERCENT'] = $FocusOffsetYPercent.ToStri
 $gameProcess = [System.Diagnostics.Process]::Start($info)
 $run = [pscustomobject]@{
     Pid=$gameProcess.Id;Mode=$Mode;PixelStats=[bool]$PixelStats;ScenePixelStats=[bool]$ScenePixelStats;Log=$logPath;Exe=$gameExecutable
-    ExeSHA256=$expectedHash
+    ExeSHA256=$gameHash
     LayerSHA256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'build/lmu_quadview.dll') -Algorithm SHA256).Hash
     CaptureDirectory=$captureDirectory;CaptureTrigger=$captureTrigger
     GpuTiming=[bool]$GpuTiming;TimingTrigger=$timingTrigger

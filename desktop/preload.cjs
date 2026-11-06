@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld(
     launchOutput: (profile) => invoke("launchOutput", profile),
     launchLmuOffline: (profileId, revision, options) => invoke("launchLmuOffline", profileId, revision, options),
     lmuStatus: () => invoke('lmuStatus'),
+    setLmuPreferences: value => invoke('setLmuPreferences', value),
     chooseLmuExecutable: () => invoke('chooseLmuExecutable'),
     chooseLmuProvider: () => invoke('chooseLmuProvider'),
     previewLmuLaunch: (profileId, revision) => invoke('previewLmuLaunch', profileId, revision),

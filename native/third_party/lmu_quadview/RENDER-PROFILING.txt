@@ -68,6 +68,13 @@ queries are explicitly omitted. A killed/crashed process may retain checkpoints
 but lose final percentiles and recent samples. No shutdown handler can guarantee
 final saving after forced termination.
 
+Diagnostic log lines use a bounded asynchronous queue. File writes and flushes
+run on a dedicated writer; checkpoint flush requests do not wait on rendering.
+A full or contended queue drops lines and reports counts at normal shutdown.
+Successful instance destruction drains and joins the writer outside the XR state
+lock. If negotiation never reaches instance destruction, the worker retains its
+DLL until process exit; forced termination may lose queued lines.
+
 Untick Setup -> Enable diagnostics and logging, then relaunch to disable mod
 logging, run metadata, profiling clocks/queries, legacy timing/benchmark triggers,
 pixel statistics and view captures. This overrides saved profiling-on. Existing

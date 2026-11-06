@@ -141,7 +141,7 @@ function toEnhancementsConfig(doc, game) {
     },
   };
 }
-function toRuntimeIni(doc) {
+function toRuntimeIni(doc, {lmuPreferences={}} = {}) {
   const sections = [
     "; OpenGrid XR. Generated from saved profiles. Restart the game after changes.",
   ];
@@ -163,10 +163,15 @@ function toRuntimeIni(doc) {
         LmuFocusHeight: p.lmuRendering?.focusHeight ?? 50,
         LmuOffsetX: p.lmuRendering?.focusOffsetX ?? 0,
         LmuOffsetY: p.lmuRendering?.focusOffsetY ?? 0,
-        LmuSmoothing: p.lmuRendering?.outerSmoothing ?? 0,
+        LmuSmoothing: 0,
         LmuShadingRate: p.lmuRendering?.peripheralShadingRate ?? 2,
         LmuNativeOuter: p.lmuRendering?.nativeOuterResolution === false ? 0 : 1,
         LmuDebugFocus: p.lmuRendering?.debugFocus ? 1 : 0,
+        LmuCpuUploadReuse: p.lmuRendering?.cpuUploadReuse ? 1 : 0,
+        LmuCpuUploadBatch: p.lmuRendering?.cpuUploadBatch ? 1 : 0,
+        LmuCpuOuterReuse: p.lmuRendering?.cpuOuterReuse ? 1 : 0,
+        LmuOuterSsr: p.lmuRendering?.outerSsr ? 1 : 0,
+        LmuCpuCacheAffinity: lmuPreferences.cpuCacheAffinity === true ? 1 : 0,
       } : {}),
       EnhancementsEnabled: p.framegen?.enabled || p.overlay?.enabled || p.spatialOverlays?.enabled || p.helmet?.enabled || p.colorCorrection?.enabled || (game === "lmu" && p.lmuRendering?.mode === "quad" && p.lmuRendering.provider === "vectorxr") ? 1 : 0,
       ...colorFields(p),

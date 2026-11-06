@@ -4,6 +4,18 @@ function Assert($value,$message) { if (!$value) { throw $message } }
 $root=Join-Path ([IO.Path]::GetTempPath()) ('qv-launch-test-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
+    # Exercise executable validation only; never launch a process from this test.
+    $source=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../launch.ps1') -Raw
+    $start=$source.IndexOf('$gameExecutable =')
+    $end=$source.IndexOf('if (Get-Process', $start)
+    $validate=[scriptblock]::Create($source.Substring($start,$end-$start)+'; $gameHash')
+    $GameDirectory=$root
+    $game=Join-Path $root 'Le Mans Ultimate.exe'
+    [IO.File]::WriteAllBytes($game,[byte[]](1,2,3))
+    Assert ((& $validate) -eq '039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81') 'Alternate game hash rejected or incorrect metadata hash'
+    [IO.File]::Delete($game)
+    $missing=$false;try{& $validate | Out-Null}catch{$missing=$true}
+    Assert $missing 'Missing game executable accepted'
     $provider=Join-Path $root "provider's files"
     New-Item -ItemType Directory -Path $provider | Out-Null
     [IO.File]::WriteAllBytes((Join-Path $provider 'layer.dll'),[byte[]](1,2,3))

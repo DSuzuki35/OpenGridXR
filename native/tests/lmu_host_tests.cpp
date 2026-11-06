@@ -1,6 +1,7 @@
 #include "../src/layer.cpp"
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 void require(bool condition,const char* message){if(!condition)throw std::runtime_error(message);}
 XrResult XRAPI_CALL releaseOkay(XrSwapchain,const XrSwapchainImageReleaseInfo*){return XR_SUCCESS;}
 uint32_t pixel(ID3D11Device* device,ID3D11DeviceContext* context,ID3D11Texture2D* texture,unsigned x,unsigned y){
@@ -8,6 +9,36 @@ uint32_t pixel(ID3D11Device* device,ID3D11DeviceContext* context,ID3D11Texture2D
     ComPtr<ID3D11Texture2D> read;require(SUCCEEDED(device->CreateTexture2D(&d,nullptr,&read)),"staging");context->CopyResource(read.Get(),texture);
     D3D11_MAPPED_SUBRESOURCE map{};require(SUCCEEDED(context->Map(read.Get(),0,D3D11_MAP_READ,0,&map)),"read");
     uint32_t result;std::memcpy(&result,static_cast<char*>(map.pData)+map.RowPitch*y+4*x,4);context->Unmap(read.Get(),0);return result;
+}
+namespace {
+std::thread publicTracker;
+HANDLE publicLocateDone{};
+XrResult publicLocateResult=XR_ERROR_RUNTIME_FAILURE;
+XrResult XRAPI_CALL trackingRuntime(XrSession,const XrViewLocateInfo*,XrViewState*,uint32_t,uint32_t* count,XrView* views){
+    *count=2;for(unsigned i=0;i<2;++i){views[i].pose.orientation.w=1;views[i].pose.position.x=42+float(i);}return XR_SUCCESS;
+}
+XrResult XRAPI_CALL submittingRuntime(XrSession session,const XrFrameEndInfo*){
+    publicTracker=std::thread([=]{
+        XrViewLocateInfo info{XR_TYPE_VIEW_LOCATE_INFO};info.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+        XrViewState state{XR_TYPE_VIEW_STATE};XrView views[2]{};uint32_t count=0;
+        publicLocateResult=locate_views(session,&info,&state,2,&count,views);SetEvent(publicLocateDone);
+    });
+    return WaitForSingleObject(publicLocateDone,1000)==WAIT_OBJECT_0?XR_SUCCESS:XR_ERROR_RUNTIME_FAILURE;
+}
+XrResult XRAPI_CALL adapterSubmission(XrSession session,const XrFrameEndInfo* info){
+    return og::lmu::host.runtimeSubmit?og::lmu::host.runtimeSubmit(session,submittingRuntime,info):submittingRuntime(session,info);
+}
+void publicTrackingDuringSubmit(){
+    og::lmu::host.runtimeSubmit=lmu_runtime_submit;
+    Instance instance;instance.lmuIntegrated=instance.lmuQuad=true;instance.EndFrame=adapterSubmission;instance.LocateViews=trackingRuntime;
+    const auto handle=reinterpret_cast<XrSession>(9876);sessions[handle]=std::make_unique<Session>();sessions[handle]->instance=&instance;
+    publicLocateDone=CreateEventW(nullptr,TRUE,FALSE,nullptr);require(publicLocateDone!=nullptr,"tracking completion event");
+    XrFrameEndInfo info{XR_TYPE_FRAME_END_INFO};
+    const auto result=end_frame(handle,&info);
+    if(publicTracker.joinable())publicTracker.join();CloseHandle(publicLocateDone);sessions.erase(handle);
+    require(result==XR_SUCCESS&&publicLocateResult==XR_SUCCESS,"public OpenGrid host lock blocked tracking during runtime EndFrame");
+    og::lmu::host={};
+}
 }
 int main(){try{
     {
@@ -22,15 +53,34 @@ int main(){try{
         require(og::lmu::prepare_saved(config,"lmu")&&og::lmu::environment("OPENGRIDXR_LMU_INTEGRATED")=="0","explicit launch opt-out wins");
         SetEnvironmentVariableA("OPENGRIDXR_LMU_INTEGRATED",nullptr);
         SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS","1");SetEnvironmentVariableA("LMU_QV_CAPTURE_DIR","inherited-capture");
-        config.lmu.offsetY=-50;config.lmu.smoothing=3;
+        SetEnvironmentVariableA("lmu_qv_future_experiment","inherited");
+        config.lmu.offsetY=-50;config.lmu.cpuOuterReuse=true;config.lmu.outerSsr=true;
         require(og::lmu::prepare_saved(config,"lmu"),"saved settings prepared");
         require(og::lmu::configure(config,"lmu",{})&&og::lmu::settings.provider=="qvfr","automatic adapter configured");
         require(og::lmu::environment("LMU_QV_DYNAMIC_FOCUS")=="0"&&og::lmu::environment("LMU_QV_CAPTURE_DIR").empty(),"automatic launch excludes adaptive focus and inherited capture");
-        require(std::stod(og::lmu::environment("LMU_QV_FOCUS_OFFSET_Y_PERCENT"))==-50&&std::stod(og::lmu::environment("LMU_QV_OUTER_BLUR"))==3,"full UI adjustment range survives automatic startup");
+        require(og::lmu::environment("lmu_qv_future_experiment").empty(),"automatic launch clears all inherited LMU controls case-insensitively");
+        require(std::stod(og::lmu::environment("LMU_QV_FOCUS_OFFSET_Y_PERCENT"))==-50&&og::lmu::environment("LMU_QV_OUTER_BLUR")=="0","full offset range and removed outer blur survive automatic startup");
+        require(og::lmu::environment("LMU_QV_CPU_UPLOAD_REUSE")=="1"&&og::lmu::environment("LMU_QV_CPU_OUTER_REUSE")=="1"&&og::lmu::environment("LMU_QV_OUTER_SSR")=="1","outer reuse implies upload reuse and SSR reaches automatic startup");
+        require(og::lmu::environment("LMU_QV_CPU_AFFINITY")=="off"&&og::lmu::environment("LMU_QV_DIAGNOSTICS")=="0","machine CPU affinity and performance diagnostics default off");
         og::lmu::reset();
         require(og::lmu::environment("OPENGRIDXR_LMU_INTEGRATED").empty()&&og::lmu::environment("LMU_QV_DYNAMIC_FOCUS")=="1"&&og::lmu::environment("LMU_QV_CAPTURE_DIR")=="inherited-capture","destroy restores original process environment");
+        require(og::lmu::environment("lmu_qv_future_experiment")=="inherited","destroy restores unknown inherited controls");
+        SetEnvironmentVariableA("lmu_qv_future_experiment",nullptr);
         SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS",nullptr);SetEnvironmentVariableA("LMU_QV_CAPTURE_DIR",nullptr);
+        config.lmu.cpuUploadBatch=true;config.lmu.cpuCacheAffinity=false;
+        require(og::lmu::prepare_saved(config,"lmu"),"conflicting saved experiment settings prepared");
+        require(og::lmu::environment("LMU_QV_CPU_UPLOAD_BATCH")=="1"&&og::lmu::environment("LMU_QV_CPU_UPLOAD_REUSE")=="0"&&og::lmu::environment("LMU_QV_CPU_OUTER_REUSE")=="0","batch wins conflicting saved reuse preferences");
+        require(og::lmu::environment("LMU_QV_CPU_AFFINITY")=="off","disabled machine CPU preference reaches startup");
+        og::lmu::reset();config.lmu.mode="vrs";config.lmu.cpuCacheAffinity=true;
+        require(og::lmu::prepare_saved(config,"lmu"),"VRS saved settings prepared");
+        require(og::lmu::environment("LMU_QV_CPU_AFFINITY")=="x3d","explicit machine CPU affinity opt-in reaches startup");
+        for(const char* key:{"LMU_QV_CPU_UPLOAD_BATCH","LMU_QV_CPU_UPLOAD_REUSE","LMU_QV_CPU_OUTER_REUSE","LMU_QV_OUTER_SSR"})
+            require(og::lmu::environment(key)=="0","VRS excludes quad experiments");
+        og::lmu::reset();config.lmu.mode="quad";config.lmu.nativeOuter=false;
+        require(og::lmu::prepare_saved(config,"lmu")&&og::lmu::environment("LMU_QV_OUTER_SSR")=="0","SSR requires native outer targets");
+        og::lmu::reset();
     }
+    publicTrackingDuringSubmit();
     Instance instance;instance.config.enabled=true;instance.config.mask=true;instance.ReleaseSwapchainImage=releaseOkay;
     for(auto& contour:instance.config.contours)contour={{.25f,.25f},{.75f,.25f},{.75f,.75f},{.25f,.75f}};
     instance.lmuIntegrated=instance.lmuQuad=true;

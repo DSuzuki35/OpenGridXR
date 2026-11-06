@@ -1,8 +1,19 @@
 // White-box tests of the native hook policy. No LMU process or native game code is used.
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+size_t nativeProbeQueries=0;
+SIZE_T WINAPI countedVirtualQuery(LPCVOID address,PMEMORY_BASIC_INFORMATION info,SIZE_T size){
+    ++nativeProbeQueries;return VirtualQuery(address,info,size);
+}
+#define VirtualQuery countedVirtualQuery
 #include "../engine_bridge.cpp"
+#undef VirtualQuery
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <thread>
 
 namespace lmuqv {
 bool testQuadFrame=false,testFullFovAvailable=true,testUiScenePresent=false;
@@ -31,7 +42,8 @@ ID3D11RenderTargetView* xr_outer_rtv(unsigned) {
     return testUiScenePresent?reinterpret_cast<ID3D11RenderTargetView*>(std::uintptr_t(1)):nullptr;
 }
 OuterTarget xr_outer_target(unsigned) {return {};}
-void log_line(const char*) {}
+std::vector<std::string> testLogLines;
+void log_line(const char* line) {testLogLines.emplace_back(line);}
 void flush_log(){}
 }
 namespace {
@@ -95,6 +107,30 @@ void uiPlaneSizeTest(){
     require(object==original,"unavailable full FOV mutated native UI state");
     testQuadFrame=false;testFullFovAvailable=true;uiOriginal=nullptr;nativeRuntimeSettings=false;
     require(uiPlaneDraws==5,"UI plane fixture did not exercise all native calls");
+}
+void nativeViewOnlyProbeTest(){
+    using namespace lmuqv;
+    std::vector<std::byte> globals(0x1b12be8-0x1a51370+sizeof(void*));
+    std::vector<std::byte> renderer(0x76f68+sizeof(void*));
+    ViewSnapshot view{};view.eye_index=0;
+    auto* selected=&view;
+    void* fakeContext=&selected;
+    auto rendererAddress=reinterpret_cast<std::uintptr_t>(renderer.data());
+    std::memcpy(globals.data(),&selected,sizeof(selected));
+    std::memcpy(globals.data()+0x1b12be8-0x1a51370,&rendererAddress,sizeof(rendererAddress));
+    std::memcpy(renderer.data()+0x76f68,&fakeContext,sizeof(fakeContext));
+    const auto saved=base;base=reinterpret_cast<std::uintptr_t>(globals.data())-0x1a51370;
+    nativeProbeQueries=0;
+    NativeEyeProbe probe;probe.probe();
+    require(probe.viewValid&&probe.view==selected,"native view probe rejected readable eye");
+    require(nativeProbeQueries==1,"view-only outer path unnecessarily queried renderer/context memory");
+    probe.probe();
+    require(nativeProbeQueries==1,"native view validation was not cached");
+    probe.probeContext();
+    require(probe.contextValid&&probe.context==fakeContext&&nativeProbeQueries==3,"context validation did not reuse the view probe");
+    probe.probeContext();
+    require(nativeProbeQueries==3,"native context validation was not cached");
+    base=saved;
 }
 void setProjection(void* ptr,const float* p) {
     auto* view=static_cast<lmuqv::ViewSnapshot*>(ptr);
@@ -169,9 +205,84 @@ void outerUploadSettingsTest(){
     for(size_t i=0;i<prior.size();++i)SetEnvironmentVariableA(names[i],prior[i].empty()?nullptr:prior[i].c_str());
 }
 
-}
-int main() {
+void runtimeUploadToggleTest(){
     using namespace lmuqv;
+    std::array<std::byte,0x2660> cache{};
+    std::uintptr_t contextStorage=0;
+    auto* context=reinterpret_cast<ID3D11DeviceContext*>(&contextStorage);
+    nativeUploadOptIn=true;nativeUploadToggle.configure(true);nativeUploadToggleArmed=true;
+    renderProfile.configure(true,log_line,30);renderProfile.frame(nullptr,true);
+    std::thread other([]{pollUploadReuseToggle(true,renderProfile.collecting());});other.join();
+    require(nativeUploadOptIn,"foreign render thread toggled reuse during an active capture");
+    nativeUploadReuse.begin(cache.data(),context,false);
+    require(nativeUploadReuse.before(cache.data(),context).valid,"toggle fixture did not open a scope");
+    pollUploadReuseToggle(true,true);
+    require(nativeUploadOptIn&&nativeUploadReuse.before(cache.data(),context).valid,"active capture changed upload behavior");
+    renderProfile.finish("test");
+    pollUploadReuseToggle(true,false);
+    require(nativeUploadOptIn,"blocked press was deferred until capture completion");
+    pollUploadReuseToggle(false,false);pollUploadReuseToggle(true,false);
+    require(!nativeUploadOptIn&&!nativeUploadReuse.before(cache.data(),context).valid,"OFF retained stale upload assumptions");
+    pollUploadReuseToggle(false,false);
+    nativeUploadReuse.begin(cache.data(),context,false);
+    pollUploadReuseToggle(true,false);
+    require(nativeUploadOptIn&&!nativeUploadReuse.before(cache.data(),context).valid,"ON retained stale upload assumptions");
+    nativeUploadToggleArmed=false;pollUploadReuseToggle(false,false);pollUploadReuseToggle(true,false);
+    require(nativeUploadOptIn,"unarmed toggle changed native upload policy");
+    nativeUploadToggleArmed=true;pollUploadReuseToggle(false,false);pollUploadReuseToggle(true,false);
+    require(!nativeUploadOptIn,"summary fixture did not end with reuse OFF");
+    const auto logStart=testLogLines.size();engine_stop();
+    require(std::any_of(testLogLines.begin()+logStart,testLogLines.end(),[](const auto& line){return line.find("cpu_upload_reuse summary")!=std::string::npos;}),"ending OFF discarded reuse session counters");
+}
+
+// 0.3.3: hook targets must be plausible function starts in the real PE image.
+void hookTargetTest(){
+    using namespace lmuqv;
+    const auto saved=base;base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+    DWORD64 imageBase=0;
+    const auto* entry=RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(&outerUploadSettingsTest),&imageBase,nullptr);
+    require(entry&&imageBase==base,"framed test function has no unwind entry");
+    require(hookTargetPlausible(entry->BeginAddress),"framed function start rejected");
+    require(entry->EndAddress-entry->BeginAddress>1&&!hookTargetPlausible(entry->BeginAddress+1),"target inside a framed function accepted");
+    require(!hookTargetPlausible(0),"PE header accepted as hook target");
+    require(!hookTargetPlausible(reinterpret_cast<std::uintptr_t>(&selectedHooks)-base),"data section accepted as hook target");
+    base=0;require(!hookTargetPlausible(0x1000),"missing image accepted");
+    // Synthetic mapped image: arbitrary gaps are rejected, only complete known
+    // leaf bodies can be used without an unwind record.
+    std::vector<unsigned char> image(0x600000);
+    base=reinterpret_cast<std::uintptr_t>(image.data());
+    auto* dos=reinterpret_cast<IMAGE_DOS_HEADER*>(base);dos->e_magic=IMAGE_DOS_SIGNATURE;dos->e_lfanew=0x80;
+    auto* nt=reinterpret_cast<IMAGE_NT_HEADERS64*>(base+0x80);nt->Signature=IMAGE_NT_SIGNATURE;
+    nt->FileHeader.Machine=IMAGE_FILE_MACHINE_AMD64;nt->FileHeader.NumberOfSections=1;nt->FileHeader.SizeOfOptionalHeader=sizeof(IMAGE_OPTIONAL_HEADER64);
+    nt->OptionalHeader.Magic=IMAGE_NT_OPTIONAL_HDR64_MAGIC;nt->OptionalHeader.SizeOfImage=static_cast<DWORD>(image.size());nt->OptionalHeader.NumberOfRvaAndSizes=16;
+    nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION]={0x800,sizeof(RUNTIME_FUNCTION)};
+    auto* section=IMAGE_FIRST_SECTION(nt);section->VirtualAddress=0x1000;section->Misc.VirtualSize=0x5ff000;section->Characteristics=IMAGE_SCN_MEM_EXECUTE;
+    auto* function=reinterpret_cast<RUNTIME_FUNCTION*>(base+0x800);function->BeginAddress=0x1000;function->EndAddress=0x1020;
+    require(hookTargetPlausible(0x1000)&&!hookTargetPlausible(0x1001)&&!hookTargetPlausible(0x1030),"synthetic framed function/gap classification failed");
+    std::memcpy(image.data()+0x557810,projection_leaf_anchor.data(),projection_leaf_anchor.size());
+    std::memcpy(image.data()+fovScaleRva,fovScaleAnchor.data(),fovScaleAnchor.size());
+    require(hookTargetPlausible(0x557810)&&hookTargetPlausible(fovScaleRva),"verified leaf rejected");
+    require(!hookTargetPlausible(0x557811)&&!hookTargetPlausible(fovScaleRva+1),"leaf interior accepted");
+    image[0x557841]=0x90;image[fovScaleRva+7]=0x90;
+    require(!hookTargetPlausible(0x557810)&&!hookTargetPlausible(fovScaleRva),"partial leaf signatures accepted");
+    nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size=0xffffffff;
+    require(!hookTargetPlausible(0x1000),"out-of-image exception directory accepted");
+    base=saved;
+}
+
+}
+int main(int argc,char** argv) {
+    using namespace lmuqv;
+    if(argc==2&&std::strcmp(argv[1],"--runtime-upload-toggle")==0){
+        SetEnvironmentVariableA("LMU_QV_DIAGNOSTICS","1");runtimeUploadToggleTest();
+        std::cout<<"Runtime upload toggle integration passed: owner-thread control, capture lockout, cache invalidation and OFF-state summary\n";return 0;
+    }
+    if(argc==2&&std::strcmp(argv[1],"--process-identity")==0) {
+        wchar_t path[32768]{};require(GetModuleFileNameW(nullptr,path,32768)!=0,"Process path unavailable");
+        const bool namedLmu=_wcsicmp(std::filesystem::path(path).filename().c_str(),L"Le Mans Ultimate.exe")==0;
+        require(correctProcess()==namedLmu,"Native executable identity must not require a fixed disk hash");
+        return 0;
+    }
     // QVFR issues opaque handles 1 and 2. Exact native identity, not numeric
     // value, decides whether an eye is assigned (reported log regression).
     XrSwapchain eyeHandles[]{reinterpret_cast<XrSwapchain>(1),XR_NULL_HANDLE};
@@ -190,6 +301,8 @@ int main() {
     base=savedBase;installed=false;nativeRuntimeSettings=false;
     SetEnvironmentVariableA("LMU_QV_DIAGNOSTICS","0");
     uiPlaneSizeTest();
+    nativeViewOnlyProbeTest();
+    hookTargetTest();
     outerUploadScopeTest();outerUploadSettingsTest();
     unsigned nativeWidth=0,nativeHeight=0;
     nativeRuntimeSettings=true;

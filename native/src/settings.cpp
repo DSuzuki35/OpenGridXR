@@ -108,10 +108,14 @@ Config read_config(const std::wstring &path, const std::string &game) {
         c.lmu.focusHeight = number(L"LmuFocusHeight", 50, 10, 90);
         c.lmu.offsetX = number(L"LmuOffsetX", 0, -50, 50);
         c.lmu.offsetY = number(L"LmuOffsetY", 0, -50, 50);
-        c.lmu.smoothing = number(L"LmuSmoothing", 0, 0, 3);
         c.lmu.shadingRate = unsigned(number(L"LmuShadingRate", 2, 1, 4));
         c.lmu.nativeOuter = number(L"LmuNativeOuter", 1, 0, 1) == 1;
         c.lmu.debugFocus = number(L"LmuDebugFocus", 0, 0, 1) == 1;
+        c.lmu.cpuUploadReuse = number(L"LmuCpuUploadReuse", 0, 0, 1) == 1;
+        c.lmu.cpuUploadBatch = number(L"LmuCpuUploadBatch", 0, 0, 1) == 1;
+        c.lmu.cpuOuterReuse = number(L"LmuCpuOuterReuse", 0, 0, 1) == 1;
+        c.lmu.outerSsr = number(L"LmuOuterSsr", 0, 0, 1) == 1;
+        c.lmu.cpuCacheAffinity = number(L"LmuCpuCacheAffinity", 0, 0, 1) == 1;
     }
     c.enabled = number(L"Enabled", 1, 0, 1) == 1 &&
                 (mode == L"driving" || mode == L"streaming" || mode.empty());

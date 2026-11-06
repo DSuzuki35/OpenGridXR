@@ -19,6 +19,8 @@ export default function QuadViewPage({profile,onChange,onViewChange,revision,dir
   if(profile.game!=='lmu')return <Panel title="LMU rendering"><Note>Select a Le Mans Ultimate profile to configure quad views or stereo VRS.</Note></Panel>;
   let invalid='';try{validateLmuRendering(settings);}catch(e){invalid=e.message;}
   const quad=settings.mode==='quad',vrs=settings.mode==='stereoVrs',active=quad||vrs;
+  const diagnostics=status?.diagnostics;
+  const hooksUnavailable=diagnostics?.state==='unavailable'||session?.hookStatus==='unavailable';
   const limits=lmuRenderingLimits(settings);
   const rangeLimits=key=>limits?{allowedMin:limits[key].min,allowedMax:limits[key].max,
     hint:key==='peripheralScale'?`Max. ${limits[key].max}% with the current focus settings.`:
@@ -57,10 +59,20 @@ export default function QuadViewPage({profile,onChange,onViewChange,revision,dir
           {quad&&settings.provider!=='native'&&<><Note>Grey slider sections are unavailable with the current settings. Values stop at the allowed limit.</Note><Range label="Peripheral resolution" value={settings.peripheralScale} min={10} max={400} {...rangeLimits('peripheralScale')} onChange={value=>set({peripheralScale:value})}/><Range label="Focus resolution" value={settings.focusScale} min={25} max={400} {...rangeLimits('focusScale')} onChange={value=>set({focusScale:value})}/></>}
           {quad&&<><Range label="Focus horizontal offset" value={settings.focusOffsetX} min={-50} max={50} onChange={value=>set({focusOffsetX:value})}/><Range label="Focus vertical offset" value={settings.focusOffsetY} min={-50} max={50} onChange={value=>set({focusOffsetY:value})}/>
             <Toggle label="Native outer resolution" checked={settings.nativeOuterResolution} onChange={value=>set({nativeOuterResolution:value})} description="Use the verified smaller outer render targets when their layouts are compatible."/>
-            <Range label="Outer smoothing" value={settings.outerSmoothing} min={0} max={3} step={0.25} unit="px" onChange={value=>set({outerSmoothing:value})}/></>}
+            </>}
           {vrs&&<><div className="select-field"><label htmlFor="lmu-rate">Peripheral shading blocks</label><select id="lmu-rate" value={settings.peripheralShadingRate} onChange={e=>set({peripheralShadingRate:Number(e.target.value)})}><option value={1}>1 × 1</option><option value={2}>2 × 2</option><option value={4}>4 × 4</option></select></div><Note>Stereo VRS uses the two native eye renders, without extra focus views. Verified world passes use NVIDIA variable-rate shading when supported; unsupported devices retain ordinary stereo.</Note></>}
-          <Toggle label="Show focus outline" checked={settings.debugFocus} onChange={value=>set({debugFocus:value})}/>
+          <details><summary>Advanced rendering settings</summary><div style={{display:'grid',gap:16,marginTop:16}}>
+            {quad&&<>
+              <Toggle label="CPU upload reuse" checked={settings.cpuUploadReuse} onChange={value=>set({cpuUploadReuse:value})} description="Reuse verified uploads across focus views. Disables upload batching."/>
+              <Toggle label="CPU upload batching" checked={settings.cpuUploadBatch} onChange={value=>set({cpuUploadBatch:value})} description="Batch verified uploads. Disables CPU upload reuse and CPU outer reuse."/>
+              <Toggle label="CPU outer reuse" checked={settings.cpuOuterReuse} onChange={value=>set({cpuOuterReuse:value})} description="Reuse verified outer-view CPU work. Enables CPU upload reuse and disables batching."/>
+              <Toggle label="Outer SSR" checked={settings.outerSsr} disabled={!settings.nativeOuterResolution} onChange={value=>set({outerSsr:value})} description="Use outer-view screen-space reflections with native outer resolution. Requires native outer resolution."/>
+              <Note>These optional optimizations default off. Compare CPU and GPU frametimes and check image quality on your system.</Note>
+            </>}
+            <Toggle label="Show focus outline" checked={settings.debugFocus} onChange={value=>set({debugFocus:value})}/>
+          </div></details>
         </>}
+        {active&&<><Toggle label="Prefer AMD 3D V-Cache cores" checked={status?.preferences?.cpuCacheAffinity===true} disabled={!status||isBrowserPreview} onChange={cpuCacheAffinity=>operate('lmu-preferences',()=>api.setLmuPreferences({cpuCacheAffinity}))} description="This PC only · applies to quad views and stereo VRS on the next LMU launch. Excluded from shared profiles."/><Note>On supported asymmetric AMD 3D V-Cache CPUs, prefer the cache-rich cores. Other CPUs keep their Windows scheduling policy. No performance gain has been measured; compare on your system.</Note></>}
       </fieldset>
       {adjustment&&<Note>{adjustment}</Note>}
       {invalid&&<Note tone="warning">{invalid}</Note>}
@@ -90,7 +102,11 @@ export default function QuadViewPage({profile,onChange,onViewChange,revision,dir
       {error&&<Note tone="warning">{error}</Note>}
     </Panel>
     <Panel title="Actual rendered views" icon={Eye}>
-      {session?.hookStatus==='unavailable'&&<Note tone="warning">LMU rendering hooks are unavailable. Close LMU and check the run log for executable-build or hook-anchor failures before trying again.</Note>}
+      {hooksUnavailable&&<Note tone="warning">{diagnostics?.activeProcess===false?'Last LMU launch failed; the process has exited.':'LMU rendering hooks are unavailable.'} {diagnostics?.reason||'The rendering integration could not start.'} Close LMU, set LMU rendering mode to Off, save your profile, then restart LMU to use standard stereo. Check game-build compatibility before enabling quad views or stereo VRS again.</Note>}
+      {diagnostics?.state==='starting'&&<Note>LMU rendering is starting: {diagnostics.reason}</Note>}
+      {diagnostics?.state==='ready'&&diagnostics.warning&&<Note>Native outer fallback: {diagnostics.warning}</Note>}
+      {diagnostics?.state==='ready'&&diagnostics.nativeOuterRefusalCount>0&&<p>Native outer fallbacks observed: {diagnostics.nativeOuterRefusalCount}</p>}
+      {diagnostics&&<><p>CPU preference outcome: {diagnostics.cpuAffinity}</p><p>Guarded reentries: {diagnostics.reentryCount} · Outer image timeouts: {diagnostics.outerTimeoutCount}</p></>}
       {session?.focusFovValid?<><p>Rendered frame {session.frameId} · {session.provider}</p><p>Left focus: {extent(session.focusLeftHorizontal)}° × {extent(session.focusLeftVertical)}° · Right focus: {extent(session.focusRightHorizontal)}° × {extent(session.focusRightVertical)}°</p></>:<Note>No rendered quad scene. Actual FOV appears after a valid four-view scene has rendered.</Note>}
       {session?.outerSizes?.length>0&&<p>{session.mode==='stereoVrs'?'Stereo eyes':'Outer views'}: {session.outerSizes.map(s=>`${s.width} × ${s.height}`).join(' / ')}</p>}
       {session?.focusFovValid&&session.focusSizes?.length>0&&<p>Focus views: {session.focusSizes.map(s=>`${s.width} × ${s.height}`).join(' / ')}</p>}

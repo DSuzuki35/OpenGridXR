@@ -4,6 +4,27 @@ import {createProfile, validateProfile, parseProfile} from '../src/model.mjs';
 import {moduleDefaults, effectiveDocument, validateModuleSettings} from '../src/modules.mjs';
 import * as rendering from '../src/lmu-rendering.mjs';
 
+test('0.5.4 optimizations default off, accept older profiles and enforce editable dependencies',()=>{
+  const settings=rendering.lmuRenderingDefaults();
+  for(const key of ['cpuUploadReuse','cpuUploadBatch','cpuOuterReuse','outerSsr']){
+    assert.equal(settings[key],false);
+    assert.throws(()=>rendering.validateLmuRendering({...settings,[key]:'true'}));
+    delete settings[key];
+  }
+  assert.doesNotThrow(()=>rendering.validateLmuRendering({...settings,outerSmoothing:3}));
+  assert.throws(()=>rendering.validateLmuRendering({...settings,outerSmoothing:'junk'}));
+  const legacy=createProfile('lmu');legacy.lmuRendering.outerSmoothing=3;
+  const imported=parseProfile(JSON.stringify(legacy));
+  assert.equal(imported.lmuRendering.outerSmoothing,undefined);
+  for(const key of ['cpuUploadReuse','cpuUploadBatch','cpuOuterReuse','outerSsr'])assert.equal(imported.lmuRendering[key],false);
+  const quad={...rendering.lmuRenderingDefaults(),mode:'quad',cpuUploadReuse:true,cpuOuterReuse:true};
+  const batch=rendering.updateLmuRendering(quad,{cpuUploadBatch:true});
+  assert.equal(batch.cpuUploadReuse,false);assert.equal(batch.cpuOuterReuse,false);
+  const outer=rendering.updateLmuRendering(batch,{cpuOuterReuse:true});
+  assert.equal(outer.cpuUploadBatch,false);assert.equal(outer.cpuUploadReuse,true);
+  assert.equal(rendering.updateLmuRendering({...quad,outerSsr:true},{nativeOuterResolution:false}).outerSsr,false);
+});
+
 test('quad controls expose legal per-axis limits and clamp only the edited value',()=>{
   for(const provider of ['qvfr','vectorxr']){
     const settings={...rendering.lmuRenderingDefaults(),mode:'quad',provider,peripheralScale:30,focusScale:125,focusWidth:37,focusHeight:53};

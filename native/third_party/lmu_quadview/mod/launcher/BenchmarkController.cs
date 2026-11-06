@@ -33,8 +33,6 @@ namespace LmuQuadViewLauncher
     public sealed class BenchmarkSnapshot
     {
         public bool FocusFovValid { get; internal set; }
-        public bool DynamicFocus { get; internal set; }
-        public bool DynamicFocusHolding { get; internal set; }
         public double FocusScalePercent { get; internal set; }
         public double FocusLeftHorizontal { get; internal set; }
         public double FocusLeftVertical { get; internal set; }
@@ -71,7 +69,7 @@ namespace LmuQuadViewLauncher
             float lh=view.ReadSingle(148),lv=view.ReadSingle(152),rh=view.ReadSingle(156),rv=view.ReadSingle(160);
             ulong frame=view.ReadUInt64(168);
             Thread.MemoryBarrier();if(view.ReadInt32(136)!=sequence)return;
-            snapshot.DynamicFocus=(flags&2)!=0;snapshot.DynamicFocusHolding=(flags&4)!=0;
+
             if((flags&1)==0||frame==0||!BenchmarkStatistics.IsValue(scale)||scale<25||scale>200)return;
             foreach(float extent in new[]{lh,lv,rh,rv})if(!BenchmarkStatistics.IsValue(extent)||extent<=0||extent>=180)return;
             snapshot.FocusScalePercent=scale;snapshot.FocusLeftHorizontal=lh;snapshot.FocusLeftVertical=lv;
@@ -79,6 +77,7 @@ namespace LmuQuadViewLauncher
         }
         internal static bool Valid(MemoryMappedViewAccessor view, int pid)
         { return view.Capacity >= BenchmarkAbi.Size && view.ReadUInt32(0) == BenchmarkAbi.Magic && view.ReadInt32(4) == 1 && view.ReadInt32(8) == BenchmarkAbi.Size && view.ReadInt32(12) == pid && view.ReadInt64(16) > 0; }
+        internal static double Plausible(double value) { return Double.IsNaN(value) || Double.IsInfinity(value) || value < 0 || value > 10000 ? Double.NaN : value; }
         internal static void SkipOverwritten(long published, ref long next, ref long dropped)
         {
             long oldest = Math.Max(1, published - BenchmarkAbi.Slots + 1);
@@ -98,6 +97,9 @@ namespace LmuQuadViewLauncher
             Thread.MemoryBarrier();
             if (view.ReadInt64(offset) != before) return false;
             if ((sample.Flags & 8) == 0) sample.GpuMs = Double.NaN;
+            // 0.5.0 (from 0.3.6): implausible timings (negative, infinite, > 10 s) are missing values.
+            sample.IntervalMs = Plausible(sample.IntervalMs); sample.AppWallMs = Plausible(sample.AppWallMs);
+            sample.ProviderWallMs = Plausible(sample.ProviderWallMs); sample.GpuMs = Plausible(sample.GpuMs);
             return true;
         }
     }
@@ -121,7 +123,7 @@ namespace LmuQuadViewLauncher
         public BenchmarkController(string root) { this.root = root; Snapshot = new BenchmarkSnapshot(); }
         public bool Connected { get { return view != null; } }
         public bool Recording { get { return capture != null; } }
-        public bool OverlayVisible { get { return visible; } set { visible = value; WriteConfigSafely(); } }
+        public bool OverlayVisible { get { return visible; } set { if(value&&!visible)nextBitmap=DateTime.MinValue;visible = value; WriteConfigSafely(); } }
         public int Template { get { return template; } set { template = value == 1 ? 1 : 0; WriteConfigSafely(); } }
         public float OverlayX { get { return x; } set { x = Clamp(value, -2, 2, 0); WriteConfigSafely(); } }
         public float OverlayY { get { return y; } set { y = Clamp(value, -2, 2, -.25F); WriteConfigSafely(); } }
@@ -160,9 +162,8 @@ namespace LmuQuadViewLauncher
                 if (now >= nextBitmap)
                 {
                     nextBitmap = now.AddMilliseconds(200);
-                    Snapshot.FrameHistory = history.ToArray();
                     WriteConfig();
-                    using (Bitmap bitmap = RenderPreview()) WriteBitmap(bitmap);
+                    if(visible)using (Bitmap bitmap = RenderPreview()) WriteBitmap(bitmap);
                 }
             }
             catch (Exception ex) { if (ex is OutOfMemoryException) throw; Disconnect("Benchmark connection interrupted: " + ex.Message, true); }
@@ -304,7 +305,7 @@ namespace LmuQuadViewLauncher
             }
             finally { bitmap.UnlockBits(data); }
         }
-        public Bitmap RenderPreview() { return BenchmarkOverlay.Render(Snapshot, template, Recording, Connected); }
+        public Bitmap RenderPreview() { Snapshot.FrameHistory=history.ToArray();return BenchmarkOverlay.Render(Snapshot, template, Recording, Connected); }
         public void OpenLastReport()
         {
             try { string path = LastReportPath; if (!String.IsNullOrEmpty(path) && File.Exists(path)) Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); else status = "No completed report yet."; }
@@ -420,7 +421,7 @@ namespace LmuQuadViewLauncher
             json.Append(",\"elapsedSeconds\":").Append(Number(duration)).Append(",\"sampleSpanSeconds\":").Append(Number(sampleSpan)).Append(",\"renderedResolutionAtStart\":").Append(Json(resolution)).Append(",\"submittedSceneSamples\":").Append(submitted).Append(",\"unsubmittedSceneSamples\":").Append(scenes - submitted).Append(",\"failedSceneSamples\":").Append(failed);
             json.Append(",\"measurementLimits\":").Append(Json(Limits)).Append('}');
             File.WriteAllText(stem + ".json", json.ToString(), new UTF8Encoding(false));
-            var html = new StringBuilder("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>LMU QuadView benchmark</title><style>body{margin:0;background:#0f0f12;color:#f4f4f6;font:15px 'Inter','Segoe UI',sans-serif}main{max-width:1050px;margin:48px auto;padding:0 28px}header{border-bottom:1px solid #32343c;padding-bottom:24px}small,.muted{color:#9da0aa}h1{font-size:32px;letter-spacing:-1px;margin:12px 0}h2{font-size:19px}section{background:#1a1b1f;border:1px solid #32343c;border-radius:16px;padding:24px;margin-top:20px}.accent,a{color:#a79bf0}.hero{font:56px 'DM Mono',Consolas,monospace}.warn{color:#f87171}table{width:100%;border-collapse:collapse;text-align:right;font:14px Consolas,monospace}th,td{padding:12px 8px;border-bottom:1px solid #32343c}th:first-child,td:first-child{text-align:left;font-family:'Segoe UI',sans-serif}svg{width:100%;height:auto}p{line-height:1.6}.overflow{overflow-x:auto}</style><main><header><small class=\"accent\">LMU QUADVIEW / BENCHMARK</small><h1>").Append(partial ? "Partial capture" : "Manual scene capture").Append("</h1><p class=\"muted\">").Append(Html(started.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"))).Append(" &middot; ").Append(Html(reason)).Append("</p></header><section><div class=\"hero\">").Append(Display(fps)).Append(" <span class=\"muted\" style=\"font-size:22px\">app FPS</span></div><p>Derived from mean scene interval &middot; ").Append(scenes).Append(" scene samples &middot; ").Append(menus).Append(" menu/non-scene samples</p><p class=\"").Append(dropped > 0 || truncated > 0 ? "warn" : "muted").Append("\">Overwritten ring samples: ").Append(dropped).Append(" &middot; Samples omitted at capture cap: ").Append(truncated).Append(" (cap ").Append(BenchmarkCapture.MaxSamples).Append("). Statistics cover retained samples only.</p></section><section><h2>Timing distribution <small>milliseconds</small></h2><div class=\"overflow\"><table><thead><tr><th>Measurement</th><th>Count</th><th>Mean</th><th>p50</th><th>p95</th><th>p99</th><th>Max</th></tr></thead><tbody>");
+            var html = new StringBuilder("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'\"><meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>LMU QuadView benchmark</title><style>body{margin:0;background:#0f0f12;color:#f4f4f6;font:15px 'Inter','Segoe UI',sans-serif}main{max-width:1050px;margin:48px auto;padding:0 28px}header{border-bottom:1px solid #32343c;padding-bottom:24px}small,.muted{color:#9da0aa}h1{font-size:32px;letter-spacing:-1px;margin:12px 0}h2{font-size:19px}section{background:#1a1b1f;border:1px solid #32343c;border-radius:16px;padding:24px;margin-top:20px}.accent,a{color:#a79bf0}.hero{font:56px 'DM Mono',Consolas,monospace}.warn{color:#f87171}table{width:100%;border-collapse:collapse;text-align:right;font:14px Consolas,monospace}th,td{padding:12px 8px;border-bottom:1px solid #32343c}th:first-child,td:first-child{text-align:left;font-family:'Segoe UI',sans-serif}svg{width:100%;height:auto}p{line-height:1.6}.overflow{overflow-x:auto}</style><main><header><small class=\"accent\">LMU QUADVIEW / BENCHMARK</small><h1>").Append(partial ? "Partial capture" : "Manual scene capture").Append("</h1><p class=\"muted\">").Append(Html(started.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"))).Append(" &middot; ").Append(Html(reason)).Append("</p></header><section><div class=\"hero\">").Append(Display(fps)).Append(" <span class=\"muted\" style=\"font-size:22px\">app FPS</span></div><p>Derived from mean scene interval &middot; ").Append(scenes).Append(" scene samples &middot; ").Append(menus).Append(" menu/non-scene samples</p><p class=\"").Append(dropped > 0 || truncated > 0 ? "warn" : "muted").Append("\">Overwritten ring samples: ").Append(dropped).Append(" &middot; Samples omitted at capture cap: ").Append(truncated).Append(" (cap ").Append(BenchmarkCapture.MaxSamples).Append("). Statistics cover retained samples only.</p></section><section><h2>Timing distribution <small>milliseconds</small></h2><div class=\"overflow\"><table><thead><tr><th>Measurement</th><th>Count</th><th>Mean</th><th>p50</th><th>p95</th><th>p99</th><th>Max</th></tr></thead><tbody>");
             for (int i = 0; i < 4; i++) { var s = stats[i]; html.Append("<tr><td>").Append(labels[i]).Append("</td><td>").Append(s.Count).Append("</td><td>").Append(Display(s.Mean)).Append("</td><td>").Append(Display(s.P50)).Append("</td><td>").Append(Display(s.P95)).Append("</td><td>").Append(Display(s.P99)).Append("</td><td>").Append(Display(s.Max)).Append("</td></tr>"); }
             string captureMetadata = "<section><h2>Capture context</h2><p>Elapsed capture: " + Display(duration) + " seconds &middot; Retained sample span: " + Display(sampleSpan) + " seconds</p><p>Rendered dimensions at start: " + Html(resolution) + "</p><p class=\"" + (scenes > submitted || failed > 0 ? "warn" : "muted") + "\">Scene samples with submitted scene projection: " + submitted + " &middot; Without submitted scene projection: " + (scenes - submitted) + " &middot; Failed XR calls in scene samples: " + failed + ". Submission does not confirm displayed headset output.</p></section>";
             int firstSectionEnd = html.ToString().IndexOf("</section>", StringComparison.Ordinal) + "</section>".Length;
@@ -488,8 +489,7 @@ namespace LmuQuadViewLauncher
         internal static string FocusText(BenchmarkSnapshot s)
         {
             if(!s.FocusFovValid)return "Center FOV -- (no rendered quad scene)";
-            return String.Format(CultureInfo.InvariantCulture,"Center {0:0.#}% {1} | L {2:0.0} x {3:0.0} deg | R {4:0.0} x {5:0.0} deg",
-                s.FocusScalePercent,s.DynamicFocus?(s.DynamicFocusHolding?"HOLD":"AUTO"):"FIXED",
+            return String.Format(CultureInfo.InvariantCulture,"Center FOV | L {0:0.0} x {1:0.0} deg | R {2:0.0} x {3:0.0} deg",
                 s.FocusLeftHorizontal,s.FocusLeftVertical,s.FocusRightHorizontal,s.FocusRightVertical);
         }
         static string CompactStatus(BenchmarkSnapshot s)

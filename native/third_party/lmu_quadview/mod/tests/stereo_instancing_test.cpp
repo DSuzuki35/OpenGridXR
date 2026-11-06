@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include "../stereo_instancing.hpp"
+#include "../nv_multiview_caps.hpp"
 #include <d3dcompiler.h>
 #include <dxgi.h>
 #include <array>
@@ -11,6 +12,56 @@
 #include <vector>
 namespace {
 template<class T> void drop(T*& p){if(p){p->Release();p=nullptr;}}
+NvAPI_Status mockInitialization=NVAPI_OK;
+NvAPI_Status mockSpsResult=NVAPI_OK,mockMvrResult=NVAPI_OK;
+unsigned mockInitializations=0,mockSpsQueries=0,mockMvrQueries=0;
+NvAPI_Status __cdecl mockInitialize(){++mockInitializations;return mockInitialization;}
+NvAPI_Status __cdecl mockSps(IUnknown*,NV_QUERY_SINGLE_PASS_STEREO_SUPPORT_PARAMS* value){
+    ++mockSpsQueries;assert(value->version==NV_QUERY_SINGLE_PASS_STEREO_SUPPORT_PARAMS_VER2);
+    assert(!value->bSinglePassStereoSupported&&!value->bSinglePassStereoXYZWSupported&&!value->reserved);
+    value->bSinglePassStereoSupported=value->bSinglePassStereoXYZWSupported=1;return mockSpsResult;
+}
+NvAPI_Status __cdecl mockMvr(IUnknown*,NV_QUERY_MULTIVIEW_SUPPORT_PARAMS* value){
+    ++mockMvrQueries;assert(value->version==NV_QUERY_MULTIVIEW_SUPPORT_PARAMS_VER1);
+    assert(!value->bMultiViewSupported&&!value->bSinglePassStereoSupported&&!value->bSinglePassStereoXYZWSupported&&!value->reserved);
+    value->bMultiViewSupported=value->bSinglePassStereoSupported=value->bSinglePassStereoXYZWSupported=1;return mockMvrResult;
+}
+void capabilityQueryContract(){
+    using namespace lmuqv::nv_multiview;
+    auto* device=reinterpret_cast<IUnknown*>(1); // Injected callbacks never dereference this identity.
+    Api api;api.initialize=mockInitialize;api.sps=mockSps;api.multiview=mockMvr;
+    auto result=query_capabilities(device,api);
+    assert(result.initialization==NVAPI_OK&&result.spsStatus==NVAPI_OK&&result.multiviewStatus==NVAPI_OK);
+    assert(result.singlePassStereo&&result.singlePassStereoXYZW&&result.multiView&&result.multiviewStereo&&result.multiviewStereoXYZW&&result.maximumViews==4);
+    assert(mockInitializations==1&&mockSpsQueries==1&&mockMvrQueries==1);
+    mockInitialization=NVAPI_NVIDIA_DEVICE_NOT_FOUND;result=query_capabilities(device,api);
+    assert(result.initialization==NVAPI_NVIDIA_DEVICE_NOT_FOUND&&!result.multiView&&result.maximumViews==0);
+    assert(mockSpsQueries==1&&mockMvrQueries==1);
+    mockInitialization=NVAPI_OK;api.sps=nullptr;api.multiview=nullptr;result=query_capabilities(device,api);
+    assert(result.initialization==NVAPI_OK&&result.spsStatus==NVAPI_NO_IMPLEMENTATION&&result.multiviewStatus==NVAPI_NO_IMPLEMENTATION&&result.maximumViews==0);
+    result=query_capabilities(device,Api{});assert(result.initialization==NVAPI_LIBRARY_NOT_FOUND&&result.maximumViews==0);
+    const auto calls=mockInitializations;result=query_capabilities(nullptr,api);assert(result.initialization==NVAPI_INVALID_ARGUMENT&&mockInitializations==calls);
+    api.sps=mockSps;result=query_capabilities(device,api);assert(result.singlePassStereo&&result.maximumViews==2&&!result.multiView);
+    api.multiview=mockMvr;mockSpsResult=mockMvrResult=NVAPI_ERROR;result=query_capabilities(device,api);
+    assert(result.spsStatus==NVAPI_ERROR&&result.multiviewStatus==NVAPI_ERROR&&!result.singlePassStereo&&!result.multiView&&result.maximumViews==0);
+    mockSpsResult=mockMvrResult=NVAPI_OK;
+}
+int printNvidiaCapabilities(){
+    ID3D11Device* device=nullptr;ID3D11DeviceContext* context=nullptr;
+    const auto hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&context);
+    if(FAILED(hr)){std::cout<<"NVIDIA capabilities unavailable: hardware device HRESULT=0x"<<std::hex<<unsigned(hr)<<std::dec<<"; capability only; no in-game SPS/MVR\n";return 0;}
+    IDXGIDevice* dxgi=nullptr;IDXGIAdapter* adapter=nullptr;DXGI_ADAPTER_DESC desc{};
+    if(SUCCEEDED(device->QueryInterface(__uuidof(IDXGIDevice),reinterpret_cast<void**>(&dxgi)))&&SUCCEEDED(dxgi->GetAdapter(&adapter))&&SUCCEEDED(adapter->GetDesc(&desc)))
+        std::wcout<<L"Hardware adapter: "<<desc.Description<<L'\n';
+    drop(adapter);drop(dxgi);
+    const auto caps=lmuqv::nv_multiview::query_capabilities(device);
+    std::cout<<"NVIDIA initialization_status="<<caps.initialization
+        <<" SPS_V2_status="<<caps.spsStatus<<" stereo="<<caps.singlePassStereo<<" stereoXYZW="<<caps.singlePassStereoXYZW
+        <<" MVR_V1_status="<<caps.multiviewStatus<<" multiView="<<caps.multiView<<" stereo="<<caps.multiviewStereo<<" stereoXYZW="<<caps.multiviewStereoXYZW
+        <<" supported_max_views="<<caps.maximumViews<<" SDK_max_views="<<NV_MULTIVIEW_MAX_SUPPORTED_VIEWS
+        <<"\nCapability only; no in-game SPS/MVR, mode setters, shader changes or performance claim.\n";
+    drop(context);drop(device);return 0;
+}
 const char* shader=R"(
 cbuffer Cameras:register(b0) {row_major float4x4 views[2];uint fixedEye;float3 padding;};
 struct Input {float3 position:POSITION;float3 color:COLOR0;float3 instanceColor:COLOR1;uint instance:SV_InstanceID;};
@@ -117,6 +168,8 @@ void equivalent(const Pixels& expected,const Pixels& actual){
 }
 }
 int main(int argc,char** argv){
+    capabilityQueryContract();
+    for(int i=1;i<argc;++i)if(!std::strcmp(argv[i],"--nvidia-capabilities"))return printNvidiaCapabilities();
     using namespace lmuqv;StereoInstances instances;assert(stereo_instances(3,4,instances)&&instances.count==6&&instances.start==4);
     assert(!stereo_instances(0x80000000u,0,instances));assert(stereo_instances(1,0xffffffffu,instances)&&instances.start==0xffffffffu);
     UINT step=0;assert(stereo_step_rate(3,step)&&step==6);assert(!stereo_step_rate(0x80000000u,step));assert(query_stereo_capabilities(nullptr).route==StereoRoute::unavailable);

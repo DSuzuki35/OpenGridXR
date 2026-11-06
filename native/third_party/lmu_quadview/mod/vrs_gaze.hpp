@@ -1,6 +1,8 @@
 #pragma once
 
 #include <openxr/openxr.h>
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -113,13 +115,17 @@ public:
             info->countActiveActionSets == std::numeric_limits<uint32_t>::max())
             return xrSyncActions_(session, info);
         try {
-            std::vector<XrActiveActionSet> sets;
-            if (info->countActiveActionSets)
-                sets.assign(info->activeActionSets, info->activeActionSets + info->countActiveActionSets);
-            sets.push_back({set_, XR_NULL_PATH});
+            // 0.5.0 (from 0.3.5): called every frame; no heap allocation for the usual few sets.
+            std::array<XrActiveActionSet, 16> inlineSets;
+            std::vector<XrActiveActionSet> largeSets;
+            const uint32_t count = info->countActiveActionSets;
+            XrActiveActionSet* sets = inlineSets.data();
+            if (size_t(count) + 1 > inlineSets.size()) { largeSets.resize(size_t(count) + 1); sets = largeSets.data(); }
+            if (count) std::copy(info->activeActionSets, info->activeActionSets + count, sets);
+            sets[count] = {set_, XR_NULL_PATH};
             auto augmented = *info;
-            augmented.countActiveActionSets = static_cast<uint32_t>(sets.size());
-            augmented.activeActionSets = sets.data();
+            augmented.countActiveActionSets = count + 1;
+            augmented.activeActionSets = sets;
             const XrResult result = xrSyncActions_(session, &augmented);
             // XR_SESSION_NOT_FOCUSED is a nonnegative result, but no valid gaze.
             synced_ = result == XR_SUCCESS;

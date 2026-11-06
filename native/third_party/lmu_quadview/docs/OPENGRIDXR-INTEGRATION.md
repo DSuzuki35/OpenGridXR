@@ -34,10 +34,11 @@ removing the environment variable reintroduces the known conflict.
   replace compensated submission poses with raw cached locate poses.
 - Preserve native quad, mbucchia QVFR and VectorXR providers, plus stereo VRS
   as a separate two-view path. Avoid loading duplicate quad providers.
-- Preserve dynamic focus min/max/reserve controls and the actual rendered FOV
-  overlay. Current dynamic focus changes FOV with fixed-size textures; it is
-  not dynamic resolution and has no demonstrated general GPU-saving guarantee.
-- Keep executable/hash and hook-anchor validation, resource/state restoration,
+- Preserve manual focus sizing, eye tracking and the actual rendered FOV
+  overlay. Automatic GPU-driven focus resizing has been removed from corrected
+  0.2.1 after failed user testing. Do not restore its min/max/reserve controls
+  or controller from older commits. Runtime resolution scaling is not implemented.
+- Keep executable identity and hook-anchor validation, resource/state restoration,
   launch isolation, diagnostics, regression tests and third-party notices.
 - Integrate OpenGridXR mask, sharpening and streaming at explicitly defined
   stages using the same projection state. Do not independently recrop stereo
@@ -49,7 +50,7 @@ removing the environment variable reintroduces the known conflict.
 `mod/engine_bridge.cpp`: LMU hooks, native outer and focus rendering, UI.
 `mod/launcher/LaunchService.cs` and `mod/launch.ps1`: child-process isolation.
 `mod/launcher/Launcher.cs`, `QvfrSettings.cs`, `BenchmarkController.cs`: controls,
-settings and telemetry. `docs/dynamic-focus-validation.md`: dynamic-FOV checks.
+settings and telemetry. `docs/focus-validation.md`: focus/overlay checks.
 
 Run the native/MSVC, launcher and PowerShell suites described in CONTRIBUTING.
 `tools/start-frame-capture.cmd` arms a four-view scene capture; its run manifest
@@ -57,9 +58,9 @@ names the trigger. Compare outer images cropped using recorded FOV tangents
 with corresponding focus images for both eyes in the same frame. Ignore BMP
 alpha when inspecting RGB: it is not uniformly opaque.
 
-Validate fixed and tracked gaze, head motion, crop on/off, dynamic focus min/max
-transitions, HUD/menus and provider output. Measure performance separately from
-capture readback. Preserve the pinned engine build checks during integration.
+Validate fixed and tracked gaze, head motion, crop on/off, manual focus sizes,
+HUD/menus and provider output. Measure performance separately from
+capture readback. Preserve native hook-signature checks during integration.
 
 ## Hardware evidence and limits
 

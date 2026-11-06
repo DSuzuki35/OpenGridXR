@@ -55,6 +55,7 @@ int wmain(int argc,wchar_t** argv){try{
     std::filesystem::create_directories(directory);const auto config=directory/L"OpenGridXR.ini";
     {std::ofstream file(config);file<<"[lmu]\nEnabled=1\nEnhancementsEnabled=0\nMode=driving\nCropTop=8\nCropBottom=21\nRenderScale=50\n";}
     SetEnvironmentVariableW(L"OPENGRIDXR_CONFIG",config.c_str());
+    SetEnvironmentVariableW(L"OPENGRIDXR_STATUS_DIR",directory.c_str());
     SetEnvironmentVariableA("OPENGRIDXR_LMU_INTEGRATED","1");SetEnvironmentVariableA("OPENGRIDXR_LMU_PROVIDER","native");
     SetEnvironmentVariableA("LMU_QV_MODE","quad");SetEnvironmentVariableA("LMU_QV_DIAGNOSTICS","0");
     SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS","1");SetEnvironmentVariableA("LMU_QV_USE_RUNTIME_SETTINGS",nullptr);
@@ -76,13 +77,13 @@ int wmain(int argc,wchar_t** argv){try{
     require(sessionCreate(instance,&sessionInfo,&session)==XR_ERROR_INITIALIZATION_FAILED&&sessionsCreated==0,"non-D3D session cannot bypass game guard");
     ComPtr<ID3D11Device> device;require(SUCCEEDED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,nullptr)),"WARP");
     XrGraphicsBindingD3D11KHR binding{XR_TYPE_GRAPHICS_BINDING_D3D11_KHR};binding.device=device.Get();sessionInfo.next=&binding;
-    require(sessionCreate(instance,&sessionInfo,&session)==XR_ERROR_INITIALIZATION_FAILED&&session==XR_NULL_HANDLE,"fixture executable fails pinned game hash guard");
+    require(sessionCreate(instance,&sessionInfo,&session)==XR_ERROR_INITIALIZATION_FAILED&&session==XR_NULL_HANDLE,"fixture executable fails game resource/code-anchor guard");
     require(sessionsCreated==1&&sessionsDestroyed==1,"hook rejection cleans downstream session");
     require(get<PFN_xrDestroyInstance>(request,instance,"xrDestroyInstance")(instance)==XR_SUCCESS,"destroy resets private adapter");
     SetEnvironmentVariableA("OPENGRIDXR_LMU_PROVIDER","invalid");
     require(request.createApiLayerInstance(&info,&layer,&instance)==XR_ERROR_VALIDATION_FAILURE&&instancesCreated==1,"invalid provider fails before downstream instance creation");
     // Ordinary Steam startup has no launcher environment. Saved settings must
-    // activate the same adapter, still enforcing its pinned executable guard.
+    // activate the same adapter, still enforcing its executable guard.
     SetEnvironmentVariableA("OPENGRIDXR_LMU_INTEGRATED",nullptr);
     SetEnvironmentVariableA("OPENGRIDXR_LMU_PROVIDER",nullptr);
     SetEnvironmentVariableA("LMU_QV_MODE",nullptr);
@@ -112,5 +113,5 @@ int wmain(int argc,wchar_t** argv){try{
     next.next=&existing;next.nextGetInstanceProcAddr=providerApi.getInstanceProcAddr;next.nextCreateApiLayerInstance=providerApi.createApiLayerInstance;
     require(request.createApiLayerInstance(&info,&layer,&instance)==XR_SUCCESS&&instancesCreated==4&&calls()==2,"downstream QVFR is used exactly once");
     require(get<PFN_xrDestroyInstance>(request,instance,"xrDestroyInstance")(instance)==XR_SUCCESS,"existing provider destroy");
-    FreeLibrary(module);std::cout<<"Built DLL internal routing, automatic startup, uncropped focus sizing and pinned executable guard PASS\n";
+    FreeLibrary(module);std::cout<<"Built DLL internal routing, automatic startup, uncropped focus sizing and executable guard PASS\n";
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}}

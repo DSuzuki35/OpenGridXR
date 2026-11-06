@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,7 +12,6 @@ using Microsoft.Win32;
 
 namespace LmuQuadViewLauncher {
     public static class LaunchService {
-        public const string SupportedExecutableHash="66942337813B301B87D12EDFA330F33354A2A4B8CD9B048885CBF77EB6F940CF";
         const string ProviderName="XR_APILAYER_MBUCCHIA_quad_views_foveated";
         internal const string VectorXrProviderName="XR_APILAYER_DIENERTECH_VECTORXR";
         const string AdapterName="XR_APILAYER_LMU_quadview";
@@ -157,6 +157,8 @@ namespace LmuQuadViewLauncher {
             var inherited=new List<string>();foreach(string key in info.EnvironmentVariables.Keys) if(key.StartsWith("LMU_QV_",StringComparison.OrdinalIgnoreCase)) inherited.Add(key);
             foreach(var key in inherited) info.EnvironmentVariables.Remove(key);
             var environment=info.EnvironmentVariables;
+            environment["LMU_QV_DISABLE_AUTOLOAD"]="1";
+            environment["OPENGRIDXR_LMU_INTEGRATED"]="0";
             environment["XR_API_LAYER_PATH"]=plan.Paths;environment["XR_ENABLE_API_LAYERS"]=plan.Layers;
             if(!String.IsNullOrEmpty(plan.DisableVariable)) environment[plan.DisableVariable]="1";
             foreach(var variable in plan.DisableVariables)environment[variable]="1";
@@ -181,15 +183,13 @@ namespace LmuQuadViewLauncher {
             environment["LMU_QV_CPU_UPLOAD_BATCH"]=!vrs&&settings.CpuUploadBatch?"1":"0";
             environment["LMU_QV_CPU_OUTER_REUSE"]=outerReuse?"1":"0";
             environment["LMU_QV_OUTER_SSR"]=!vrs&&settings.NativeOuterResolution&&settings.OuterSsr?"1":"0";
+            environment["LMU_QV_CPU_AFFINITY"]=settings.CpuCacheAffinity?"x3d":"off";
             environment["LMU_QV_DEBUG_FOCUS"]=settings.DebugFocus?"1":"0";
             environment["LMU_QV_PROFILE"]=settings.DiagnosticsEnabled&&settings.RenderProfiling?"1":"0";
             environment["LMU_QV_PROFILE_SECONDS"]=settings.RenderProfileSeconds.ToString(CultureInfo.InvariantCulture);
             environment["LMU_QV_VECTORXR_DIRECT_INPUTS"]=settings.Backend=="VectorXR"?"1":"0";
-            environment["LMU_QV_DYNAMIC_FOCUS"]=!vrs&&settings.DynamicFocusEnabled?"1":"0";
-            environment["LMU_QV_DYNAMIC_FOCUS_MIN"]=settings.DynamicFocusMinPercent.ToString(CultureInfo.InvariantCulture);
-            environment["LMU_QV_DYNAMIC_FOCUS_MAX"]=settings.DynamicFocusMaxPercent.ToString(CultureInfo.InvariantCulture);
-            environment["LMU_QV_DYNAMIC_FOCUS_RESERVE"]=settings.DynamicFocusReservePercent.ToString(CultureInfo.InvariantCulture);
-            environment["LMU_QV_OUTER_BLUR"]=vrs?"0":settings.OuterBlur.ToString(CultureInfo.InvariantCulture);
+            // The removed launcher smoothing control must also override inherited values.
+            environment["LMU_QV_OUTER_BLUR"]="0";
             environment["LMU_QV_CROP_WIDTH_PERCENT"]=vrs?"100":settings.CropWidthPercent.ToString(CultureInfo.InvariantCulture);
             environment["LMU_QV_CROP_HEIGHT_PERCENT"]=vrs?"100":settings.CropHeightPercent.ToString(CultureInfo.InvariantCulture);
             environment["LMU_QV_FOCUS_OFFSET_X_PERCENT"]=settings.FocusOffsetXPercent.ToString(CultureInfo.InvariantCulture);
@@ -209,18 +209,27 @@ namespace LmuQuadViewLauncher {
         }
         internal static void ValidateExecutable(string executable) {
             if(!File.Exists(executable)) throw new FileNotFoundException("Select the folder containing Le Mans Ultimate.exe.",executable);
-            if(!String.Equals(HashFile(executable),SupportedExecutableHash,StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("LMU executable differs from the supported build. This mod needs validation for that game version.");
         }
         static void WriteJson(string path,object value) {
             File.WriteAllText(path,new JavaScriptSerializer().Serialize(value),new UTF8Encoding(false));
         }
         static string MetadataPath(ProcessStartInfo info) { return System.IO.Path.ChangeExtension(info.EnvironmentVariables["LMU_QV_LOG"],null)+"-run.json"; }
-        public static ProcessStartInfo Prepare(string root,LauncherSettings settings) {
+        internal static ProviderManifest ResolveProvider(LauncherSettings settings) {
+            bool vrs=settings.Backend=="VRS";
+            var providerBackend=settings.Backend=="Native"||vrs?"QVFR":settings.Backend;
+            var custom=settings.Backend=="VectorXR"?settings.VectorXrManifest:settings.QuadViewsManifest;
+            string path=vrs?null:settings.Backend!="Native"&&!String.IsNullOrWhiteSpace(custom)?custom:FindProviderManifest(providerBackend);
+            var provider=String.IsNullOrWhiteSpace(path)?null:ReadProviderManifest(path,settings.Backend!="Native",providerBackend);
+            if(settings.Backend!="Native"&&!vrs&&provider==null)throw new FileNotFoundException(settings.Backend+" is not installed. Install it from Settings or select its JSON manifest.");
+            return provider;
+        }
+        public static ProcessStartInfo Prepare(string root,LauncherSettings settings,string gameArguments=null,int automaticPid=0) {
             QvfrSettings.Validate(settings);
             root=System.IO.Path.GetFullPath(root);CheckSearchPath(root);
             ValidateExecutable(System.IO.Path.Combine(System.IO.Path.GetFullPath(settings.GameDirectory),"Le Mans Ultimate.exe"));
             var processes=Process.GetProcessesByName("Le Mans Ultimate");
-            bool running=processes.Length!=0;foreach(var process in processes) process.Dispose();
+            if(automaticPid!=0)AutoStart.ValidateProcess(settings,automaticPid);
+            bool running=false;foreach(var process in processes) {if(process.Id!=automaticPid)running=true;process.Dispose();}
             if(running) throw new InvalidOperationException("LMU is already running. Close it before launching again.");
             foreach(var relative in new[]{"XR_APILAYER_LMU_quadview.json",@"build\lmu_quadview.dll"}) if(!File.Exists(System.IO.Path.Combine(root,relative))) throw new FileNotFoundException("The mod package is incomplete: "+relative);
             var ownLayer=Layer(ReadJson(System.IO.Path.Combine(root,"XR_APILAYER_LMU_quadview.json")));
@@ -228,41 +237,73 @@ namespace LmuQuadViewLauncher {
             var ownLibrary=Value(ownLayer,"library_path");
             if(String.IsNullOrWhiteSpace(ownLibrary)||!String.Equals(System.IO.Path.GetFullPath(System.IO.Path.Combine(root,ownLibrary)),System.IO.Path.Combine(root,@"build\lmu_quadview.dll"),StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("The LMU manifest must reference this package's build/lmu_quadview.dll.");
-            bool vrs=settings.Backend=="VRS";
-            var providerBackend=settings.Backend=="Native"||vrs?"QVFR":settings.Backend;
-            var custom=settings.Backend=="VectorXR"?settings.VectorXrManifest:settings.QuadViewsManifest;
-            string providerPath=vrs?null:settings.Backend!="Native"&&!String.IsNullOrWhiteSpace(custom)?custom:FindProviderManifest(providerBackend);
-            ProviderManifest provider=String.IsNullOrWhiteSpace(providerPath)?null:ReadProviderManifest(providerPath,settings.Backend!="Native",providerBackend);
-            if(settings.Backend!="Native"&&!vrs&&provider==null) throw new FileNotFoundException(settings.Backend+" is not installed. Install it from the Setup page or select its JSON manifest.");
+            var provider=ResolveProvider(settings);
             var logDirectory=System.IO.Path.Combine(root,"logs");
             var stamp=DateTime.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture)+"-"+Guid.NewGuid().ToString("N").Substring(0,8);
             var runDirectory=System.IO.Path.Combine(root,settings.DiagnosticsEnabled?"logs":"runtime");
+            PruneRuntime(System.IO.Path.Combine(root,"runtime"),DateTime.UtcNow);
             var plan=MakeLayerPlan(root,settings.Backend,provider,System.IO.Path.Combine(runDirectory,"layers-"+stamp));
             AddImplicitDisables(plan,RegisteredManifests(true),settings.Backend);
             if(settings.DiagnosticsEnabled)Directory.CreateDirectory(logDirectory);
             var log=System.IO.Path.Combine(logDirectory,"quad-"+stamp+".log");
             var info=MakeStartInfo(root,settings,plan,log);
+            if(gameArguments!=null)info.Arguments=gameArguments;
             if(settings.DiagnosticsEnabled)WriteJson(MetadataPath(info),PreparedMetadata(root,settings,plan,info,log));
             return info;
         }
+        // 0.3.3: diagnostics-off launches left one layers-* folder per start in runtime\
+        // forever, and a failed automatic start could leave its one-shot INI behind.
+        // Only remove this package's own generated names after a day. logs\ stays
+        // user-owned. Prepare may run inside an autoload helper while LMU is alive.
+        internal static readonly TimeSpan RuntimeRetention=TimeSpan.FromDays(1);
+        internal static void PruneRuntime(string directory,DateTime nowUtc) {
+            PruneRuntime(directory,nowUtc,delegate {
+                var games=Process.GetProcessesByName("Le Mans Ultimate");bool running=games.Length!=0;
+                foreach(var game in games)game.Dispose();
+                return running;
+            });
+        }
+        // Fixtures supply process presence without depending on an unrelated
+        // live game. Production always uses the real process lookup above.
+        internal static void PruneRuntime(string directory,DateTime nowUtc,Func<bool> gameIsRunning) {
+            try {
+                if(!Directory.Exists(directory))return;
+                var info=new DirectoryInfo(directory);
+                for(var parent=info;parent!=null;parent=parent.Parent)if((parent.Attributes&FileAttributes.ReparsePoint)!=0)return;
+                if(gameIsRunning())return;
+                foreach(var child in info.GetDirectories("layers-*")) {
+                    if(!Regex.IsMatch(child.Name,"^layers-[0-9]{8}-[0-9]{6}-[0-9a-f]{8}$")||nowUtc-child.LastWriteTimeUtc<RuntimeRetention)continue;
+                    if((child.Attributes&FileAttributes.ReparsePoint)!=0)continue;
+                    try {
+                        var files=child.GetFiles();
+                        if(child.GetDirectories().Length!=0||files.Any(f=>(f.Attributes&FileAttributes.ReparsePoint)!=0||
+                            (f.Name!="XR_APILAYER_MBUCCHIA_quad_views_foveated.json"&&f.Name!="XR_APILAYER_DIENERTECH_VECTORXR.json")))continue;
+                        foreach(var file in files)file.Delete();
+                        child.Delete(false);
+                    } catch(IOException) { } catch(UnauthorizedAccessException) { }
+                }
+                foreach(var file in info.GetFiles("autoload-*.ini")) {
+                    if((file.Attributes&FileAttributes.ReparsePoint)!=0||!Regex.IsMatch(file.Name,"^autoload-[0-9a-fA-F]{32}\\.ini$")||nowUtc-file.LastWriteTimeUtc<RuntimeRetention)continue;
+                    try { file.Delete(); } catch(IOException) { } catch(UnauthorizedAccessException) { }
+                }
+            } catch(IOException) { } catch(UnauthorizedAccessException) { }
+        }
         internal static object PreparedMetadata(string root,LauncherSettings settings,LayerPlan plan,ProcessStartInfo info,string log) {
             return new {Status="prepared",Pid=(int?)null,Mode=settings.Backend=="VRS"?"vrs":"quad",Backend=settings.Backend,FoveationMode=settings.FoveationMode,VrsPeripheralRate=settings.VrsPeripheralRate,
-                Exe=info.FileName,ExeSHA256=SupportedExecutableHash,LayerSHA256=HashFile(System.IO.Path.Combine(root,@"build\lmu_quadview.dll")),
+                Exe=info.FileName,Arguments=info.Arguments,ExeSHA256=HashFile(info.FileName),LayerSHA256=HashFile(System.IO.Path.Combine(root,@"build\lmu_quadview.dll")),
                 ProviderManifest=plan.ProviderPath,ProviderName=plan.ProviderName,ProviderSHA256=plan.Library==null?null:HashFile(plan.Library),
                 ExplicitManifest=plan.ExplicitManifest,EnabledLayers=plan.Layers,DisabledImplicitSwitches=plan.DisableVariables,OpenGridXrDisabled=info.EnvironmentVariables["DISABLE_OPENGRIDXR"]=="1",Log=log,
                 DiagnosticsEnabled=settings.DiagnosticsEnabled,BenchmarkEnabled=settings.DiagnosticsEnabled&&settings.BenchmarkEnabled,BenchmarkRequested=settings.BenchmarkEnabled,BenchmarkTemplate=settings.BenchmarkTemplate,
                 DebugFocus=settings.DebugFocus,RenderProfiling=settings.RenderProfiling,StereoDrawAudit=info.EnvironmentVariables["LMU_QV_STEREO_AUDIT"]=="1",StereoShaderCapture=info.EnvironmentVariables["LMU_QV_STEREO_SHADER_CAPTURE"]=="1",StereoPairProof=info.EnvironmentVariables["LMU_QV_STEREO_DRAW_PROOF"]=="1",CpuUploadReuse=info.EnvironmentVariables["LMU_QV_CPU_UPLOAD_REUSE"]=="1",CpuUploadBatch=info.EnvironmentVariables["LMU_QV_CPU_UPLOAD_BATCH"]=="1",RenderProfileSeconds=settings.RenderProfileSeconds,NativeOuterResolution=info.EnvironmentVariables["LMU_QV_NATIVE_OUTER"]=="1",UseRuntimeSettings=settings.Backend!="VRS",
                 CpuOuterReuse=info.EnvironmentVariables["LMU_QV_CPU_OUTER_REUSE"]=="1",OuterSsr=info.EnvironmentVariables["LMU_QV_OUTER_SSR"]=="1",CpuOuterReuseRequested=settings.CpuOuterReuse,OuterSsrRequested=settings.OuterSsr,
-                VectorXrDirectInputs=settings.Backend=="VectorXR",OuterBlur=settings.OuterBlur,
-                DynamicFocusEnabled=settings.Backend!="VRS"&&settings.DynamicFocusEnabled,DynamicFocusMinPercent=settings.DynamicFocusMinPercent,
-                DynamicFocusMaxPercent=settings.DynamicFocusMaxPercent,DynamicFocusReservePercent=settings.DynamicFocusReservePercent,
+                VectorXrDirectInputs=settings.Backend=="VectorXR",OuterBlur=0m,
                 CropWidthPercent=settings.CropWidthPercent,CropHeightPercent=settings.CropHeightPercent,
                 FocusOffsetXPercent=settings.FocusOffsetXPercent,FocusOffsetYPercent=settings.FocusOffsetYPercent,
                 OuterPercent=settings.OuterPercent,InnerPercent=settings.InnerPercent,FocusWidthPercent=settings.FocusWidthPercent,FocusHeightPercent=settings.FocusHeightPercent,
                 PreparedUTC=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)};
         }
-        public static int Launch(string root,LauncherSettings settings) {
-            var info=Prepare(root,settings);
+        public static int Launch(string root,LauncherSettings settings,string gameArguments=null) {
+            var info=Prepare(root,settings,gameArguments);
             try {
             // Preparation is testable without touching the user's QVFR profile.
             // Only the actual launch commits this configuration, after all guards.
@@ -271,10 +312,7 @@ namespace LmuQuadViewLauncher {
                 if(process==null) throw new InvalidOperationException("Windows did not start LMU.");
                 int pid=process.Id;
                 if(!settings.DiagnosticsEnabled)return pid;
-                try {
-                    var path=MetadataPath(info);var metadata=ReadJson(path);
-                    metadata["Status"]="started";metadata["Pid"]=pid;metadata["StartedUTC"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);WriteJson(path,metadata);
-                } catch(IOException) { } catch(UnauthorizedAccessException) { } // Game already started; do not report a false launch failure.
+                MarkStarted(info,settings,pid,"launcher");
                 return pid;
             }
             } catch(Exception error) {
@@ -284,6 +322,14 @@ namespace LmuQuadViewLauncher {
                 } catch(IOException) { } catch(UnauthorizedAccessException) { }
                 throw;
             }
+        }
+        internal static void MarkStarted(ProcessStartInfo info,LauncherSettings settings,int pid,string launchKind) {
+            if(!settings.DiagnosticsEnabled)return;
+            try {
+                var path=MetadataPath(info);var metadata=ReadJson(path);
+                metadata["Status"]="started";metadata["Pid"]=pid;metadata["LaunchKind"]=launchKind;
+                metadata["StartedUTC"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);WriteJson(path,metadata);
+            }catch(IOException){}catch(UnauthorizedAccessException){}
         }
     }
 }

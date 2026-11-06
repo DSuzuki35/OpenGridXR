@@ -19,6 +19,7 @@ class LaunchDiagnosticsTests {
             Has(LmuQuadViewLauncher.LaunchDiagnostics.Explain("xrEndFrame frame=2 quadProjections=1 shouldRender=1 result=-17"),"SESSION_LOST");
             Has(LmuQuadViewLauncher.LaunchDiagnostics.Explain("Projection refused: spaceMatch=0\nxrEndFrame frame=5 quadProjections=1 shouldRender=1 result=0"),"SUBMITTING");
             Has(LmuQuadViewLauncher.LaunchDiagnostics.Explain("unsupported game executable hash C:\\Users\\PrivatePerson\\secret.exe"),"GAME_BUILD");
+            Has(LmuQuadViewLauncher.LaunchDiagnostics.Explain("engine: code anchor mismatch; hooks refused"),"GAME_BUILD");
             var directory=Path.Combine(Path.GetTempPath(),"lmu-diagnosis-"+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(directory,"logs"));
             try {

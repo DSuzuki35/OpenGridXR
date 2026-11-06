@@ -19,15 +19,12 @@ XrResult XRAPI_CALL beginSnapshot(XrSession,const XrFrameBeginInfo*){return XR_S
 }
 int main(){
     Fixture f;next.LocateViews=movingLocate;
-    s.dynamicFocus.configure(true,70,120,2);
     XrViewLocateInfo info{XR_TYPE_VIEW_LOCATE_INFO};info.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
     info.space=s.locateSpace;info.displayTime=s.predictedTime;
     XrViewState state{XR_TYPE_VIEW_STATE};XrView output[2]{};uint32_t count=0;
     assert(layerLocateViews(s.session,&info,&state,2,&count,output)==XR_SUCCESS);
     XrView rendered[4]{};assert(lmuqv::xr_frame_views(rendered));
     XrFovf fullOuter[2]{};assert(lmuqv::xr_frame_full_outer_fov(fullOuter));
-    for(uint64_t frame=8;frame<800;frame+=8)s.dynamicFocus.sample(12,10,frame,frame+1);
-    assert(s.dynamicFocus.scale()==70&&s.dynamicFrameScale==100);
     for(unsigned eye=0;eye<2;++eye)f.views[eye].pose=rendered[eye].pose;
     assert(layerLocateViews(s.session,&info,&state,2,&count,output)==XR_SUCCESS);
     assert(output[0].pose.position.x==2); // caller still gets a fresh tracking result
@@ -45,7 +42,7 @@ int main(){
     assert(layerLocateViews(s.session,&info,&state,2,&count,output)==XR_SUCCESS);
     assert(s.locateTime==f.info.displayTime&&s.locateSpace==f.projection.space);
     XrFovf repeatedOuter[2]{};assert(lmuqv::xr_frame_full_outer_fov(repeatedOuter));
-    assert(!std::memcmp(fullOuter,repeatedOuter,sizeof(fullOuter))&&s.dynamicFrameScale==100);
+    assert(!std::memcmp(fullOuter,repeatedOuter,sizeof(fullOuter)));
     f.submit();
     assert(received.projectionCount==1);
     assert(received.views[2].fov.angleLeft==rendered[2].fov.angleLeft);
@@ -56,7 +53,6 @@ int main(){
     assert(layerBeginFrame(s.session,&begin)==XR_SUCCESS);
     assert(layerLocateViews(s.session,&info,&state,2,&count,output)==XR_SUCCESS);
     assert(lmuqv::xr_frame_views(secondEye));
-    assert(s.dynamicFrameScale==70);
     assert(secondEye[2].fov.angleLeft!=rendered[2].fov.angleLeft);
     std::cout<<"Rendered view snapshot survives late, failed and foreign-space locate calls; next frame refreshes\n";
 }

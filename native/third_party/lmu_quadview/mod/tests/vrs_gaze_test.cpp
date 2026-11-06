@@ -162,6 +162,25 @@ void failed_and_inactive_samples_never_reuse_pose() {
     assert(gaze.sample(baseSpace, 112, out));
     gaze.resetSession();
 }
+void sync_preserves_sets_across_inline_capacity() {
+    rt = {}; lmuqv::VrsGaze gaze; initialize(gaze); appAttachAndSync(gaze);
+    int marker=17;
+    for(unsigned count:{0u,15u,16u,32u}){
+        std::vector<XrActiveActionSet> input(count);
+        for(unsigned i=0;i<count;++i)input[i]={handle<XrActionSet>(100+i),XrPath(200+i)};
+        XrActionsSyncInfo info{XR_TYPE_ACTIONS_SYNC_INFO,&marker,count,count?input.data():nullptr};
+        assert(gaze.sync(session,&info)==XR_SUCCESS);
+        assert(info.countActiveActionSets==count&&rt.syncNext==&marker);
+        assert(rt.activeSets.size()==count+1);
+        for(unsigned i=0;i<count;++i){
+            assert(rt.activeSets[i].actionSet==handle<XrActionSet>(100+i));
+            assert(rt.activeSets[i].subactionPath==XrPath(200+i));
+            assert(input[i].actionSet==handle<XrActionSet>(100+i)&&input[i].subactionPath==XrPath(200+i));
+        }
+        assert(rt.activeSets[count].actionSet==privateSet&&rt.activeSets[count].subactionPath==XR_NULL_PATH);
+    }
+    gaze.resetSession();
+}
 void lazy_attach_is_once_and_late_app_errors_are_preserved() {
     rt = {}; lmuqv::VrsGaze gaze; initialize(gaze);
     assert(gaze.ensureAttachedAndSync(session));
@@ -224,6 +243,7 @@ void optional_and_failed_initialization_fall_back_cleanly() {
 }
 int main() {
     append_preserves_application_input(); failed_and_inactive_samples_never_reuse_pose();
+    sync_preserves_sets_across_inline_capacity();
     lazy_attach_is_once_and_late_app_errors_are_preserved(); app_errors_are_passthrough_and_prevent_lazy_attach();
     failed_app_attach_can_retry_without_private_attach();
     optional_and_failed_initialization_fall_back_cleanly();

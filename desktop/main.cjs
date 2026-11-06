@@ -69,6 +69,8 @@ else {
       const runtimeDir = process.env.OPENGRIDXR_DATA_DIR
         ? path.join(data, "runtime")
         : path.join(process.env.LOCALAPPDATA || data, "OpenGridXR", "runtime");
+      const testMode = process.env.OPENGRIDXR_TEST_MODE === "1";
+      const lmuRendering = createLmuRendering({dataDir:data,runtimeDir,...(testMode?{discover:async()=>({executables:[],providers:[]}),registered:async()=>[]}: {})});
       const runtime = createRuntime({
         dataDir: data,
         sourceDir: app.isPackaged
@@ -78,6 +80,7 @@ else {
         testMode: process.env.OPENGRIDXR_TEST_MODE === "1",
         transformDocument: effective,
         outputEnabled: () => enabled('stream'),
+        getLmuPreferences: () => lmuRendering.preferences(),
         prepareAssets: async doc => {
           if (["iracing", "lmu"].some(game => {
             const profile = selectedForGame(doc, game);
@@ -90,8 +93,6 @@ else {
               await atomicWrite(path.join(runtimeDir, `OpenGridXR-${kind}-${game}.json`), JSON.stringify({ version: 1, enabled: false }));
         },
       });
-      const testMode = process.env.OPENGRIDXR_TEST_MODE === "1";
-      const lmuRendering = createLmuRendering({dataDir:data,runtimeDir,...(testMode?{discover:async()=>({executables:[],providers:[]}),registered:async()=>[]}: {})});
       let editorStatus = { dirty: true, busy: true };
       let editorGeneration = 0;
       const updatePreferences = path.join(data, "update-preferences.json");
@@ -323,7 +324,7 @@ else {
           };
         });
       function handle(name, fn) {
-        const mutations = new Set(['setModuleSettings', 'save', 'restoreBackup', 'installRuntime', 'removeRuntime', 'launchOutput', 'benchmarkStart', 'benchmarkStop', 'launchLmuOffline', 'chooseLmuExecutable', 'chooseLmuProvider', 'triggerLmuCapture', 'previewLmuLaunch', 'layersSetEnabled', 'layersRestore']);
+        const mutations = new Set(['setLmuPreferences', 'setModuleSettings', 'save', 'restoreBackup', 'installRuntime', 'removeRuntime', 'launchOutput', 'benchmarkStart', 'benchmarkStop', 'launchLmuOffline', 'chooseLmuExecutable', 'chooseLmuProvider', 'triggerLmuCapture', 'previewLmuLaunch', 'layersSetEnabled', 'layersRestore']);
         ipcMain.handle(`opengrid:${name}`, async (event, ...args) => {
           if (
             !win ||
@@ -370,8 +371,18 @@ else {
       let lmuLaunchPending = false;
       let lmuExecutable;
       handle('lmuStatus', async () => {
-        const [status,sessions]=await Promise.all([lmuRendering.status(),runtime.sessionsStatus()]);
-        return {...status,session:sessions.find(s=>s.game==='lmu'&&s.active)?.lmuRendering||null};
+        const [status,sessions,durableDiagnostics]=await Promise.all([lmuRendering.status(),runtime.sessionsStatus(),runtime.lmuDiagnosticsStatus()]);
+        const session=sessions.find(s=>s.game==='lmu'&&s.active)?.lmuRendering||null;
+        // An active session owns its hook state; a prior failed launch cannot
+        // replace that session's snapshot even if its file is newer.
+        const diagnostics=session ? session.diagnostics||null : durableDiagnostics;
+        return {...status,session,diagnostics};
+      });
+      handle('setLmuPreferences',async value=>{
+        requireModule('lmuRendering');
+        const result=await lmuRendering.setPreferences(value);
+        await runtime.writeConfig((await store.load()).document);
+        return {...result,message:'CPU preference saved for this PC. Restart LMU to apply.'};
       });
       const chooseLmuPath = async kind => {
         if(testMode)throw new Error('LMU file selection is disabled in test mode.');

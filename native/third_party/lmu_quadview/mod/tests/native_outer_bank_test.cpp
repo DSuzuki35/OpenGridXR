@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <map>
 #include <string>
+#include <algorithm>
 
 namespace {
 void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
@@ -16,6 +17,8 @@ unsigned liveWrappers=0,liveContainers=0;
 bool failFactory=false;
 std::map<std::string,Wrapper*> liveNames;
 unsigned nameCollisions=0;
+std::vector<const void*> watchedInterfaces;
+unsigned memoryProbes=0,interfaceProbes=0;
 void addref(void* p){++reinterpret_cast<Wrapper*>(p)->refs;}
 void destroyContainer(void* p){
     if(!p)return;
@@ -56,6 +59,8 @@ template<bool Depth>void setView(void* p,void* value){
 void install(void* wrapper,void** c){field<void*>(wrapper,0xa0)=*c;*c=nullptr;}
 void discard(void*,void* c){destroyContainer(c);}
 bool readable(const void* p,std::size_t bytes){
+    ++memoryProbes;
+    if(bytes==sizeof(void*))for(auto* input:watchedInterfaces)if(input==p){++interfaceProbes;break;}
     MEMORY_BASIC_INFORMATION info{};
     return p&&VirtualQuery(p,&info,sizeof(info))==sizeof(info)&&info.State==MEM_COMMIT&&
         !(info.Protect&(PAGE_NOACCESS|PAGE_GUARD))&&
@@ -73,7 +78,7 @@ struct Fixture {
         std::memcpy(p+2,&address,8);p[10]=std::byte{0xff};p[11]=std::byte{0xe0};
         FlushInstructionCache(GetCurrentProcess(),p,12);
     }
-    Fixture(){
+    Fixture(unsigned samples=1){
         require(image!=nullptr,"fixture image");
         require(SUCCEEDED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&context)),"WARP");
         thunk(0x543950,factory);thunk(0x54f680,addref);thunk(0x552a00,release);
@@ -82,8 +87,8 @@ struct Fixture {
         thunk(0x605770,set<0x68>);thunk(0x552d30,install);thunk(0x5431b0,discard);
         field<ID3D11DeviceContext*>(renderer.data(),0x76f68)=context;
         field<void*>(image,0x1b18d90)=ssr.data();
-        field<void*>(image,0x1b1c750)=target(128,96,false);
-        field<void*>(image,0x1b1c758)=target(128,96,true);
+        field<void*>(image,0x1b1c750)=target(128,96,false,1,samples);
+        field<void*>(image,0x1b1c758)=target(128,96,true,1,samples);
         field<void*>(image,0x1b1c740)=target(128,96,false);
         field<void*>(image,0x1b1c748)=target(128,96,false);
         field<void*>(ssr.data(),0x5d0)=target(64,48,false,7);
@@ -91,11 +96,11 @@ struct Fixture {
         auto* depth=target(64,48,true);addref(depth);
         field<void*>(field<void*>(ssr.data(),0x5d0),0xa8)=depth;
     }
-    void* target(unsigned w,unsigned h,bool depth,unsigned mips=1){
+    void* target(unsigned w,unsigned h,bool depth,unsigned mips=1,unsigned samples=1,DXGI_FORMAT colorFormat=DXGI_FORMAT_R16G16B16A16_FLOAT){
         void* wrapper=nullptr;require(!factory(nullptr,&wrapper,"",w,h,depth?0:0x4e,mips,depth?0:0x100200a,0),"source wrapper");
         auto* c=allocate(0x70);field<void*>(wrapper,0xa0)=c;
-        D3D11_TEXTURE2D_DESC d{};d.Width=w;d.Height=h;d.MipLevels=mips;d.ArraySize=1;d.SampleDesc.Count=1;
-        d.Format=depth?DXGI_FORMAT_D32_FLOAT:DXGI_FORMAT_R16G16B16A16_FLOAT;
+        D3D11_TEXTURE2D_DESC d{};d.Width=w;d.Height=h;d.MipLevels=mips;d.ArraySize=1;d.SampleDesc.Count=samples;
+        d.Format=depth?DXGI_FORMAT_D32_FLOAT:colorFormat;
         d.BindFlags=depth?D3D11_BIND_DEPTH_STENCIL:D3D11_BIND_RENDER_TARGET|D3D11_BIND_SHADER_RESOURCE;
         d.MiscFlags=mips>1?D3D11_RESOURCE_MISC_GENERATE_MIPS:0;
         ID3D11Texture2D* t=nullptr;require(SUCCEEDED(device->CreateTexture2D(&d,nullptr,&t)),"source texture");set<0x20>(c,t);t->Release();
@@ -121,6 +126,97 @@ struct Fixture {
         }
     }
 };
+void cached_identity_probes(){
+    Fixture f;lmuqv::NativeOuterBank bank;
+    require(f.prepare(bank,false),"cached probe baseline");
+    for(auto* original:f.originals){
+        auto* container=static_cast<Container*>(field<void*>(original,0xa0));
+        for(auto* input:{field<void*>(container,0x20),field<void*>(container,0x30),container->rtv,container->dsv,field<void*>(container,0x68)})
+            if(input)watchedInterfaces.push_back(input);
+    }
+    memoryProbes=interfaceProbes=0;
+    const auto wrappers=liveWrappers;
+    require(f.prepare(bank,false)&&liveWrappers==wrappers,"cached identity validation rebuilt bank");
+    const auto cachedProbes=memoryProbes,cachedInterfaceProbes=interfaceProbes;
+    watchedInterfaces.clear();
+    std::cout<<"Cached native bank probes="<<cachedProbes<<" retained_interface_probes="<<cachedInterfaceProbes<<'\n';
+    require(cachedProbes>0,"cached validation skipped native storage checks");
+    require(cachedInterfaceProbes==0,"cached bank re-probed retained COM interfaces");
+
+    auto* container=static_cast<Container*>(field<void*>(f.originals[0],0xa0));
+    auto*& srv=field<void*>(container,0x30);auto* savedSrv=srv;
+    srv=reinterpret_cast<void*>(1);
+    require(!f.prepare(bank,false),"unreadable replacement interface accepted");
+    srv=savedSrv;require(f.prepare(bank,false),"replacement interface recovery failed");
+    auto& begin=field<std::uintptr_t>(container,0x38);auto& end=field<std::uintptr_t>(container,0x40);
+    const auto savedBegin=begin,savedEnd=end;
+    end=begin+16;
+    require(!f.prepare(bank,false),"multi-element view vector accepted");
+    begin=savedBegin;end=savedEnd;require(f.prepare(bank,false),"view vector size recovery failed");
+    begin=1;end=9;
+    require(!f.prepare(bank,false),"unreadable view vector accepted");
+    begin=savedBegin;end=savedEnd;require(f.prepare(bank,false),"view vector storage recovery failed");
+    require(bank.reset(),"cached probe reset");
+}
+void benchmark_cached(){
+    Fixture f;lmuqv::NativeOuterBank bank;
+    require(f.prepare(bank,false),"benchmark prepare");
+    constexpr unsigned iterations=2000;
+    std::array<double,7> batches{};
+    LARGE_INTEGER frequency{};QueryPerformanceFrequency(&frequency);
+    for(auto& batch:batches){
+        LARGE_INTEGER begin{},end{};QueryPerformanceCounter(&begin);
+        for(unsigned i=0;i<iterations;++i)require(f.prepare(bank,false),"benchmark cached prepare");
+        QueryPerformanceCounter(&end);
+        batch=double(end.QuadPart-begin.QuadPart)*1000000.0/double(frequency.QuadPart)/iterations;
+    }
+    std::sort(batches.begin(),batches.end());
+    memoryProbes=0;require(f.prepare(bank,false),"benchmark probe count");
+    std::cout<<"Synthetic cached prepare median_us="<<batches[batches.size()/2]<<" memory_probes="<<memoryProbes
+        <<" batches="<<batches.size()<<" iterations="<<iterations<<"; WARP fixture, not game frametime\n";
+    require(bank.reset(),"benchmark reset");
+}
+void view_backed_depth_resolve(){
+    for(unsigned samples:{1u,2u}){
+        Fixture f(samples);lmuqv::NativeOuterBank bank;
+        auto*& slot=field<void*>(f.renderer.data(),0x82cb0);
+        slot=f.target(128,96,false,1,1,DXGI_FORMAT_R32_FLOAT);
+        auto* original=slot;
+        auto* container=static_cast<Container*>(field<void*>(original,0xa0));
+        auto*& direct=field<ID3D11Resource*>(container,0x20);
+        direct->Release();direct=nullptr; // Exact LMU role 5: only SRV/RTV own the texture.
+        require(f.prepare(bank,false),"view-backed DepthResolve refused");
+        void* replacement=nullptr;require(bank.mapTarget(original,replacement)&&replacement,"DepthResolve mapping");
+        addref(replacement); // Keep its address alive to prove a later rebuild.
+        {
+            lmuqv::NativeOuterBindings b;require(bank.bind(b)&&b.apply(),"view-backed binding");
+            require(slot==replacement&&field<unsigned>(slot,0x28)==32&&field<unsigned>(slot,0x2c)==24,"DepthResolve not resized");
+            auto* t=field<ID3D11Texture2D*>(field<void*>(slot,0xa0),0x20);
+            D3D11_TEXTURE2D_DESC d{};t->GetDesc(&d);
+            require(d.Format==DXGI_FORMAT_R32_FLOAT&&d.SampleDesc.Count==1,"DepthResolve format/sample count changed");
+        }
+        require(slot==original&&!direct,"view-backed original not restored");
+        require(f.prepare(bank,false),"view-backed cached prepare");
+        void* cached=nullptr;require(bank.mapTarget(original,cached)&&cached==replacement,"view-backed bank rebuilt every frame");
+        auto* other=static_cast<Container*>(field<void*>(f.target(128,96,false,1,1,DXGI_FORMAT_R32_FLOAT),0xa0));
+        std::swap(field<void*>(container,0x30),field<void*>(other,0x30));
+        require(!f.prepare(bank,false),"mixed-resource views accepted by cached bank");
+        std::swap(container->rtv,other->rtv);
+        require(f.prepare(bank,false),"matching replacement views not rebuilt");
+        require(bank.mapTarget(original,cached)&&cached!=replacement,"changed view resource reused stale clone");
+        release(replacement);
+        require(bank.reset(),"view-backed reset");
+        // Non-null wrapper with no resource/views must still fail, never be skipped.
+        field<IUnknown*>(container,0x30)->Release();field<void*>(container,0x30)=nullptr;
+        static_cast<IUnknown*>(container->rtv)->Release();container->rtv=nullptr;
+        require(!f.prepare(bank,false),"empty DepthResolve silently skipped");
+        require(slot==original&&bank.reset(),"empty DepthResolve changed original");
+        std::swap(field<void*>(container,0x30),field<void*>(other,0x30));
+        std::swap(container->rtv,other->rtv);
+        require(f.prepare(bank,false),"DepthResolve did not recover when its views became available");
+        require(bank.reset(),"recovered DepthResolve reset");
+    }
+}
 void independent_bank_names(){
     Fixture f;lmuqv::NativeOuterBank left,right;
     const auto before=nameCollisions;
@@ -225,5 +321,5 @@ void run(){
     require(bank.reset(),"failed reset");
 }
 }
-int main(){try{independent_bank_names();run();require(!liveWrappers&&!liveContainers&&liveNames.empty(),"native ownership leak");std::cout<<"NativeOuterBank SSR WARP/native ABI fixture passed\n";return 0;}
+int main(int argc,char** argv){try{if(argc==2&&!std::strcmp(argv[1],"--benchmark")){benchmark_cached();return 0;}cached_identity_probes();view_backed_depth_resolve();independent_bank_names();run();require(!liveWrappers&&!liveContainers&&liveNames.empty(),"native ownership leak");std::cout<<"NativeOuterBank cached probes, view-backed DepthResolve and SSR WARP/native ABI fixture passed\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -1,5 +1,9 @@
 #pragma once
 #include <windows.h>
+#include <sddl.h>
+#ifdef _MSC_VER
+#pragma comment(lib,"advapi32.lib")
+#endif
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
@@ -42,7 +46,8 @@ inline int64_t counter_load(const int64_t& v){return InterlockedCompareExchange6
 inline int32_t sequence_load(const int32_t& v){return InterlockedCompareExchange(reinterpret_cast<volatile LONG*>(const_cast<int32_t*>(&v)),0,0);}
 inline int64_t ticks(){LARGE_INTEGER value{};QueryPerformanceCounter(&value);return value.QuadPart;}
 struct FocusTelemetry {
- // flags: 1=valid rendered quad scene, 2=dynamic mode, 4=other GPU timing armed.
+ // flags: 1=valid rendered quad scene. Bits 2/4 and scale are legacy ABI slots;
+ // corrected 0.2.1 emits no dynamic flags and always publishes scale=100.
  uint32_t flags=0;float scale=100,leftHorizontal=0,leftVertical=0,rightHorizontal=0,rightVertical=0;
  uint64_t frame=0;
 };
@@ -75,13 +80,58 @@ inline bool read_config(const Shared& data,Config& config){
  if(!std::isfinite(c.x)||!std::isfinite(c.y)||!std::isfinite(c.distance)||!std::isfinite(c.width)||std::abs(c.x)>5||std::abs(c.y)>5||c.distance<.2f||c.distance>10||c.width<.1f||c.width>3)return false;
  config=c;return true;
 }
+// 0.3.6: the channel is created with an explicit DACL (current user and SYSTEM
+// only) instead of the token default. Failure disables the optional transport.
+inline PSECURITY_DESCRIPTOR owner_only_descriptor(){
+ HANDLE token=nullptr;if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return nullptr;
+ DWORD size=0;GetTokenInformation(token,TokenUser,nullptr,0,&size);
+ PSECURITY_DESCRIPTOR descriptor=nullptr;
+ if(size&&size<=4096){
+  alignas(TOKEN_USER) unsigned char buffer[4096];
+  if(GetTokenInformation(token,TokenUser,buffer,size,&size)){
+   LPWSTR sid=nullptr;
+   if(ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(buffer)->User.Sid,&sid)){
+    wchar_t sddl[256]{};
+    if(std::swprintf(sddl,256,L"D:P(A;;GA;;;%ls)(A;;GA;;;SY)",sid)>0)
+     ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl,SDDL_REVISION_1,&descriptor,nullptr);
+    LocalFree(sid);
+   }
+  }
+ }
+ CloseHandle(token);return descriptor;
+}
+// Pin the exact section created by this DLL until unload. A boolean recording a
+// past creation is insufficient: after the last handle closes, another process
+// could replace the name between sessions. The pin retains sizeof(Shared) of
+// section commit, but no view; later sessions duplicate this trusted handle.
+// As with Transport itself, callers serialize open/reset (the XR state mutex).
+struct ChannelIdentity {
+ HANDLE mapping=nullptr;
+ ~ChannelIdentity(){if(mapping)CloseHandle(mapping);}
+};
+inline ChannelIdentity& channel_identity(){static ChannelIdentity identity;return identity;}
 class Transport {
  HANDLE mapping_=nullptr;Shared* data_=nullptr;
 public:
  ~Transport(){reset();}Transport()=default;Transport(const Transport&)=delete;Transport& operator=(const Transport&)=delete;
  bool open(){reset();wchar_t name[96]{};std::swprintf(name,96,L"Local\\LMUQuadView.Benchmark.%lu",GetCurrentProcessId());
- mapping_=CreateFileMappingW(INVALID_HANDLE_VALUE,nullptr,PAGE_READWRITE,0,sizeof(Shared),name);if(!mapping_)return false;
- data_=static_cast<Shared*>(MapViewOfFile(mapping_,FILE_MAP_ALL_ACCESS,0,0,sizeof(Shared)));if(!data_){reset();return false;}
+ auto& identity=channel_identity();
+ if(identity.mapping){
+  if(!DuplicateHandle(GetCurrentProcess(),identity.mapping,GetCurrentProcess(),&mapping_,0,FALSE,DUPLICATE_SAME_ACCESS))return false;
+ }else{
+  SECURITY_ATTRIBUTES attributes{sizeof(attributes),nullptr,FALSE};PSECURITY_DESCRIPTOR descriptor=owner_only_descriptor();attributes.lpSecurityDescriptor=descriptor;
+  if(!descriptor){if(GetLastError()==ERROR_SUCCESS)SetLastError(ERROR_ACCESS_DENIED);return false;}
+  SetLastError(ERROR_SUCCESS);
+  mapping_=CreateFileMappingW(INVALID_HANDLE_VALUE,&attributes,PAGE_READWRITE,0,sizeof(Shared),name);
+  const DWORD created=GetLastError();LocalFree(descriptor);
+  if(!mapping_){SetLastError(created);return false;}
+  if(created==ERROR_ALREADY_EXISTS){reset();SetLastError(ERROR_ALREADY_EXISTS);return false;}
+ }
+ data_=static_cast<Shared*>(MapViewOfFile(mapping_,FILE_MAP_ALL_ACCESS,0,0,sizeof(Shared)));
+ if(!data_){const DWORD error=GetLastError();reset();SetLastError(error);return false;}
+ if(!identity.mapping&&!DuplicateHandle(GetCurrentProcess(),mapping_,GetCurrentProcess(),&identity.mapping,0,FALSE,DUPLICATE_SAME_ACCESS)){
+  const DWORD error=GetLastError();reset();SetLastError(error);return false;
+ }
  LARGE_INTEGER frequency{};QueryPerformanceFrequency(&frequency);initialize(*data_,GetCurrentProcessId(),frequency.QuadPart);return true;}
  void reset(){if(data_){UnmapViewOfFile(data_);data_=nullptr;}if(mapping_){CloseHandle(mapping_);mapping_=nullptr;}}
  Shared* data(){return data_;}

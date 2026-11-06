@@ -48,6 +48,6 @@ int main(){
     s.focusBeginInFlight=true;assert(!lmuqv::xr_hold_focus_image(0,other));s.focusBeginInFlight=false;assert(lmuqv::xr_hold_focus_image(0,other)&&other.token!=stale.token);
     assert(lmuqv::xr_retire_focus_image(other)&&runtimeOwned);assert(layerReleaseSwapchainImage(chain,&ri)==XR_SUCCESS&&!runtimeOwned);
     assert(layerEndFrame(s.session,&ei)==XR_SUCCESS&&ends==1&&!s.frame);assert(!lmuqv::xr_focus_lease_valid(stale));assert(layerDestroySwapchain(chain)==XR_SUCCESS&&destroys==1);
-    clearSession();assert(!s.focusOwnership);context->ClearState();texture->Release();context->Release();device->Release();
+    {std::unique_lock<std::recursive_mutex> lock(stateMutex);clearSession(lock);}assert(!s.focusOwnership);context->ClearState();texture->Release();context->Release();device->Release();
     std::cout<<"Focus image ownership PASS: deferred downstream release, owner-thread access, retry, reacquire, stale tokens, frame/submission/destruction barriers; no production scheduler enabled\n";
 }

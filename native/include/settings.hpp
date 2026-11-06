@@ -15,9 +15,10 @@ struct Edges {
 struct Config {
     struct Lmu {
         std::string mode{"off"}, provider{"native"}, gaze{"auto"};
-        double focusWidth{50}, focusHeight{50}, offsetX{}, offsetY{}, smoothing{};
+        double focusWidth{50}, focusHeight{50}, offsetX{}, offsetY{};
         unsigned shadingRate{2};
         bool nativeOuter{true}, debugFocus{};
+        bool cpuUploadReuse{}, cpuUploadBatch{}, cpuOuterReuse{}, outerSsr{}, cpuCacheAffinity{};
     } lmu;
     bool enabled{}, streaming{}, mask{}, enhancements{};
     double renderScale{100}, padding{}, smoothing{}, horizon{}, extraLeft{}, extraRight{},

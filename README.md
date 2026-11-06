@@ -4,7 +4,7 @@
 
 A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**: shape your view, add a helmet or dashboard, adjust the VR image and create a clean stream output. Source-available and free for noncommercial use.
 
-[Download 0.5.2](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
+[Download 0.5.4](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
 
 ## In the headset
 
@@ -26,7 +26,7 @@ Enable Spatial Overlays, add an **OpenGrid menu** source and save before startin
 | [![Stream framing and stabilization settings](docs/images/screenshots/stream.png)](docs/streaming.md) | [![Desktop source and head-pointing controls](docs/images/screenshots/desktop.png)](docs/spatial-overlays.md) |
 | Frame and stabilize a separate output for OBS or a capture card. | Place a monitor, application window or web dashboard in VR. |
 
-*Actual 0.5.0 interface with isolated demo profiles. Scene previews and menu state illustrate configured examples, not a live game or desktop capture.*
+*Actual interface with isolated demo profiles: LMU controls from 0.5.4, other examples from 0.5.0. Scene previews and menu state illustrate configured examples, not a live game or desktop capture.*
 
 ## First run
 
@@ -59,6 +59,8 @@ There is no global Driving/Streaming switch in 0.5.0. **Stream → Keep full ren
 Use Windows x64 and a supported OpenXR path. Native OpenVR does not load this layer. Crop/mask savings depend on the game and runtime; enabled settings are not proof of lower frame times. Capture and scene processing primarily support D3D11, with specific supported bridge/quad paths described in the guides. Unsupported paths keep their documented limits.
 
 LMU rendering is experimental and tied to checked executable builds/providers. A protected Steam/EAC cockpit launch has been tested on the documented rig; **online-race acceptance and every headset/provider combination have not been established**. [Evidence and limits →](docs/lmu-rendering.md#verify-at-the-rig)
+
+OpenGrid 0.5.4 adds stronger LMU data-layout checks, bounded image waits and startup/error status that remains available with verbose logging off. The AMD cache-core preference now defaults off unless explicitly saved on. Compare image quality and frametimes on your rig; no new performance gain is claimed.
 
 ## Development, authorship and license
 

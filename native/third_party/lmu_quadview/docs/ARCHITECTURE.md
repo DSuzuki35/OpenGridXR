@@ -39,7 +39,7 @@ quad-view injector. See [CONTRIBUTING.md](../CONTRIBUTING.md) for builds and che
 3. `xrLocateViews` obtains the four provider views and caches validated poses/FOVs
    for the active frame. The game sees stereo; `mod/bridge.hpp` exposes the
    frame-scoped data and image-transfer operations to the engine hooks.
-4. `mod/engine_bridge.cpp` installs hooks only after verifying the pinned build.
+4. `mod/engine_bridge.cpp` installs hooks only after verifying the process name and native code anchors. Executable hashes are diagnostic metadata, not an allowlist.
    Each original eye render is followed by an additional focus scene traversal,
    with focus camera/projection/history preparation and outer-state restoration.
    A compatible smaller outer resource bank reduces outer resolution; invalid

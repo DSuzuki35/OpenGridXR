@@ -25,6 +25,9 @@ struct HostCallbacks {
     // Called after successful downstream submission. Only owned copies may be
     // consumed here: runtime images are released.
     void (*submit)(XrSession, const Frame&, const XrCompositionLayerProjection&, XrTime){};
+    // Optional host boundary: runtime submission happens with both adapter and
+    // host state locks released, while the adapter pins the frame lifetime.
+    XrResult (*runtimeSubmit)(XrSession, PFN_xrEndFrame, const XrFrameEndInfo*){};
 };
 struct Settings {
     bool enabled{}, quad{}, expansionUnsupported{};
@@ -49,29 +52,49 @@ inline bool prepare_saved(const Config& config, const std::string& game) {
     if (!config.enabled || game != "lmu" || config.lmu.mode == "off" ||
         !environment("OPENGRIDXR_LMU_INTEGRATED").empty()) return true;
     auto set = [](const char* key, const std::string& value) {
-        DWORD length = GetEnvironmentVariableA(key, nullptr, 0);
-        std::string old(length, '\0');
-        if (length) { GetEnvironmentVariableA(key, old.data(), length); old.resize(length - 1); }
-        savedEnvironment.emplace_back(key, std::move(old));
-        if (!SetEnvironmentVariableA(key, value.c_str())) { restore_environment(); return false; }
+        bool recorded=false;
+        for(const auto& entry:savedEnvironment)if(_stricmp(entry.first.c_str(),key)==0){recorded=true;break;}
+        if(!recorded){
+            DWORD length = GetEnvironmentVariableA(key, nullptr, 0);
+            std::string old(length, '\0');
+            if (length) { GetEnvironmentVariableA(key, old.data(), length); old.resize(length - 1); }
+            savedEnvironment.emplace_back(key, std::move(old));
+        }
+        if (!SetEnvironmentVariableA(key, value.empty()?nullptr:value.c_str())) { restore_environment(); return false; }
         return true;
     };
+    // Match the explicit launcher: no inherited experiment, calibration, capture
+    // or diagnostic switch may override the saved profile on ordinary startup.
+    char* inherited=GetEnvironmentStringsA();
+    if(!inherited)return false;
+    std::vector<std::string> controls;
+    for(const char* entry=inherited;*entry;entry+=std::strlen(entry)+1){
+        const char* equals=std::strchr(entry,'=');
+        if(equals&&_strnicmp(entry,"LMU_QV_",7)==0)controls.emplace_back(entry,equals-entry);
+    }
+    FreeEnvironmentStringsA(inherited);
+    for(const auto& key:controls)if(!set(key.c_str(),""))return false;
     const auto& q = config.lmu;
     const bool vrs = q.mode == "vrs";
     for (const char* suffix : {"BENCHMARK", "DYNAMIC_FOCUS", "PIXEL_STATS", "PROFILE", "STEREO_AUDIT",
-         "STEREO_SHADER_CAPTURE", "STEREO_DRAW_PROOF", "CPU_UPLOAD_REUSE", "CPU_UPLOAD_BATCH", "CPU_OUTER_REUSE", "OUTER_SSR"})
+         "STEREO_SHADER_CAPTURE", "STEREO_DRAW_PROOF"})
         if (!set((std::string("LMU_QV_") + suffix).c_str(), "0")) return false;
     for (const char* suffix : {"CAPTURE_DIR", "CAPTURE_TRIGGER", "GPU_TIMING_TRIGGER", "BENCH_CONTROL", "LOG"})
         if (!set((std::string("LMU_QV_") + suffix).c_str(), "")) return false;
     return set("OPENGRIDXR_LMU_INTEGRATED", "1") && set("OPENGRIDXR_LMU_PROVIDER", q.provider) &&
         set("LMU_QV_MODE", q.mode) && set("LMU_QV_USE_RUNTIME_SETTINGS", vrs ? "0" : "1") &&
-        set("LMU_QV_FOVEATION_MODE", q.gaze) && set("LMU_QV_DIAGNOSTICS", "1") &&
+        set("LMU_QV_FOVEATION_MODE", q.gaze) && set("LMU_QV_DIAGNOSTICS", "0") &&
+        set("LMU_QV_CPU_AFFINITY", q.cpuCacheAffinity ? "x3d" : "off") &&
+        set("LMU_QV_CPU_UPLOAD_BATCH", !vrs && q.cpuUploadBatch ? "1" : "0") &&
+        set("LMU_QV_CPU_UPLOAD_REUSE", !vrs && !q.cpuUploadBatch && (q.cpuUploadReuse || q.cpuOuterReuse) ? "1" : "0") &&
+        set("LMU_QV_CPU_OUTER_REUSE", !vrs && !q.cpuUploadBatch && q.cpuOuterReuse ? "1" : "0") &&
+        set("LMU_QV_OUTER_SSR", !vrs && q.nativeOuter && q.outerSsr ? "1" : "0") &&
         set("LMU_QV_NATIVE_OUTER", !vrs && q.nativeOuter ? "1" : "0") &&
         set("LMU_QV_VRS_EXCLUSIVE", vrs ? "1" : "0") &&
         set("LMU_QV_VECTORXR_DIRECT_INPUTS", !vrs && q.provider == "vectorxr" ? "1" : "0") &&
         set("LMU_QV_OUTER_SHADING_RATE", std::to_string(vrs ? q.shadingRate : 2)) &&
         set("LMU_QV_DEBUG_FOCUS", q.debugFocus ? "1" : "0") &&
-        set("LMU_QV_OUTER_BLUR", std::to_string(vrs ? 0 : q.smoothing)) &&
+        set("LMU_QV_OUTER_BLUR", "0") &&
         set("LMU_QV_CROP_WIDTH_PERCENT", "100") && set("LMU_QV_CROP_HEIGHT_PERCENT", "100") &&
         set("LMU_QV_FOCUS_OFFSET_X_PERCENT", std::to_string(q.offsetX)) &&
         set("LMU_QV_FOCUS_OFFSET_Y_PERCENT", std::to_string(q.offsetY)) &&

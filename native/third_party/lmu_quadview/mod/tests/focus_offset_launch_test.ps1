@@ -4,7 +4,7 @@ $prefix=$source.Substring(0,$source.IndexOf('$gameExecutable =')) -replace '(?m)
 $environment=$source.Substring($source.IndexOf('$info = '),$source.IndexOf('# Direct executable')-$source.IndexOf('$info = '))
 $metadata=$source.Substring($source.IndexOf('$run = '),$source.IndexOf('if(!$DisableDiagnostics)')-$source.IndexOf('$run = '))
 $setup=@'
-$PSScriptRoot='C:\fixture';$gameExecutable='C:\fixture\Le Mans Ultimate.exe';$logPath='fixture.log';$logDirectory='C:\fixture';$expectedHash='fixture'
+$PSScriptRoot='C:\fixture';$gameExecutable='C:\fixture\Le Mans Ultimate.exe';$logPath='fixture.log';$logDirectory='C:\fixture';$gameHash='fixture'
 $layerPlan=[pscustomobject]@{Paths='fixture';Layers='fixture';DisableVariables=@()}
 function Get-FileHash { [pscustomobject]@{Hash='fixture'} }
 '@

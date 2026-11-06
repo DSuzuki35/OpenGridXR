@@ -111,6 +111,21 @@ struct Bench {
             require(helper.configure(context.p,256,256,4,true,lmuqv::NvVrsOwnership::ExclusiveKnownDisabled),"rate4 configure");
             require(helper.begin_outer(context.p)&&draw()==coarse4&&helper.end_outer(context.p),"rate4 scope");helper.reset();
             std::cout<<"helper_scopes msaa="<<msaa<<" rate1=baseline_no_scope_setters configure_restores=1 invalid_calls_fail_closed=1 rate2="<<scope<<" rate4="<<coarse4<<" reset=baseline\n";
+            {   // 0.5.2: one shading-rate map per eye; steady focus needs no further upload.
+                require(helper.configure(context.p,256,256,2,true,lmuqv::NvVrsOwnership::ExclusiveKnownDisabled),"per-eye configure");
+                const lmuqv::VrsFocus smallFocus{.375f,.375f,.625f,.625f},wideFocus{.125f,.125f,.875f,.875f};
+                auto foveated=[&](unsigned eye,const lmuqv::VrsFocus& focus){
+                    require(helper.update_focus(context.p,focus,eye),"per-eye update");
+                    require(helper.begin_outer(context.p),"per-eye begin");auto value=draw();require(helper.end_outer(context.p),"per-eye end");return value;};
+                const auto eye0=foveated(0,smallFocus),eye1=foveated(1,wideFocus);
+                const auto uploadsAfterBoth=helper.uploads();
+                const auto eye0Again=foveated(0,smallFocus),eye1Again=foveated(1,wideFocus);
+                require(eye0<eye1&&eye1<base,"per-eye maps not applied");
+                require(eye0Again==eye0&&eye1Again==eye1,"per-eye map selection changed results");
+                require(uploadsAfterBoth==2&&helper.uploads()==2,"steady per-eye focus uploaded again");
+                require(draw()==base,"per-eye scopes did not restore baseline");helper.reset();
+                std::cout<<"per_eye_maps msaa="<<msaa<<" eye0_small="<<eye0<<" eye1_wide="<<eye1<<" repeat_equal=1 uploads="<<uploadsAfterBoth<<" steady_reuploads=0\n";
+            }
             require(helper.configure(context.p,256,256,2,true,lmuqv::NvVrsOwnership::ExclusiveKnownDisabled)&&helper.begin_outer(context.p),"failure test configure");
             std::thread wrongThread([&](){helper.reset();});wrongThread.join();
             require(helper.faulted()&&!helper.ready(),"reset failure was not sticky");

@@ -10,7 +10,7 @@ class SettingsTests
     static void Main()
     {
         string folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"settings-test-"+Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
-        Require(typeof(LauncherSettings).GetProperty("DynamicFocusEnabled")!=null,"Dynamic focus opt-in missing");
+        Require(typeof(LauncherSettings).GetProperty("DynamicFocusEnabled")==null,"Removed dynamic focus setting is still exposed");
         var s=new LauncherSettings { Backend="QVFR", OuterPercent=10,InnerPercent=200,FocusWidthPercent=33,FocusHeightPercent=25 };
         foreach(var name in new[]{"CropWidthPercent","CropHeightPercent"}) {
             var property=typeof(LauncherSettings).GetProperty(name);
@@ -20,6 +20,7 @@ class SettingsTests
         Require(typeof(LauncherSettings).GetProperty("FocusOffsetXPercent")!=null,"Horizontal offset setting missing");
         Require(typeof(LauncherSettings).GetProperty("FocusOffsetYPercent")!=null,"Vertical offset setting missing");
         Require(!new LauncherSettings().BenchmarkEnabled,"Benchmark must default off");
+        Require(!new LauncherSettings().DiagnosticsEnabled&&!new LauncherSettings().NativeOuterResolution&&!new LauncherSettings().DebugFocus,"Fresh settings must disable diagnostics, overlays and rendering experiments");
         Require(new LauncherSettings().BenchmarkVisibilityButton==-1&&new LauncherSettings().BenchmarkRecordingButton==-1,"Default joystick bindings must be unassigned");
         s.BenchmarkEnabled=true;s.BenchmarkTemplate=1;s.BenchmarkX=-1.25m;s.BenchmarkY=0.5m;s.BenchmarkDistance=2.5m;s.BenchmarkWidth=0.8m;
         s.BenchmarkVisibilityDevice=Guid.NewGuid().ToString("D");s.BenchmarkVisibilityName="Wheel <left>";s.BenchmarkVisibilityButton=127;
@@ -45,16 +46,18 @@ class SettingsTests
         s.OuterPercent=9; Rejected(delegate{QvfrSettings.Validate(s);}); s.OuterPercent=10;
         s.FocusWidthPercent=100; Rejected(delegate{QvfrSettings.Validate(s);}); s.FocusWidthPercent=33;
         s.FocusHeightPercent=9; Rejected(delegate{QvfrSettings.Validate(s);}); s.FocusHeightPercent=25;
-        s.OuterBlur=4; Rejected(delegate{QvfrSettings.Validate(s);}); s.OuterBlur=1.25m;
         s.FocusAspectRatio=2.19283709218806m;s.RenderProfiling=true;s.RenderProfileSeconds=300;s.DiagnosticsEnabled=false;s.StereoDrawAudit=true;s.StereoShaderCapture=true;s.StereoPairProof=true;s.CpuUploadReuse=true;
         s.FocusOffsetXPercent=-50;s.FocusOffsetYPercent=12.5m;
         s.CropWidthPercent=75.5m;s.CropHeightPercent=42.25m;
-        Require(!new LauncherSettings().DynamicFocusEnabled,"Dynamic focus must default off");
-        s.DynamicFocusEnabled=true;s.DynamicFocusMinPercent=65.5m;s.DynamicFocusMaxPercent=125;s.DynamicFocusReservePercent=2.5m;
         string xml=Path.Combine(folder,"launcher-settings.xml"); QvfrSettings.Save(xml,s); var loaded=QvfrSettings.Load(xml);
-        Require(loaded.DynamicFocusEnabled&&loaded.DynamicFocusMinPercent==65.5m&&loaded.DynamicFocusMaxPercent==125&&loaded.DynamicFocusReservePercent==2.5m,"Dynamic focus roundtrip");
-        s.DynamicFocusMinPercent=126;Rejected(delegate{QvfrSettings.Validate(s);});s.DynamicFocusMinPercent=65.5m;
-        s.DynamicFocusReservePercent=0;Rejected(delegate{QvfrSettings.Validate(s);});s.DynamicFocusReservePercent=2.5m;
+        var legacy=System.Xml.Linq.XDocument.Load(xml);
+        legacy.Root.Add(new System.Xml.Linq.XElement("DynamicFocusEnabled","true"),
+            new System.Xml.Linq.XElement("DynamicFocusMinPercent","invalid"),
+            new System.Xml.Linq.XElement("DynamicFocusMaxPercent","1"),
+            new System.Xml.Linq.XElement("DynamicFocusReservePercent","invalid"));
+        legacy.Save(xml);loaded=QvfrSettings.Load(xml);
+        QvfrSettings.Save(xml,loaded);
+        Require(!File.ReadAllText(xml).Contains("DynamicFocus"),"Obsolete dynamic settings must be ignored and removed on save");
         Require(loaded.BenchmarkEnabled&&loaded.BenchmarkTemplate==1&&loaded.BenchmarkX==-1.25m&&loaded.BenchmarkY==0.5m&&loaded.BenchmarkDistance==2.5m&&loaded.BenchmarkWidth==0.8m,"Benchmark placement/template did not roundtrip");
         Require(loaded.BenchmarkVisibilityDevice==s.BenchmarkVisibilityDevice&&loaded.BenchmarkVisibilityName==s.BenchmarkVisibilityName&&loaded.BenchmarkVisibilityButton==127&&loaded.BenchmarkRecordingDevice==s.BenchmarkRecordingDevice&&loaded.BenchmarkRecordingButton==0,"Distinct joystick bindings did not roundtrip");
         s.BenchmarkVisibilityButton=128;Rejected(delegate {QvfrSettings.Validate(s);});s.BenchmarkVisibilityButton=127;
@@ -76,7 +79,7 @@ class SettingsTests
         QvfrSettings.Validate(s);s.FocusOffsetXPercent=-50;s.FocusOffsetYPercent=12.5m;
         Require(QvfrSettings.ProfileText(old,s)==text,"Offsets leaked into provider profile");
         Require(loaded.RenderProfiling,"Profiling setting did not roundtrip");
-        Require(!loaded.DiagnosticsEnabled&&new LauncherSettings().DiagnosticsEnabled,"Diagnostics off setting/default lost");
+        Require(!loaded.DiagnosticsEnabled&&!new LauncherSettings().DiagnosticsEnabled,"Diagnostics off setting/default lost");
         Require(loaded.StereoDrawAudit&&!new LauncherSettings().StereoDrawAudit,"Stereo audit preference/default lost");
         Require(loaded.StereoShaderCapture&&!new LauncherSettings().StereoShaderCapture,"Shader capture preference/default lost");
         Require(loaded.StereoPairProof&&loaded.CpuUploadReuse&&!new LauncherSettings().StereoPairProof&&!new LauncherSettings().CpuUploadReuse&&!new LauncherSettings().CpuUploadBatch,"Prototype preferences/defaults lost");
@@ -84,11 +87,13 @@ class SettingsTests
         Require(loaded.RenderProfileSeconds==300&&new LauncherSettings().RenderProfileSeconds==120,"Capture length roundtrip/default");
         s.RenderProfileSeconds=29;Rejected(delegate{QvfrSettings.Validate(s);});s.RenderProfileSeconds=301;Rejected(delegate{QvfrSettings.Validate(s);});s.RenderProfileSeconds=300;
         Require(!new LauncherSettings().RenderProfiling,"Profiling enabled by default");
-        Require(loaded.FocusWidthPercent==33 && loaded.FocusHeightPercent==25 && loaded.InnerPercent==200 && loaded.OuterBlur==1.25m,"Settings roundtrip");
+        Require(loaded.FocusWidthPercent==33 && loaded.FocusHeightPercent==25 && loaded.InnerPercent==200,"Settings roundtrip");
         Require(loaded.FocusAspectRatio==s.FocusAspectRatio,"Measured FOV calibration lost on roundtrip");
         File.WriteAllText(xml,"<QuadView><GameDirectory>D:\\Game</GameDirectory><DebugFocus>true</DebugFocus></QuadView>");
         loaded=QvfrSettings.Load(xml); Require(loaded.Backend=="Native" && loaded.DebugFocus && loaded.OuterPercent==25,"Old settings migration");
-        Require(loaded.DiagnosticsEnabled,"Existing settings must retain diagnostic logging");
+        Require(!loaded.DiagnosticsEnabled&&!loaded.NativeOuterResolution,"Missing options must not enable diagnostic logging or experiments");
+        File.WriteAllText(xml,"<QuadView><DiagnosticsEnabled>true</DiagnosticsEnabled><NativeOuterResolution>true</NativeOuterResolution></QuadView>");
+        var explicitOptIn=QvfrSettings.Load(xml);Require(explicitOptIn.DiagnosticsEnabled&&explicitOptIn.NativeOuterResolution,"Explicit saved opt-ins must be preserved");
         Require(!loaded.StereoDrawAudit,"Existing settings must not enable draw auditing");
         Require(!loaded.StereoShaderCapture,"Existing settings must not enable shader capture");
         Require(!loaded.StereoPairProof&&!loaded.CpuUploadReuse&&!loaded.CpuUploadBatch,"Existing settings must not enable prototype options");
@@ -120,6 +125,18 @@ class SettingsTests
         Require(File.ReadAllText(xml).Contains("<CpuOuterReuse>true</CpuOuterReuse>")&&File.ReadAllText(xml).Contains("<OuterSsr>true</OuterSsr>"),"Performance experiment preferences must roundtrip");
         File.WriteAllText(xml,"<QuadView />");loaded=QvfrSettings.Load(xml);QvfrSettings.Save(xml,loaded);
         Require(File.ReadAllText(xml).Contains("<CpuOuterReuse>false</CpuOuterReuse>")&&File.ReadAllText(xml).Contains("<OuterSsr>false</OuterSsr>"),"Existing settings must not enable new performance experiments");
+        File.WriteAllText(xml,"<QuadView />");loaded=QvfrSettings.Load(xml);
+        Require(loaded.CpuCacheAffinity&&new LauncherSettings().CpuCacheAffinity,"V-Cache preference must default on (inert without asymmetric L3)");
+        loaded.CpuCacheAffinity=false;QvfrSettings.Save(xml,loaded);
+        Require(File.ReadAllText(xml).Contains("<CpuCacheAffinity>false</CpuCacheAffinity>")&&!QvfrSettings.Load(xml).CpuCacheAffinity,"V-Cache opt-out must roundtrip");
+        foreach(var oldBlur in new[]{"1.25","3","invalid"}) {
+            File.WriteAllText(xml,"<QuadView><OuterBlur>"+oldBlur+"</OuterBlur></QuadView>");
+            var migrated=QvfrSettings.Load(xml);
+            QvfrSettings.Save(xml,migrated);
+            Require(!File.ReadAllText(xml).Contains("OuterBlur"),"Legacy smoothing must be ignored and removed on save");
+            var child=LaunchService.MakeStartInfo(folder,migrated,new LaunchService.LayerPlan(),Path.Combine(folder,"unused.log"));
+            Require(child.EnvironmentVariables["LMU_QV_OUTER_BLUR"]=="0","Legacy saved smoothing can still activate blur");
+        }
         Console.WriteLine("C# settings tests passed: independent dimensions, invariant culture, backups, preservation, validation, migration, VRS.");
     }
 }

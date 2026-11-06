@@ -415,6 +415,7 @@ export function parseProfile(textValue, options) {
 // loading old files remains read-only and the next save/export drops this data.
 export function normalizeProfile(profile, {helmetModuleEnabled = true} = {}) {
   const result = clone(profile);
+  delete result.lmuRendering?.outerSmoothing;
   result.stream.preserveFullFrame = usesFullRenderArea(result);
   delete result.mode;
   if (result.colorCorrection === undefined) {

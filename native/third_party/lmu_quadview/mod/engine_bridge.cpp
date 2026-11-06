@@ -14,25 +14,26 @@
 #include "pipeline_stats.hpp"
 #include "benchmark_control.hpp"
 #include "code_anchors.hpp"
+#include "data_abi.hpp"
 #include "nv_vrs.hpp"
 #include "vrs_scope_policy.hpp"
 #include "native_outer_bank.hpp"
 #include "native_outer_anchors.hpp"
 #include "native_upload_reuse.hpp"
+#include "upload_reuse_toggle.hpp"
 #include "native_upload_batch.hpp"
 #include "xr_sizes.hpp"
 #include "view_crop.hpp"
 #include "native_xr_views.hpp"
 #include "resource_diagnostics.hpp"
+#include "diagnostic_sampling.hpp"
 #include "../prototype/lmu_reconstructed.hpp"
 #include "vendor/minhook-1.3.4/include/MinHook.h"
-#include <wincrypt.h>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <vector>
 
@@ -58,6 +59,8 @@ NativeUploadFn nativeUploadOriginal{};std::atomic<bool> nativeUploadHooked{false
 constexpr std::uintptr_t nativeUploadRva=0x5cac50;
 constexpr std::array<std::uint8_t,20> nativeUploadAnchor{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xec,0x40};
 NativeUploadReuse nativeUploadReuse;
+UploadReuseToggle nativeUploadToggle;
+std::atomic<bool> nativeUploadToggleArmed{false};
 NativeUploadBatch nativeUploadBatch;std::atomic<bool> nativeUploadBatchOptIn{false};
 uint64_t batchFailureLogged=0;unsigned batchFailureMessages=0;
 void logUploadBatchStats(const char* stage){
@@ -68,6 +71,18 @@ void logUploadBatchStats(const char* stage){
 std::recursive_mutex nativeUploadMutex;
 thread_local void* selectedUploadCache=nullptr;
 thread_local ID3D11DeviceContext* selectedUploadContext=nullptr;
+
+void pollUploadReuseToggle(bool keyDown,bool capturing){
+    std::lock_guard<std::recursive_mutex> uploadLock(nativeUploadMutex);
+    if(!nativeUploadToggleArmed.load(std::memory_order_relaxed)||!renderProfile.control_thread())return;
+    const auto event=nativeUploadToggle.poll(keyDown,capturing);
+    if(event==UploadReuseToggle::Event::blocked)log_line("cpu_upload_reuse toggle ignored: capture active; release keys and retry after completion");
+    else if(event==UploadReuseToggle::Event::enabled||event==UploadReuseToggle::Event::disabled){
+        nativeUploadReuse.end();
+        nativeUploadOptIn.store(nativeUploadToggle.enabled());
+        log_line(nativeUploadToggle.enabled()?"cpu_upload_reuse runtime state=on; next complete scene frame; upload assumptions cleared":"cpu_upload_reuse runtime state=off; next complete scene frame; native uploads retained");
+    }
+}
 
 #pragma pack(push,1)
 struct UiArgs { std::uint32_t mode; TransformRecord transform[2]; };
@@ -133,6 +148,7 @@ std::uint64_t nativeOuterFull[2]{};
 unsigned nativeBindingProbes[2]{};
 ViewSnapshot* nativeOuterWarmupView=nullptr;
 unsigned nativeOuterWarmupCalls=0;
+unsigned nativeOuterPrepareFailures=0,nativeOuterRetryCalls=0;
 std::atomic<bool> installed{false};
 std::size_t installedHookCount=0;
 GpuTiming gpuTiming;
@@ -244,25 +260,11 @@ void diagnoseNativeEye(const char* stage,unsigned eye,ID3D11Texture2D* texture,I
         readable(rtv,sizeof(void*))?rtv:nullptr,readable(srv,sizeof(void*))?srv:nullptr,
         readable(context,sizeof(void*))?context:nullptr,log_line);
 }
-bool correctDiskBuild() {
+bool correctProcess() {
     wchar_t path[32768]{};
-    if(!GetModuleFileNameW(nullptr,path,32768) ||
-       _wcsicmp(std::filesystem::path(path).filename().c_str(),L"Le Mans Ultimate.exe")) return false;
-    std::ifstream file(std::filesystem::path(path),std::ios::binary);
-    if(!file) return false;
-    HCRYPTPROV provider{}; HCRYPTHASH hash{};
-    if(!CryptAcquireContextW(&provider,nullptr,nullptr,PROV_RSA_AES,CRYPT_VERIFYCONTEXT)) return false;
-    if(!CryptCreateHash(provider,CALG_SHA_256,0,0,&hash)) {CryptReleaseContext(provider,0);return false;}
-    bool okay=true;
-    char bytes[65536];
-    while(file) { file.read(bytes,sizeof(bytes)); auto n=file.gcount();
-        if(n && !CryptHashData(hash,reinterpret_cast<BYTE*>(bytes),DWORD(n),0)) {okay=false;break;} }
-    if(!file.eof()) okay=false;
-    BYTE digest[32]{}; DWORD size=sizeof(digest);
-    okay=okay && CryptGetHashParam(hash,HP_HASHVAL,digest,&size,0) && size==32;
-    CryptDestroyHash(hash);CryptReleaseContext(provider,0);
-    char hex[65]{}; for(unsigned i=0;i<32;++i) std::snprintf(hex+2*i,3,"%02x",digest[i]);
-    return okay && !std::strcmp(hex,lmu::reconstructed::executable_sha256);
+    const auto length=GetModuleFileNameW(nullptr,path,32768);
+    return length && length<32768 &&
+        !_wcsicmp(std::filesystem::path(path).filename().c_str(),L"Le Mans Ultimate.exe");
 }
 template<std::size_t N> bool matches(std::uintptr_t rva,const std::array<std::uint8_t,N>& bytes) {
     return readable(address<void>(rva),N) && !std::memcmp(address<void>(rva),bytes.data(),N);
@@ -365,7 +367,7 @@ bool prepareWorldVrs(ID3D11DeviceContext* context,ViewSnapshot* view) {
     if(unchanged) {
         device->Release();
         if(stereoVrsMode){VrsFocus focus;if(!xr_vrs_render_focus(unsigned(view->eye_index),view->projection.data(),focus))return false;
-            return worldVrs.update_focus(context,focus);}
+            return worldVrs.update_focus(context,focus,unsigned(view->eye_index));}
         return true;
     }
     resetWorldVrs();
@@ -381,21 +383,21 @@ bool prepareWorldVrs(ID3D11DeviceContext* context,ViewSnapshot* view) {
     std::snprintf(line,sizeof(line),"configured size=%ux%u rate=%u ownership=ExclusiveKnownDisabled; only verified scene sort scopes; other coverage unqualified",
         desc.Width,desc.Height,rate);vrsLog(nullptr,line);
     if(stereoVrsMode){VrsFocus focus;if(!xr_vrs_render_focus(unsigned(view->eye_index),view->projection.data(),focus))return false;
-        return worldVrs.update_focus(context,focus);}
+        return worldVrs.update_focus(context,focus,unsigned(view->eye_index));}
     return true;
 }
 void logVrsCounters() {
     if(!diagnostics_enabled())return;
     char line[550]{};
     std::snprintf(line,sizeof(line),
-        "counters opt_in=%u configured_rate=%u ready=%u faulted=%u appliedScopeCounter0=%llu appliedScopeCounter1=%llu attempted0=%llu attempted1=%llu failures=%llu interrupted=%llu; successful begin+end only; rate1 is a 1x1 baseline",
+        "counters opt_in=%u configured_rate=%u ready=%u faulted=%u appliedScopeCounter0=%llu appliedScopeCounter1=%llu attempted0=%llu attempted1=%llu failures=%llu interrupted=%llu mapUploads=%llu; successful begin+end only; rate1 is a 1x1 baseline",
         unsigned(worldVrsOptIn),worldVrsRate,unsigned(worldVrs.ready()),unsigned(worldVrsFailed||worldVrs.faulted()),
         static_cast<unsigned long long>(worldVrsCounters.applied[0]),
         static_cast<unsigned long long>(worldVrsCounters.applied[1]),
         static_cast<unsigned long long>(worldVrsCounters.attempted[0]),
         static_cast<unsigned long long>(worldVrsCounters.attempted[1]),
         static_cast<unsigned long long>(worldVrsCounters.failures),
-        static_cast<unsigned long long>(worldVrsCounters.interrupted));
+        static_cast<unsigned long long>(worldVrsCounters.interrupted),worldVrs.uploads());
     vrsLog(nullptr,line);
 }
 void benchmarkLog(void* user,const char* message) {
@@ -646,11 +648,23 @@ void nativeViewHook(void* pointer,void* objects,void* lights,bool main,bool late
         nativeViewOriginal(pointer,objects,lights,main,later);
         ++nativeOuterFull[view->eye_index];return;
     }
+    // Loading/standby frames cannot establish a usable resource bank. This
+    // read-only query also requires current located views and matching time;
+    // unlike xr_frame_views it does not lock the submission's view snapshot.
+    XrFovf renderableFov[2]{};
+    if(!xr_frame_full_outer_fov(renderableFov)){
+        nativeViewOriginal(pointer,objects,lights,main,later);return;
+    }
     // VR wrapper associations initially reference desktop depth targets. Native
     // main-view setup replaces those during the first ordinary scene renders.
     if(view!=nativeOuterWarmupView){nativeOuterWarmupView=view;nativeOuterWarmupCalls=0;}
     if(nativeOuterWarmupCalls<120){
         ++nativeOuterWarmupCalls;
+        nativeViewOriginal(pointer,objects,lights,main,later);
+        ++nativeOuterFull[view->eye_index];return;
+    }
+    if(nativeOuterRetryCalls){
+        --nativeOuterRetryCalls;
         nativeViewOriginal(pointer,objects,lights,main,later);
         ++nativeOuterFull[view->eye_index];return;
     }
@@ -669,17 +683,28 @@ void nativeViewHook(void* pointer,void* objects,void* lights,bool main,bool late
     }
     auto& nativeOuterBank=nativeOuterBanks[nativeOuterSeparateBanks?unsigned(view->eye_index):0];
     ProfileScope prepareProfile(profile_eye(ProfileSlot::native_prepare0,unsigned(view->eye_index)));
-    bool valid=
-        readable(reinterpret_cast<void*>(renderer+0x82cd0),8)&&
-        !*reinterpret_cast<bool*>(renderer+0x76f50)&&
-        *address<float>(0x199cc18)==1.f&&(view->flags&0xc0000000u)==0;
+    const char* reason=nullptr;
+    const float renderScale=*address<float>(0x199cc18);
+    if(!readable(reinterpret_cast<void*>(renderer),0x82cd8))reason="renderer_unavailable";
+    else if(*reinterpret_cast<bool*>(renderer+0x76f50))reason="renderer_mode";
+    else if(renderScale!=1.f)reason="render_scale";
+    else if(view->flags&0xc0000000u)reason="view_flags";
     const auto passes=view->main_passes;
-    valid=valid&&passes.end>=passes.begin&&(passes.end-passes.begin)%0x94==0&&
-        passes.end-passes.begin==0x94&&readable(reinterpret_cast<void*>(passes.begin),passes.end-passes.begin);
-    if(valid)for(auto p=passes.begin;p<passes.end;p+=0x94)valid=valid&&!*reinterpret_cast<bool*>(p);
+    if(!reason&&(passes.end<passes.begin||passes.end-passes.begin!=0x94))reason="main_pass_layout";
+    if(!reason&&!readable(reinterpret_cast<void*>(passes.begin),0x94))reason="main_pass_unavailable";
+    if(!reason&&*reinterpret_cast<bool*>(passes.begin))reason="main_pass_mode";
     const float clearDepth=*reinterpret_cast<unsigned*>(reinterpret_cast<std::byte*>(view)+0x3e8)==1?0.f:1.f;
-    if(!valid||!nativeOuterBank.prepare(base,renderer,width,height,clearDepth,readable,log_line,nativeOuterSsrOptIn)){
-        nativeOuterFailed=true;log_line("native_outer refused unsupported view/resource bank; live quad fallback: full-resolution outer render resampled to runtime output; outer render savings unavailable");
+    if(!reason&&!nativeOuterBank.prepare(base,renderer,width,height,clearDepth,readable,log_line,nativeOuterSsrOptIn))reason="resource_bank";
+    if(reason){
+        // Bound allocation attempts across the session; normal full-resolution
+        // quad rendering continues while resources settle and after exhaustion.
+        nativeOuterFailed=++nativeOuterPrepareFailures>=3;
+        nativeOuterRetryCalls=nativeOuterFailed?0:120;
+        char message[512]{};std::snprintf(message,sizeof(message),
+            "native_outer refused reason=%s renderScale=%.6g flags=0x%08x passBytes=%llu attempt=%u/3 retryAfter=%u renderableViews; live quad fallback: full-resolution outer render resampled to runtime output; outer render savings unavailable%s",
+            reason,double(renderScale),view->flags,static_cast<unsigned long long>(passes.end>=passes.begin?passes.end-passes.begin:0),
+            nativeOuterPrepareFailures,nativeOuterRetryCalls,renderScale!=1.f?"; select LMU Bilinear (render scale 1) for smaller outer targets":"");
+        log_line(message);
         prepareProfile.end();nativeViewOriginal(pointer,objects,lights,main,later);return;
     }
     if(nativeOuterSsrOptIn&&!nativeOuterBank.ssrActive()){
@@ -688,7 +713,7 @@ void nativeViewHook(void* pointer,void* objects,void* lights,bool main,bool late
     }
     NativeOuterBindings bindings;
     void* target=nullptr;void* second=nullptr;
-    valid=nativeOuterBank.mapTarget(reinterpret_cast<void*>(view->render_target),target)&&
+    bool valid=nativeOuterBank.mapTarget(reinterpret_cast<void*>(view->render_target),target)&&
         nativeOuterBank.mapTarget(reinterpret_cast<void*>(view->second_target_unknown),second)&&nativeOuterBank.bind(bindings);
     auto* raw=reinterpret_cast<std::byte*>(view);
     valid=valid&&bindings.add(address<unsigned>(0x1b1c654),width)&&bindings.add(address<unsigned>(0x1b1c658),height)&&
@@ -718,27 +743,65 @@ void nativeViewHook(void* pointer,void* objects,void* lights,bool main,bool late
     reinterpret_cast<void(*)(void*,void*)>(base+0x5c6c50)(reinterpret_cast<void*>(renderer),view);
     restoreProfile.end();
     const auto count=++nativeOuterCompleted[view->eye_index];
-    if(count<=4||count%600==0){
+    if(count<=4||diagnostic_logging::periodic_frame()){
         char line[240]{};std::snprintf(line,sizeof(line),"native_outer rendered eye=%d count=%llu actual=%ux%u focus=%ux%u restored=1; PPFX pool remains full-size",
             view->eye_index,static_cast<unsigned long long>(count),width,height,fullW,fullH);log_line(line);
     }
 }
+// 0.5.0 (from 0.3.5): the four pre-render blocks below used to validate the same native eye
+// snapshot and device context independently (up to 12 VirtualQuery calls per eye).
+// No game code runs between them, so validate once per call and share the result.
+struct NativeEyeProbe {
+    bool checked=false,contextChecked=false,viewValid=false,contextValid=false;
+    ViewSnapshot* view=nullptr;ID3D11DeviceContext* context=nullptr;
+    void probe(){
+        if(checked)return;checked=true;
+        view=*address<ViewSnapshot*>(0x1a51370);
+        viewValid=readable(view,sizeof(*view))&&view->eye_index>=0&&view->eye_index<=1;
+    }
+    void probeContext(){
+        probe();
+        if(contextChecked||!viewValid)return;contextChecked=true;
+        const auto renderer=*address<std::uintptr_t>(0x1b12be8);
+        if(!readable(reinterpret_cast<void*>(renderer+0x76f68),sizeof(void*)))return;
+        context=*reinterpret_cast<ID3D11DeviceContext**>(renderer+0x76f68);
+        contextValid=readable(context,sizeof(void*));
+        if(!contextValid)context=nullptr;
+    }
+};
+// 0.5.0 (from 0.3.5): refusal paths can repeat every frame. Log the first few and then periodically.
+bool logThrottled(std::uint64_t& counter,const char* message){
+    const auto n=++counter;
+    if(!diagnostics_enabled()||!(n<=8||n%600==0))return false;
+    if(n<=8){log_line(message);return true;}
+    char line[256]{};std::snprintf(line,sizeof(line),"%s (repeated %llu times)",message,static_cast<unsigned long long>(n));log_line(line);return true;
+}
+std::uint64_t obliqueRefusals=0,poseRefusals=0,projectionRefusals=0,conventionRefusals=0;
 void renderHook(void* unknown, bool laterPass) {
     suspendUnexpectedVrs();
     const auto caller=reinterpret_cast<std::uintptr_t>(LMU_CALLER_ADDRESS);
     ID3D11DeviceContext* profileContext=nullptr;
     unsigned profileEye=0;
+    NativeEyeProbe native;
     if((renderProfile.enabled()||stereo_audit_enabled())&&!insideHook&&installed.load()&&caller==base+0xcd1763&&(xr_quad_active()||xr_vrs_active())){
-        auto* before=*address<ViewSnapshot*>(0x1a51370);
-        const auto renderer=*address<std::uintptr_t>(0x1b12be8);
-        if(readable(before,sizeof(*before))&&before->eye_index>=0&&before->eye_index<=1&&
-           readable(reinterpret_cast<void*>(renderer+0x76f68),sizeof(void*))){
-            auto* context=*reinterpret_cast<ID3D11DeviceContext**>(renderer+0x76f68);
-            if(readable(context,sizeof(void*))){
+        native.probeContext();
+        auto* before=native.view;
+        if(native.viewValid){
+            auto* context=native.context;
+            if(native.contextValid){
                 profileContext=context;profileEye=unsigned(before->eye_index);
                 if(profileEye==0){
+                    const bool wasCollecting=renderProfile.collecting();
+                    if(nativeUploadToggleArmed.load(std::memory_order_relaxed)){
+                        const bool toggleKey=(GetAsyncKeyState(VK_CONTROL)&0x8000)&&(GetAsyncKeyState(VK_MENU)&0x8000)&&(GetAsyncKeyState(VK_F10)&0x8000);
+                        pollUploadReuseToggle(toggleKey,wasCollecting);
+                    }
                     const bool key=(GetAsyncKeyState(VK_CONTROL)&0x8000)&&(GetAsyncKeyState(VK_MENU)&0x8000)&&(GetAsyncKeyState(VK_F9)&0x8000);
                     renderProfile.frame(context,key);
+                    if(!wasCollecting&&renderProfile.collecting()){
+                        char line[224]{};std::snprintf(line,sizeof(line),"render_profile configuration cpu_upload_reuse=%u cpu_outer_reuse=%u cpu_upload_batch=%u runtime_toggle=%u; fixed for this capture",
+                            unsigned(nativeUploadOptIn.load()),unsigned(nativeUploadOuterOptIn.load()),unsigned(nativeUploadBatchOptIn.load()),unsigned(nativeUploadToggleArmed.load()));log_line(line);
+                    }
                     const bool auditKey=(GetAsyncKeyState(VK_CONTROL)&0x8000)&&(GetAsyncKeyState(VK_MENU)&0x8000)&&(GetAsyncKeyState(VK_F8)&0x8000);
                     stereo_audit_frame(auditKey);
                 }
@@ -749,12 +812,11 @@ void renderHook(void* unknown, bool laterPass) {
     bool outerTimed=false,outerCounted=false;
     const bool benchmark=!benchmarkPath.empty();
     if(!insideHook && installed.load() && caller==base+0xcd1763 && (benchmark||timingReady())) {
-        auto* before=*address<ViewSnapshot*>(0x1a51370);
-        const auto renderer=*address<std::uintptr_t>(0x1b12be8);
-        if(readable(before,sizeof(*before)) && before->eye_index>=0 && before->eye_index<=1 &&
-           readable(reinterpret_cast<void*>(renderer+0x76f68),sizeof(void*))) {
-            timingContext=*reinterpret_cast<ID3D11DeviceContext**>(renderer+0x76f68);
-            if(readable(timingContext,sizeof(void*))) {
+        native.probeContext();
+        auto* before=native.view;
+        if(native.viewValid) {
+            timingContext=native.context;
+            if(native.contextValid) {
                 if(benchmark) {
                     if(before->eye_index==0)benchmarkFrame(timingContext,before);
                     benchmarkPoll(timingContext);
@@ -772,13 +834,11 @@ void renderHook(void* unknown, bool laterPass) {
     selectedOuterView=nullptr;outerVrsContext=nullptr;outerMainPassMarker=false;
     if(worldVrsOptIn && !worldVrsFailed && !insideHook && installed.load() &&
        (xr_quad_active()||xr_vrs_active()) && caller==base+0xcd1763) {
-        auto* before=*address<ViewSnapshot*>(0x1a51370);
-        const auto renderer=*address<std::uintptr_t>(0x1b12be8);
-        if(readable(before,sizeof(*before)) && before->eye_index>=0 && before->eye_index<=1 &&
-           (before->flags&0xc0000000u)==0 &&
-           readable(reinterpret_cast<void*>(renderer+0x76f68),sizeof(void*))) {
-            auto* context=*reinterpret_cast<ID3D11DeviceContext**>(renderer+0x76f68);
-            if(readable(context,sizeof(void*))) {
+        native.probeContext();
+        auto* before=native.view;
+        if(native.viewValid && (before->flags&0xc0000000u)==0) {
+            auto* context=native.context;
+            if(native.contextValid) {
                 bool prepared=true;
                 if(!benchmark && (stereoVrsMode||before->eye_index==0))prepared=prepareWorldVrs(context,before);
                 if(prepared && worldVrs.ready() && !worldVrsFailed && context==worldVrsConfiguredContext) {
@@ -791,9 +851,8 @@ void renderHook(void* unknown, bool laterPass) {
     auto* savedNativeSource=nativeOuterSource;
     nativeOuterExpected=nullptr;nativeOuterSource=nullptr;
     if(((nativeOuterOptIn&&!nativeOuterFailed)||nativeUploadBatchOptIn||nativeUploadOuterOptIn)&&!insideHook&&installed.load()&&xr_quad_active()&&caller==base+0xcd1763){
-        auto* expected=*address<ViewSnapshot*>(0x1a51370);
-        if(readable(expected,sizeof(*expected))&&expected->eye_index>=0&&expected->eye_index<=1)
-            nativeOuterExpected=expected;
+        native.probe();
+        if(native.viewValid)nativeOuterExpected=native.view;
     }
     const bool profileOuterGpu=profileContext&&renderProfile.gpu_start(profileContext,profileEye);
     ProfileScope outerProfile(profile_eye(ProfileSlot::outer0,profileEye),profileContext!=nullptr);
@@ -823,15 +882,15 @@ void renderHook(void* unknown, bool laterPass) {
     const unsigned eye=unsigned(view->eye_index);
     ProfileScope focusHookProfile(profile_eye(ProfileSlot::focus_hook0,eye));
     if(view->flags & 0xc0000000u) {
-        log_line("engine: focus refused for alternative/oblique view projection");return;
+        logThrottled(obliqueRefusals,"engine: focus refused for alternative/oblique view projection");return;
     }
     auto scene=*address<void*>(0x3b4eb88);
     if(!readable(scene,sizeof(void*))) return;
-    if(!equalPose(views[eye].pose,views[eye+2].pose)) { log_line("engine: outer/focus pose mismatch");return; }
+    if(!equalPose(views[eye].pose,views[eye+2].pose)) { logThrottled(poseRefusals,"engine: outer/focus pose mismatch");return; }
     auto* source=smallOuterSource?smallOuterSource:*address<ID3D11Texture2D*>(0x1b1c6b8+eye*8);
     if(!readable(source,sizeof(void*))) return;
     auto calls=++renderCalls;
-    if(diagnostics_enabled()&&(calls<=8 || calls%600==0)) {
+    if(diagnostics_enabled()&&(calls<=8 || diagnostic_logging::periodic_frame())) {
         D3D11_TEXTURE2D_DESC desc{};source->GetDesc(&desc);
         char msg[400];std::snprintf(msg,sizeof(msg),"engine outer eye=%u call=%llu view=%p texture=%p size=%ux%u samples=%u flags=%x",
             eye,static_cast<unsigned long long>(calls),static_cast<void*>(view),static_cast<void*>(source),
@@ -846,10 +905,10 @@ void renderHook(void* unknown, bool laterPass) {
     std::memcpy(&farZ,reinterpret_cast<std::byte*>(view)+0x28,4);
     Matrix inner{},innerFar{};
     if(!projection(views[eye+2],nearZ,farZ,inner) || !projection(views[eye+2],nearZ,1000000,innerFar)) {
-        log_line("engine: invalid focus projection parameters");return;
+        logThrottled(projectionRefusals,"engine: invalid focus projection parameters");return;
     }
     if(view->projection[11]!=1.f || view->projection[15]!=0.f) {
-        log_line("engine: unsupported native perspective convention");return;
+        logThrottled(conventionRefusals,"engine: unsupported native perspective convention");return;
     }
     inner=replace_fov(view->projection,inner);
     innerFar=replace_fov(view->far_projection,innerFar);
@@ -901,8 +960,8 @@ void renderHook(void* unknown, bool laterPass) {
     insideHook=false;
     focusRestoreProfile.end();
     auto rendered=++focusCalls;
-    if(nativeUploadBatchOptIn&&diagnostics_enabled()&&rendered%1200==0){logUploadBatchStats("checkpoint");flush_log();}
-    if(diagnostics_enabled()&&(rendered<=8 || rendered%600==0)) {
+    if(nativeUploadBatchOptIn&&diagnostics_enabled()&&diagnostic_logging::periodic_frame()){logUploadBatchStats("checkpoint");}
+    if(diagnostics_enabled()&&(rendered<=8 || diagnostic_logging::periodic_frame())) {
         char msg[256];std::snprintf(msg,sizeof(msg),"engine focus eye=%u count=%llu proj00=%.5f outer00=%.5f overrides=%u masksSkipped=%u",
             eye,static_cast<unsigned long long>(rendered),inner[0],outerProjection[0],projectionOverrides,skippedMasks);log_line(msg);
     }
@@ -917,7 +976,7 @@ void uiHook(void* object,ID3D11DeviceContext* context,const UiArgs* originalArgs
     const bool menu=originalArgs->mode==3 && !xr_outer_rtv(0) && !xr_outer_rtv(1);
     auto targetSlots=reinterpret_cast<ID3D11RenderTargetView**>(static_cast<std::byte*>(object)+0xd8);
     static uint64_t diagnostics=0;
-    if(diagnostics_enabled()&&(++diagnostics<=4||diagnostics%600==0)){
+    if(diagnostics_enabled()&&(++diagnostics<=4||diagnostic_logging::periodic_frame())){
         for(unsigned eye=0;eye<2;++eye)diagnoseNativeEye(menu?"menu-final-before-ui":"scene-focus-before-ui",eye,
             *address<ID3D11Texture2D*>(0x1b1c6b8+eye*8),targetSlots[eye],*address<ID3D11ShaderResourceView*>(0x1b1c6d8+eye*8),context);
         char line[200]{};std::snprintf(line,sizeof(line),"native final extent=%ux%u copyOffsets left=%u,%u right=%u,%u",
@@ -954,7 +1013,7 @@ void uiHook(void* object,ID3D11DeviceContext* context,const UiArgs* originalArgs
             views[0].fov.angleUp-views[0].fov.angleDown,
             fullOuterFov[0].angleUp-fullOuterFov[0].angleDown);
         planeScale=bytes+(originalArgs->mode==1?0x100:0xf8);
-        if(diagnostics_enabled()&&(diagnostics<=4||diagnostics%600==0)){
+        if(diagnostics_enabled()&&(diagnostics<=4||diagnostic_logging::periodic_frame())){
             char detail[200]{};std::snprintf(detail,sizeof(detail),
                 "crop UI size mode=%u planeFov=%.7g fullSpan=%.7g xyScaleFactor=%.7g; native depth and curvature retained",
                 originalArgs->mode,planeFov,fullOuterFov[0].angleUp-fullOuterFov[0].angleDown,planeScaleFactor);log_line(detail);
@@ -1013,7 +1072,7 @@ void uiHook(void* object,ID3D11DeviceContext* context,const UiArgs* originalArgs
         }
     }
     auto calls=++uiCalls;
-    if(diagnostics_enabled()&&(calls<=8 || calls%600==0)) {
+    if(diagnostics_enabled()&&(calls<=8 || diagnostic_logging::periodic_frame())) {
         char msg[200];std::snprintf(msg,sizeof(msg),"engine UI count=%llu mode=%u menu=%d outerRTV=%d/%d",
             static_cast<unsigned long long>(calls),originalArgs->mode,menu,xr_outer_rtv(0)!=nullptr,xr_outer_rtv(1)!=nullptr);
         log_line(msg);
@@ -1035,9 +1094,54 @@ const Hook hooks[]{
     {0x51f040,reinterpret_cast<void*>(&worldSortHook),reinterpret_cast<void**>(&worldSortOriginal)},
     {0x5df6f0,reinterpret_cast<void*>(&nativeViewHook),reinterpret_cast<void**>(&nativeViewOriginal)}
 };
+constexpr std::size_t fovScaleHookIndex=5;
+static_assert(sizeof(hooks)/sizeof(hooks[0])>fovScaleHookIndex);
+// 0.3.3: only hooks whose code anchor was verified for this launch are installed.
+// The list records exactly what was patched so teardown removes the same set.
+std::array<std::size_t,sizeof(hooks)/sizeof(hooks[0])> selectedHooks{};
 void removeHooks(std::size_t count) {
-    for(std::size_t i=0;i<count;++i) MH_DisableHook(address<void>(hooks[i].rva));
-    for(std::size_t i=0;i<count;++i) MH_RemoveHook(address<void>(hooks[i].rva));
+    for(std::size_t i=0;i<count;++i) MH_DisableHook(address<void>(hooks[selectedHooks[i]].rva));
+    for(std::size_t i=0;i<count;++i) MH_RemoveHook(address<void>(hooks[selectedHooks[i]].rva));
+}
+// 0.3.3: the executable hash is no longer an allowlist, so short prologue anchors
+// alone could match an unrelated function after a game update. A hook target must
+// lie in an executable section and must not fall inside a framed function's range
+// unless it is exactly that function's start (x64 exception directory). Only
+// two known leaf functions may lack .pdata; their complete bodies must match.
+bool knownLeafTarget(std::uintptr_t rva) {
+    return (rva==0x557810&&matches(rva,projection_leaf_anchor))||
+        (rva==fovScaleRva&&matches(rva,fovScaleAnchor));
+}
+bool hookTargetPlausible(std::uintptr_t rva) {
+    const auto* dos=reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    if(!readable(dos,sizeof(*dos))||dos->e_magic!=IMAGE_DOS_SIGNATURE||dos->e_lfanew<=0||dos->e_lfanew>0x100000)return false;
+    const auto* nt=reinterpret_cast<const IMAGE_NT_HEADERS64*>(base+std::uintptr_t(dos->e_lfanew));
+    if(!readable(nt,sizeof(*nt))||nt->Signature!=IMAGE_NT_SIGNATURE||nt->FileHeader.Machine!=IMAGE_FILE_MACHINE_AMD64||nt->OptionalHeader.Magic!=IMAGE_NT_OPTIONAL_HDR64_MAGIC||nt->FileHeader.SizeOfOptionalHeader!=sizeof(IMAGE_OPTIONAL_HEADER64))return false;
+    const auto imageSize=nt->OptionalHeader.SizeOfImage;
+    if(rva>=imageSize||static_cast<std::uint32_t>(dos->e_lfanew)>imageSize||sizeof(*nt)>imageSize-static_cast<std::uint32_t>(dos->e_lfanew))return false;
+    const auto* sections=IMAGE_FIRST_SECTION(nt);const unsigned sectionCount=nt->FileHeader.NumberOfSections;
+    if(!sectionCount||sectionCount>96||!readable(sections,sizeof(IMAGE_SECTION_HEADER)*sectionCount))return false;
+    bool executable=false;
+    for(unsigned i=0;i<sectionCount;++i){
+        const auto begin=std::uintptr_t(sections[i].VirtualAddress);
+        const auto size=std::uintptr_t((std::max)(sections[i].Misc.VirtualSize,sections[i].SizeOfRawData));
+        if(rva>=begin&&rva-begin<size&&(sections[i].Characteristics&IMAGE_SCN_MEM_EXECUTE))executable=true;
+    }
+    if(!executable)return false;
+    if(nt->OptionalHeader.NumberOfRvaAndSizes<=IMAGE_DIRECTORY_ENTRY_EXCEPTION)return false;
+    const auto& directory=nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
+    const std::size_t count=directory.Size/sizeof(RUNTIME_FUNCTION);
+    if(!directory.VirtualAddress||!count||directory.Size%sizeof(RUNTIME_FUNCTION)||directory.VirtualAddress>=imageSize||directory.Size>imageSize-directory.VirtualAddress)return false;
+    const auto* functions=reinterpret_cast<const RUNTIME_FUNCTION*>(base+directory.VirtualAddress);
+    if(!readable(functions,count*sizeof(RUNTIME_FUNCTION)))return false;
+    std::size_t low=0,high=count; // first entry whose BeginAddress > rva
+    while(low<high){const auto mid=low+(high-low)/2;if(functions[mid].BeginAddress<=rva)low=mid+1;else high=mid;}
+    if(low!=0){
+        const auto& candidate=functions[low-1];
+        if(candidate.BeginAddress>=candidate.EndAddress||candidate.EndAddress>imageSize)return false;
+        if(rva<candidate.EndAddress)return rva==candidate.BeginAddress;
+    }
+    return knownLeafTarget(rva);
 }
 }
 
@@ -1067,6 +1171,7 @@ bool engine_start(ID3D11DeviceContext* context) {
     char auditSetting[8]{};const auto auditLength=GetEnvironmentVariableA("LMU_QV_STEREO_AUDIT",auditSetting,sizeof(auditSetting));
     wchar_t auditDirectory[32768]{};const auto auditDirectoryLength=GetEnvironmentVariableW(L"LMU_QV_STEREO_AUDIT_DIR",auditDirectory,32768);
     bool auditRequested=diagnostics_enabled()&&!stereoTiming&&auditLength==1&&auditSetting[0]=='1'&&auditDirectoryLength&&auditDirectoryLength<32768;
+    nativeUploadToggleArmed=false;nativeUploadToggle.configure(false);
     char uploadSetting[8]{};nativeUploadOptIn=!stereoTiming&&GetEnvironmentVariableA("LMU_QV_CPU_UPLOAD_REUSE",uploadSetting,sizeof(uploadSetting))==1&&uploadSetting[0]=='1';nativeUploadReuse.reset();
     char outerUploadSetting[8]{};nativeUploadOuterOptIn=!stereoTiming&&GetEnvironmentVariableA("LMU_QV_CPU_OUTER_REUSE",outerUploadSetting,sizeof(outerUploadSetting))==1&&outerUploadSetting[0]=='1';
     if(nativeUploadOuterOptIn)nativeUploadOptIn=true;
@@ -1077,11 +1182,19 @@ bool engine_start(ID3D11DeviceContext* context) {
     if(stereoVrsMode){auditRequested=false;nativeUploadOptIn=false;nativeUploadBatchOptIn=false;nativeUploadOuterOptIn=false;}
     if(std::strcmp(mode,"quad") && !stereoTiming && !stereoVrsMode) {log_line("engine: trace mode; no native hooks");return true;}
     base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    if(!correctDiskBuild() || !matches(0xd58a70,render_anchor) ||
+    if(!correctProcess()) {log_line("engine: unexpected executable name; hooks refused");return false;}
+    if(!matches(0xd58a70,render_anchor) ||
        !matches(0x557810,projection_setter_anchor) || !matches(0x557870,derived_anchor) ||
        !matches(0x617090,ui_anchor) || !matches(0x617fb0,ui_eye_anchor) || !matches(0x5de200,scene_anchor) ||
        !matches(0x6188d0,mask_anchor)) {
-        log_line("engine: build or code anchor mismatch; hooks refused");return false;
+        log_line("engine: code anchor mismatch; hooks refused");return false;
+    }
+    const auto dataAbi=data_abi::validate(base,readable);
+    if(!dataAbi.supported){
+        char message[256]{};std::snprintf(message,sizeof(message),
+            "engine: data ABI refused reason=%s anchor=%s rva=%llx; hooks refused",
+            dataAbi.reason,dataAbi.anchor,static_cast<unsigned long long>(dataAbi.rva));
+        log_line(message);return false;
     }
     char vrsOptIn[8]{};
     const DWORD vrsLength=GetEnvironmentVariableA("LMU_QV_VRS_EXCLUSIVE",vrsOptIn,sizeof(vrsOptIn));
@@ -1110,6 +1223,7 @@ bool engine_start(ID3D11DeviceContext* context) {
         if(!cropAnchors){log_line("engine: native FOV crop ABI anchor mismatch; hooks refused");return false;}
     }
     nativeOuterWarmupView=nullptr;nativeOuterWarmupCalls=0;nativeOuterCompleted[0]=nativeOuterCompleted[1]=0;
+    nativeOuterPrepareFailures=nativeOuterRetryCalls=0;
     nativeOuterFull[0]=nativeOuterFull[1]=0;nativeBindingProbes[0]=nativeBindingProbes[1]=0;
     if(nativeOuterOptIn){
         if(worldVrsOptIn){log_line("engine: initial native outer experiment requires VRS disabled");return false;}
@@ -1173,26 +1287,37 @@ bool engine_start(ID3D11DeviceContext* context) {
     if(hookCount>6&&!matches(0x8c2d30,nativeEnumerateAnchor)){
         log_line("engine: native XR enumeration anchor mismatch; hooks refused");return false;
     }
+    // The FOV-scale hook only changes behavior with runtime settings, and its
+    // anchor is only verified in that mode. Never patch it unverified (VRS).
+    std::size_t selectedCount=0;
+    for(std::size_t i=0;i<hookCount;++i){
+        if(i==fovScaleHookIndex&&!nativeRuntimeSettings)continue;
+        if(!hookTargetPlausible(hooks[i].rva)){
+            char message[160]{};std::snprintf(message,sizeof(message),"engine: hook target %llx is not a function start in this executable; hooks refused",static_cast<unsigned long long>(hooks[i].rva));
+            log_line(message);return false;
+        }
+        selectedHooks[selectedCount++]=i;
+    }
     auto status=MH_Initialize();
     if(status!=MH_OK && status!=MH_ERROR_ALREADY_INITIALIZED) {log_line("engine: MH_Initialize failed");return false;}
     std::size_t created=0;
-    for(std::size_t i=0;i<hookCount;++i) {
-        const auto& hook=hooks[i];
+    for(std::size_t i=0;i<selectedCount;++i) {
+        const auto& hook=hooks[selectedHooks[i]];
         status=MH_CreateHook(address<void>(hook.rva),hook.detour,hook.original);
         if(status!=MH_OK) {removeHooks(created);log_line("engine: hook creation failed");return false;}
         ++created;
     }
-    for(std::size_t i=0;i<hookCount;++i) {
-        const auto& hook=hooks[i];
+    for(std::size_t i=0;i<selectedCount;++i) {
+        const auto& hook=hooks[selectedHooks[i]];
         if(MH_EnableHook(address<void>(hook.rva))!=MH_OK) {
             removeHooks(created);log_line("engine: hook enable failed");return false;
         }
     }
     innerHistory[0]={};innerHistory[1]={};
-    installedHookCount=hookCount;
+    installedHookCount=selectedCount;
     stereo_audit_configure(context,auditRequested,auditDirectory,log_line);
     const std::array<std::uint8_t,5> prepareCall0{0xe8,0x1c,0x34,0x04,0x00},prepareCall1{0xe8,0x62,0x33,0x04,0x00};
-    if(stereo_audit_enabled()&&matches(nativePrepareRva,nativePrepareAnchor)&&matches(0x51f5bf,prepareCall0)&&matches(0x51f679,prepareCall1)){
+    if(stereo_audit_enabled()&&matches(nativePrepareRva,nativePrepareAnchor)&&hookTargetPlausible(nativePrepareRva)&&matches(0x51f5bf,prepareCall0)&&matches(0x51f679,prepareCall1)){
         if(MH_CreateHook(address<void>(nativePrepareRva),reinterpret_cast<void*>(&nativePrepareHook),reinterpret_cast<void**>(&nativePrepareOriginal))==MH_OK){
             if(MH_EnableHook(address<void>(nativePrepareRva))==MH_OK){nativePrepareHooked=true;log_line("stereo_audit native per-mesh preparation hook enabled; pointer identities anonymized; original preparation retained");}
             else MH_RemoveHook(address<void>(nativePrepareRva));
@@ -1203,7 +1328,7 @@ bool engine_start(ID3D11DeviceContext* context) {
     const std::array<std::uint8_t,15> uploadBindAnchor{0x48,0x89,0x5c,0x24,0x10,0x48,0x89,0x74,0x24,0x20,0x57,0x48,0x83,0xec,0x20};
     const std::array<std::uint8_t,6> lightUploadSize{0x41,0xb8,0x80,0x0a,0x00,0x00};
     if(nativeUploadBatchOptIn&&(!matches(0x5cae5c,lightUploadSize)||!nativeUploadBatch.configure(context))){nativeUploadBatchOptIn=false;log_line("cpu_upload_batch unavailable: native layout or D3D11.1 constant-buffer offsets unsupported; native uploads retained");}
-    if((nativeUploadOptIn||nativeUploadBatchOptIn)&&matches(nativeUploadRva,nativeUploadAnchor)&&matches(0x5b602f,uploadCall)&&matches(0x5c3f20,uploadBindAnchor)){
+    if((nativeUploadOptIn||nativeUploadBatchOptIn)&&matches(nativeUploadRva,nativeUploadAnchor)&&hookTargetPlausible(nativeUploadRva)&&matches(0x5b602f,uploadCall)&&matches(0x5c3f20,uploadBindAnchor)){
         if(MH_CreateHook(address<void>(nativeUploadRva),reinterpret_cast<void*>(&nativeUploadHook),reinterpret_cast<void**>(&nativeUploadOriginal))==MH_OK){
             if(MH_EnableHook(address<void>(nativeUploadRva))==MH_OK){nativeUploadHooked=true;
                 log_line(nativeUploadBatchOptIn?"cpu_upload_batch enabled: outer/focus opaque group 31; unchanged-upload filtering + adaptive small-CB batching; large CBs stay native; native shaders/draws retained; experimental":
@@ -1223,6 +1348,9 @@ bool engine_start(ID3D11DeviceContext* context) {
     const auto durationSeconds=validDuration?unsigned(requestedSeconds):120u;
     if(profiling&&durationLength&&!validDuration)log_line("render_profile invalid duration; using 120 seconds (allowed 30..300)");
     renderProfile.configure(profiling,log_line,durationSeconds,flush_log);
+    nativeUploadToggle.configure(renderProfile.enabled()&&nativeUploadHooked&&nativeUploadOptIn&&!nativeUploadOuterOptIn&&!nativeUploadBatchOptIn&&!auditRequested);
+    nativeUploadToggleArmed=nativeUploadToggle.available();
+    if(nativeUploadToggleArmed)log_line("cpu_upload_reuse runtime toggle armed hotkey=Ctrl+Alt+F10 initial=on; changes at left-eye boundary; blocked during capture; hooks remain installed in both states");
     if(!std::strcmp(profileSetting,"1")&&!profiling)log_line("render_profile disabled: incompatible legacy timing/benchmark or stereo mode");
     installed.store(true);
     log_line(stereoTiming ? "engine: verified build; stereo timing render hook only; no quad repeats or projection/UI changes" :
@@ -1230,10 +1358,12 @@ bool engine_start(ID3D11DeviceContext* context) {
     return true;
 }
 void engine_stop() {
+    const bool toggleWasArmed=nativeUploadToggleArmed.exchange(false);
     stereo_audit_stop();
     if(nativePrepareHooked){MH_DisableHook(address<void>(nativePrepareRva));MH_RemoveHook(address<void>(nativePrepareRva));nativePrepareHooked=false;}
     {std::lock_guard<std::recursive_mutex> uploadLock(nativeUploadMutex);
-    const bool uploadWasEnabled=nativeUploadOptIn.exchange(false),batchWasEnabled=nativeUploadBatchOptIn.exchange(false);
+    nativeUploadToggle.configure(false);
+    const bool uploadWasEnabled=nativeUploadOptIn.exchange(false)||toggleWasArmed,batchWasEnabled=nativeUploadBatchOptIn.exchange(false);
     nativeUploadOuterOptIn=false;
     nativeUploadBatch.end(); // An active scope restores on its owner before trampoline removal.
     if(nativeUploadHooked){MH_DisableHook(address<void>(nativeUploadRva));MH_RemoveHook(address<void>(nativeUploadRva));nativeUploadHooked=false;}

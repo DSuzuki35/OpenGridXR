@@ -1,12 +1,38 @@
 param(
     [string]$LayerOutput = (Join-Path $PSScriptRoot 'build/lmu_quadview.dll'),
-    [string]$AnchorImage
+    [string]$AnchorImage,
+    [switch]$AsyncLogOnly,
+    [switch]$NvStereoShaderOnly,
+    [switch]$NvMultiviewOnly
 )
 $ErrorActionPreference = 'Stop'
 $LayerOutput = [IO.Path]::GetFullPath($LayerOutput)
 Push-Location $PSScriptRoot
 try {
     New-Item -ItemType Directory -Path 'build' -Force | Out-Null
+    foreach ($test in @('async_log','nv_stereo_shader','nv_multiview_backend')) {
+        if(($AsyncLogOnly -or $NvStereoShaderOnly -or $NvMultiviewOnly) -and
+            !(($AsyncLogOnly -and $test -eq 'async_log') -or
+              ($NvStereoShaderOnly -and $test -eq 'nv_stereo_shader') -or
+              ($NvMultiviewOnly -and $test -eq 'nv_multiview_backend'))){continue}
+        & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party "tests/${test}_test.cpp" "${test}.cpp" -ld3d11 -ld3dcompiler -ldxguid -luser32 -o "build/${test}_test.exe"
+        if ($LASTEXITCODE -ne 0) { throw "$test compilation failed" }
+        if($test -eq 'async_log'){
+            & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -static -shared tests/async_log_lifetime_fixture.cpp async_log.cpp -o build/async_log_lifetime_fixture.dll
+            if ($LASTEXITCODE -ne 0) { throw 'Async log lifetime fixture compilation failed' }
+            & .\build\async_log_test.exe --dll-lifetime
+        }else{& ".\build\${test}_test.exe"}
+        if ($LASTEXITCODE -ne 0) { throw "$test failed" }
+    }
+    if($AsyncLogOnly -or $NvStereoShaderOnly -or $NvMultiviewOnly){return}
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -static tests/upload_reuse_toggle_test.cpp -o build/upload_reuse_toggle_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Upload reuse toggle test compilation failed' }
+    & .\build\upload_reuse_toggle_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Upload reuse toggle test failed' }
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -static tests/native_pair_pass_test.cpp -o build/native_pair_pass_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Native pair coordinator compilation failed' }
+    & .\build\native_pair_pass_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Native pair coordinator test failed' }
     . (Join-Path $PSScriptRoot '../tools/version.ps1')
     $versionFiles = Write-LmuVersionFiles (Join-Path $PSScriptRoot 'build/native-version')
     & windres $versionFiles.ResourcePath -O coff -o build/version.o
@@ -23,8 +49,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'View crop tests compilation failed' }
     & .\build\view_crop_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'View crop tests failed' }
-    foreach ($test in @('dynamic_focus','dynamic_focus_frame','benchmark_native','benchmark_overlay','benchmark_frame','benchmark_gpu')) {
-        & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party "tests/${test}_test.cpp" -ld3d11 -ld3dcompiler -ldxguid -luser32 -o "build/${test}_test.exe"
+    foreach ($test in @('benchmark_timing_ownership','benchmark_native','benchmark_overlay','benchmark_frame','benchmark_gpu','xr_active_state','diagnostic_sampling','outer_runtime_lock','end_frame_lock','locate_runtime_lock','app_image_lock','input_validation')) {
+        & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party "tests/${test}_test.cpp" async_log.cpp -ladvapi32 -ld3d11 -ld3dcompiler -ldxguid -luser32 -o "build/${test}_test.exe"
         if ($LASTEXITCODE -ne 0) { throw "$test compilation failed" }
         & ".\build\${test}_test.exe"
         if ($LASTEXITCODE -ne 0) { throw "$test failed" }
@@ -44,6 +70,8 @@ try {
     & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/engine_hooks_test.cpp nv_vrs.cpp stereo_audit.cpp stereo_shader.cpp stereo_draw_proof.cpp build/mh_buffer.o build/mh_hook.o build/mh_trampoline.o build/mh_hde64.o -ld3d11 -ld3dcompiler -ldxguid -ladvapi32 -luser32 -o build/engine_hooks_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Engine hook tests compilation failed' }
     & .\build\engine_hooks_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Engine hook policy tests failed' }
+    & .\build\engine_hooks_test.exe --runtime-upload-toggle
     if ($LASTEXITCODE -ne 0) { throw 'Engine hook tests failed' }
     & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/native_outer_fallback_test.cpp nv_vrs.cpp stereo_audit.cpp stereo_shader.cpp stereo_draw_proof.cpp build/mh_buffer.o build/mh_hook.o build/mh_trampoline.o build/mh_hde64.o -ld3d11 -ld3dcompiler -ldxguid -ladvapi32 -luser32 -o build/native_outer_fallback_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Native fallback tests compilation failed' }
@@ -83,11 +111,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Native upload batch compilation failed' }
     & .\build\native_upload_batch_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Native upload batch tests failed' }
-    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/focus_image_lease_test.cpp -ld3d11 -ld3dcompiler -ldxguid -luser32 -o build/focus_image_lease_test.exe
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/focus_image_lease_test.cpp async_log.cpp -ladvapi32 -ld3d11 -ld3dcompiler -ldxguid -luser32 -o build/focus_image_lease_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Focus image ownership compilation failed' }
     & .\build\focus_image_lease_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Focus image ownership tests failed' }
-    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/frame_submission_test.cpp -ld3d11 -ld3dcompiler -ldxguid -luser32 -o build/frame_submission_test.exe
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party tests/frame_submission_test.cpp async_log.cpp -ladvapi32 -ld3d11 -ld3dcompiler -ldxguid -luser32 -o build/frame_submission_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Frame submission tests compilation failed' }
     & .\build\frame_submission_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Frame submission tests failed' }
@@ -102,7 +130,7 @@ try {
     if ($AnchorImage) { & .\build\vrs_scope_policy_test.exe $AnchorImage }
     else { & .\build\vrs_scope_policy_test.exe --policy-only }
     if ($LASTEXITCODE -ne 0) { throw 'VRS scope policy tests failed' }
-    foreach ($test in @('vrs_foveation','vrs_gaze')) {
+    foreach ($test in @('vrs_foveation','vrs_gaze','cpu_cache_affinity')) {
         & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -static -I ../prototype/third_party "tests/${test}_test.cpp" -o "build/${test}_test.exe"
         if ($LASTEXITCODE -ne 0) { throw "$test compilation failed" }
         & ".\build\${test}_test.exe"
@@ -122,7 +150,7 @@ try {
         & ".\build\${test}_test.exe"
         if ($LASTEXITCODE -ne 0) { throw "$test tests failed" }
     }
-    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party xr_layer.cpp xr_layer_tests.cpp -ld3d11 -ld3dcompiler -ldxguid -o build/xr_layer_tests.exe
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -I ../prototype/third_party xr_layer.cpp xr_layer_tests.cpp async_log.cpp -ladvapi32 -ld3d11 -ld3dcompiler -ldxguid -o build/xr_layer_tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'XR tests compilation failed' }
     foreach ($testArgs in @(@('--focus-offset'),@('--focus-offset','--focus-asymmetric'),@('--focus-offset','--debug-focus'),@('--runtime-settings','--focus-offset'),@('--runtime-settings','--focus-offset','--fixed-foveation'),@('--runtime-settings','--focus-offset','--no-eye-tracking'),@('--runtime-settings','--focus-offset','--debug-focus'),@('--runtime-settings','--focus-offset','--srgb','--debug-focus'),@('--invalid-focus-offset'),@('--runtime-settings','--invalid-focus-offset'))) {
         & .\build\xr_layer_tests.exe @testArgs
@@ -158,7 +186,14 @@ try {
         & .\build\xr_layer_tests.exe @testArgs
         if($LASTEXITCODE -ne 0){throw 'Rendered crop XR tests failed'}
     }
-    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -shared -I ../prototype/third_party xr_layer.cpp engine_bridge.cpp nv_vrs.cpp stereo_audit.cpp stereo_shader.cpp stereo_draw_proof.cpp build/mh_buffer.o build/mh_hook.o build/mh_trampoline.o build/mh_hde64.o build/version.o -ld3d11 -ld3dcompiler -ldxguid -ladvapi32 -luser32 -o $LayerOutput
+    & g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers -Werror -static -shared -I ../prototype/third_party xr_layer.cpp async_log.cpp engine_bridge.cpp nv_vrs.cpp stereo_audit.cpp stereo_shader.cpp stereo_draw_proof.cpp build/mh_buffer.o build/mh_hook.o build/mh_trampoline.o build/mh_hde64.o build/version.o -ld3d11 -ld3dcompiler -ldxguid -ladvapi32 -luser32 -o $LayerOutput
     if ($LASTEXITCODE -ne 0) { throw 'Layer compilation failed' }
+    # Manual NVIDIA diagnostic: compile only, no physical GPU workload in this suite.
+    $vrsResourceSource=Join-Path $PSScriptRoot 'build/native-version/vrs-check.rc'
+    (Get-Content -LiteralPath $versionFiles.ResourcePath -Raw).Replace('FILETYPE VFT_DLL','FILETYPE VFT_APP').Replace('LMU Quad View OpenXR layer','LMU Quad View VRS hardware check').Replace('lmu_quadview.dll','VrsHardwareCheck.exe') | Set-Content -LiteralPath $vrsResourceSource -Encoding ASCII
+    & windres $vrsResourceSource -O coff -o build/vrs-check.o
+    if($LASTEXITCODE -ne 0){throw 'VRS diagnostic version resource compilation failed'}
+    & g++ -std=c++17 -O2 -static -I ../prototype/third_party tests/nv_vrs_hardware_test.cpp nv_vrs.cpp build/vrs-check.o -ld3d11 -ld3dcompiler -ldxguid -ldxgi -luser32 -o build/nv_vrs_hardware_test.exe
+    if($LASTEXITCODE -ne 0){throw 'VRS diagnostic compilation failed'}
     Get-FileHash -LiteralPath $LayerOutput -Algorithm SHA256 | Select-Object Hash
 } finally { Pop-Location }

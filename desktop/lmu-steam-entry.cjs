@@ -15,7 +15,7 @@ async function launchSavedSteam({store,moduleSettings,runtime,rendering,runtimeD
   const profile = selectedForGame(document,'lmu');
   if (!profile || !profile.lmuRendering || profile.lmuRendering.mode === 'off')
     throw new Error('Save an active LMU quad-view or stereo VRS profile in OpenGrid first.');
-  const expected = toRuntimeIni(document);
+  const expected = toRuntimeIni(document,{lmuPreferences:await rendering.preferences()});
   const ensureStopped = async () => {
     await runtime.ensureGamesClosed();
     if (!(await runtime.status()).registered) throw new Error('Install the OpenGrid runtime layer before launching through Steam.');

@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Path $directory | Out-Null
 $trigger=Join-Path $directory 'capture.trigger'
 $info.EnvironmentVariables['LMU_QV_CAPTURE_DIR']=$directory
 $info.EnvironmentVariables['LMU_QV_CAPTURE_TRIGGER']=$trigger
-$capture=[ordered]@{Status='prepared';Pid=0;Directory=$directory;Trigger=$trigger;Log=$info.EnvironmentVariables['LMU_QV_LOG'];Backend=$settings.Backend;NativeOuterResolution=$settings.NativeOuterResolution;DynamicFocusEnabled=$settings.DynamicFocusEnabled;PreparedUTC=[DateTime]::UtcNow.ToString('o')}
+$capture=[ordered]@{Status='prepared';Pid=0;Directory=$directory;Trigger=$trigger;Log=$info.EnvironmentVariables['LMU_QV_LOG'];Backend=$settings.Backend;NativeOuterResolution=$settings.NativeOuterResolution;PreparedUTC=[DateTime]::UtcNow.ToString('o')}
 $manifest=Join-Path $directory 'capture-run.json'
 $capture | ConvertTo-Json | Set-Content -LiteralPath $manifest -Encoding UTF8
 if($PrepareOnly){Write-Output "Validated capture launch, no game started. Manifest: $manifest";return}

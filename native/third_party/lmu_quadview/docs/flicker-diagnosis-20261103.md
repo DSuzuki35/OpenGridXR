@@ -115,3 +115,11 @@ Recovery for this observed setup: use the isolated quad launcher, close the
 SteamVR dashboard, and restart eye tracking in Pimax Play if gaze remains
 stationary after the session becomes FOCUSED. The underlying reason the Pimax
 eye-tracking service needed restarting has not been established.
+
+## Corrected 0.2.1
+
+After this fixed-FOV validation, the user reported that automatic dynamic FOV
+did not work and requested its removal. The corrected release removes the
+GPU-driven size controller and its settings/UI. Manual focus sizing, gaze,
+actual rendered FOV telemetry and the alignment fixes remain. The integration
+handoff now explicitly excludes restoring automatic resizing from older commits.

@@ -1,0 +1,43 @@
+CROP / EYE IDENTITY TEST CANDIDATE - 29 October 2026
+
+This is a new diagnostic candidate, not the previously confirmed alpha build.
+Extract into a NEW folder, close LMU, and use this folder's launcher.
+
+Changed:
+- Quad mode bypasses LMU's saved FOV crop when allocating/rendering eye images.
+  Your saved crop setting is not changed. Pimax QuadView FOV settings still apply.
+- The final view-size answer reaching LMU is normalized to the selected runtime
+  focus size. Logs show both the lower XR boundary and native game boundary.
+- Native eye handles identify the game buffers; creation order and matching
+  dimensions alone no longer identify an eye. Overlays remain separate.
+- Resource/view identities, dimensions/formats, viewport/scissor state, native
+  offsets, XR image indices and projection rectangles are logged.
+
+Known limits:
+The crop issue is confirmed by the supplied log, renderer analysis and tester's
+setting report. The exact external size override in log 1 remains unknown.
+An upper API layer may still rewrite swapchain sizes or wrap handles; this build
+reports those cases without guessing an eye identity or stretching a cropped UI.
+UNORM/sRGB compatible formats remain accepted; no new gamma conversion was added.
+
+Test sequence (keep a log from each launch):
+1. Leave the previous LMU cropping setting enabled; start with the new launcher.
+2. Check the menu in both eyes, then load a track and enter the cockpit.
+3. Check head movement, both focus regions, outer image, and optional green box.
+4. Return to the menu; check that it remains live.
+5. Close LMU, change Pimax focus/outer settings, and relaunch. Repeat 2-4.
+6. Isolate native outer optimization: close LMU; select the correct game folder
+   and Save settings in this folder's launcher. From PowerShell 7 in this folder:
+
+   ./test-no-native-outer.ps1
+
+   This keeps quad rendering and runtime settings, but disables the small native
+   outer target bank. It renders full-size outer scenes then resamples them.
+7. If Pimax FSR/NIS or another XR upscaler/override is enabled, repeat once with
+   that setting off, changing only that setting and restarting the game.
+
+Share the new quad log and whether menu/track/return worked, after reviewing logs
+for personal paths. Success requires quadProjections=1 with captures=1/1, plus
+correct visible focus and outer content. A nonzero counter alone cannot prove
+visual correctness. These live tests must be done on the affected PC; local
+automated tests do not reproduce its full runtime/layer setup.

@@ -23,10 +23,25 @@ function alive(pid) {
     return false;
   }
 }
-function lmuRenderStatus(data) {
+function lmuDiagnosticState(data, now = Date.now(), isAlive = alive) {
+  // Lifecycle snapshots have no frame heartbeat. A bounded recent failure
+  // survives process exit, explicitly labelled as a previous launch attempt.
+  const boundedText = value => typeof value === 'string' && value.length <= 512 && !/[\x00-\x1f\x7f]/.test(value);
+  const warning=data?.warning===undefined?'':data.warning;
+  const nativeOuterRefusalCount=data?.nativeOuterRefusalCount===undefined?0:data.nativeOuterRefusalCount;
+  if (!data || data.version !== 1 || !Number.isSafeInteger(data.pid) || data.pid <= 0 || data.pid > 0xffffffff ||
+      !Number.isSafeInteger(data.timestampMs) || now - data.timestampMs < -2000 || now - data.timestampMs > 86400000 ||
+      !['starting','ready','unavailable'].includes(data.state) || !boundedText(data.reason) || !boundedText(data.cpuAffinity) ||
+      !boundedText(warning) || ![data.reentryCount,data.outerTimeoutCount,nativeOuterRefusalCount].every(n => Number.isSafeInteger(n) && n >= 0)) return null;
+  const activeProcess=isAlive(data.pid);
+  if (!activeProcess && data.state !== 'unavailable') return null;
+  return {version:1,pid:data.pid,timestampMs:data.timestampMs,state:data.state,reason:data.reason,cpuAffinity:data.cpuAffinity,
+    reentryCount:data.reentryCount,outerTimeoutCount:data.outerTimeoutCount,warning,nativeOuterRefusalCount,activeProcess};
+}
+function lmuRenderStatus(data, pid, now, isAlive) {
   if (!data || !["quad", "stereoVrs"].includes(data.mode) ||
       !["native", "qvfr", "vectorxr"].includes(data.provider) ||
-      !["ready", "unavailable"].includes(data.hookStatus) ||
+      !["starting", "ready", "unavailable"].includes(data.hookStatus) ||
       !Number.isSafeInteger(data.frameId) || data.frameId < 0 ||
       typeof data.focusFovValid !== "boolean") return null;
   const sizes = value => Array.isArray(value) && value.length === 2 && value.every(s =>
@@ -38,6 +53,7 @@ function lmuRenderStatus(data) {
   if (data.focusFovValid && (data.mode !== "quad" || data.renderedFov.length !== 4 || data.frameId === 0)) return null;
   const fovs = data.renderedFov.map(f => f && Object.fromEntries(["angleLeft", "angleRight", "angleUp", "angleDown"].map(k => [k, f[k]])));
   if (fovs.some(f => !f || Object.values(f).some(n => !Number.isFinite(n) || Math.abs(n) >= Math.PI / 2) || f.angleLeft >= f.angleRight || f.angleDown >= f.angleUp)) return null;
+  const diagnostics = data.diagnostics?.pid === pid ? lmuDiagnosticState(data.diagnostics, now, isAlive) : null;
   return {
     mode: data.mode, provider: data.provider, hookStatus: data.hookStatus, frameId: data.frameId,
     focusFovValid: data.focusFovValid, ...Object.fromEntries(keys.map(k => [k, data[k]])),
@@ -46,6 +62,7 @@ function lmuRenderStatus(data) {
     renderedFov: fovs,
     captureState: ["inactive", "ready", "ready-focus", "ready-outer-only", "skipped"].includes(data.captureState) ? data.captureState : "inactive",
     streamingExpansionUnsupported: data.streamingExpansionUnsupported === true,
+    ...(diagnostics ? {diagnostics} : {}),
   };
 }
 function sessionState(data, now = Date.now(), isAlive = alive) {
@@ -67,7 +84,7 @@ function sessionState(data, now = Date.now(), isAlive = alive) {
     captureSupported: data?.captureSupported,
     maskCalls: data?.maskCalls,
     engineLoaded: active && data.engineLoaded === true,
-    lmuRendering: active && data.game === "lmu" ? lmuRenderStatus(data.lmuRendering) : null,
+    lmuRendering: active && data.game === "lmu" ? lmuRenderStatus(data.lmuRendering, data.pid, now, isAlive) : null,
     engineError:
       active && typeof data.engineError === "string"
         ? data.engineError.slice(0, 500)
@@ -126,7 +143,7 @@ function assertSavedOutputProfile(doc, profile) {
   if (selected?.id !== profile.id)
     throw new Error("Save the selected profile before opening Clean Output.");
 }
-function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.APPDATA || runtimeDir, 'opengrid-xr'), testMode = false, prepareAssets = async () => {}, transformDocument = doc => doc, outputEnabled = () => true }) {
+function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.APPDATA || runtimeDir, 'opengrid-xr'), testMode = false, prepareAssets = async () => {}, transformDocument = doc => doc, outputEnabled = () => true, getLmuPreferences = async () => ({cpuCacheAffinity:false}) }) {
   const manifest = path.join(runtimeDir, "OpenGridXR.json");
   let output = null;
   async function registrations() {
@@ -170,6 +187,20 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
         return { ...sessionState(JSON.parse(await fs.readFile(file, "utf8"))), game };
       } catch { return { active: false, game }; }
     }));
+  }
+  async function lmuDiagnosticsStatus() {
+    let handle;
+    try {
+      const file = path.join(runtimeDir, 'OpenGridXR-lmu-diagnostics.json');
+      handle = await fs.open(file, 'r');
+      if ((await handle.stat()).size > 8192) return null;
+      // Also bound the actual read if the file changes after stat.
+      const buffer = Buffer.alloc(8193);
+      const {bytesRead} = await handle.read(buffer, 0, buffer.length, 0);
+      if (bytesRead > 8192) return null;
+      return lmuDiagnosticState(JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(buffer.subarray(0,bytesRead))));
+    } catch { return null; }
+    finally { await handle?.close().catch(() => {}); }
   }
   async function status() {
     const available = (
@@ -278,7 +309,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     }
     await atomicWrite(
       path.join(runtimeDir, "OpenGridXR.ini"),
-      toRuntimeIni(doc),
+      toRuntimeIni(doc,{lmuPreferences:await getLmuPreferences()}),
     );
   }
   async function install(doc) {
@@ -363,10 +394,11 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     if (output && output.exitCode === null) output.kill();
     output = null;
   }
-  return { status, sessionsStatus, install, remove, writeConfig, launch, closeOutput, ensureGamesClosed };
+  return { status, sessionsStatus, lmuDiagnosticsStatus, install, remove, writeConfig, launch, closeOutput, ensureGamesClosed };
 }
 module.exports = {
   createRuntime,
+  lmuDiagnosticState,
   sessionState,
   validateManifest,
   outputArgs,

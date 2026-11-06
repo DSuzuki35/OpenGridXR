@@ -14,7 +14,7 @@ public:
     using Readable=bool(*)(const void*,std::size_t);
     using Log=void(*)(const char*);
 private:
-    struct Entry {void** slot{};void* original{};void* wrapper{};void* source{};void* associated{};unsigned width{},height{};std::array<unsigned,3> ssrMetadata{};NativeOuterTexture clone;};
+    struct Entry {void** slot{};void* original{};void* wrapper{};void* source{};void* associated{};unsigned width{},height{};std::array<void*,5> inputs{};std::array<unsigned,3> ssrMetadata{};NativeOuterTexture clone;};
     std::array<Entry,Count> entries_{};
     std::array<Entry,Count> auxiliary_{};
     unsigned auxiliaryCount_=0;
@@ -28,11 +28,17 @@ private:
         T value{};std::memcpy(&value,static_cast<const std::byte*>(object)+offset,sizeof(value));return value;
     }
     template<class Fn>Fn fn(std::uintptr_t rva)const{return reinterpret_cast<Fn>(base_+rva);}
-    bool vectorFirst(void* container,std::size_t offset,void*& value,Readable read){
+    static bool vectorFirst(void* container,std::size_t offset,void*& value,Readable read){
         const auto begin=at<std::uintptr_t>(container,offset),end=at<std::uintptr_t>(container,offset+8);
         if(end<begin||end-begin>8||(end-begin)%8)return false;
         value=nullptr;
         if(end!=begin){if(!read(reinterpret_cast<void*>(begin),8))return false;value=*reinterpret_cast<void**>(begin);}
+        return true;
+    }
+    static bool sourceInputs(void* container,std::array<void*,5>& inputs,Readable read){
+        if(!read(container,0x70)||at<void*>(container,0x28))return false;
+        inputs={at<void*>(container,0x20),at<void*>(container,0x30),nullptr,nullptr,at<void*>(container,0x68)};
+        if(!vectorFirst(container,0x38,inputs[2],read)||!vectorFirst(container,0x50,inputs[3],read))return false;
         return true;
     }
     bool cloneEntry(Entry& e,unsigned index,Readable read,Log log){
@@ -48,10 +54,30 @@ private:
         if(index==SsrColor&&!e.associated)return reject("ssr_missing_depth");
         void* container=at<void*>(e.original,0xa0);
         if(!read(container,0x70)||at<void*>(container,0x28))return reject("container");
-        void *rtv=nullptr,*dsv=nullptr;
-        if(!vectorFirst(container,0x38,rtv,read)||!vectorFirst(container,0x50,dsv,read))return reject("view_vectors");
-        auto* resource=at<ID3D11Resource*>(container,0x20);
-        if(!read(resource,8))return reject("resource");
+        std::array<void*,5> inputs{};
+        if(!sourceInputs(container,inputs,read))return reject("resource_views");
+        // Fresh interfaces must be readable before the first COM call. Cached
+        // identities are held by AddRef below and are only compared on reuse;
+        // their addresses cannot expire or be recycled until reset().
+        for(auto* input:inputs)if(input&&!read(input,sizeof(void*)))return reject("resource_views");
+        e.inputs=inputs;
+        // Hold the accepted identities until reset, including on partial
+        // failure. Native view replacement cannot then reuse a cached address.
+        for(auto* input:e.inputs)if(input)static_cast<IUnknown*>(input)->AddRef();
+        auto* resource=static_cast<ID3D11Resource*>(e.inputs[0]);
+        native_outer_detail::Com<ID3D11Resource> viewResource;
+        // LMU's DepthResolve construction at 0x5bbcf5..0x5bbe61 installs
+        // SRV/RTV views without setting container+0x20. Those views own the
+        // texture; a null direct slot is not an absent resource. GetResource
+        // adds a reference, released after cloning. create() checks that every
+        // supplied view belongs to this same texture and device.
+        if(!resource){
+            for(unsigned i=1;i<e.inputs.size();++i)if(e.inputs[i]){
+                static_cast<ID3D11View*>(e.inputs[i])->GetResource(&viewResource.p);break;
+            }
+            resource=viewResource.p;
+        }
+        if(!read(resource,8))return reject("resource_unavailable");
         ID3D11Texture2D* texture=nullptr;
         if(FAILED(resource->QueryInterface(__uuidof(ID3D11Texture2D),reinterpret_cast<void**>(&texture))))return reject("texture_interface");
         D3D11_TEXTURE2D_DESC desc{};texture->GetDesc(&desc);
@@ -63,9 +89,9 @@ private:
             at<unsigned>(e.original,0x38)==0x4e&&desc.SampleDesc.Count==1&&
             !(desc.MiscFlags&~D3D11_RESOURCE_MISC_GENERATE_MIPS));
         const bool cloned=layout&&desc.Usage==D3D11_USAGE_DEFAULT&&desc.CPUAccessFlags==0&&(ssr||desc.MiscFlags==0)&&
-            e.clone.create(texture,static_cast<ID3D11DepthStencilView*>(dsv),
-                at<ID3D11ShaderResourceView*>(container,0x30),static_cast<ID3D11RenderTargetView*>(rtv),
-                at<ID3D11UnorderedAccessView*>(container,0x68),e.width,e.height,ssr);
+            e.clone.create(texture,static_cast<ID3D11DepthStencilView*>(e.inputs[3]),
+                static_cast<ID3D11ShaderResourceView*>(e.inputs[1]),static_cast<ID3D11RenderTargetView*>(e.inputs[2]),
+                static_cast<ID3D11UnorderedAccessView*>(e.inputs[4]),e.width,e.height,ssr);
         e.source=texture;texture->Release();
         if(!cloned){
             char message[320]{};std::snprintf(message,sizeof(message),
@@ -106,8 +132,8 @@ private:
            (ssr&&at<unsigned>(e.wrapper,0x34)!=clonedDesc.MipLevels)||
            !read(installed,0x70)||at<void*>(installed,0x20)!=e.clone.texture())return reject("installed_texture");
         char message[256]{};std::snprintf(message,sizeof(message),
-            "native_outer created role=%u actual=%ux%u samples=%u format=%u original=%ux%u; internal PPFX pool unchanged",
-            index,e.width,e.height,desc.SampleDesc.Count,unsigned(desc.Format),desc.Width,desc.Height);log(message);
+            "native_outer created role=%u actual=%ux%u samples=%u format=%u original=%ux%u source=%s; internal PPFX pool unchanged",
+            index,e.width,e.height,desc.SampleDesc.Count,unsigned(desc.Format),desc.Width,desc.Height,e.inputs[0]?"resource":"view");log(message);
         return true;
     }
     bool unchanged(const Entry& e,Readable read)const{
@@ -119,7 +145,12 @@ private:
         if(e.ssrMetadata[0]&&(at<unsigned>(e.original,0x28)!=e.ssrMetadata[0]||
             at<unsigned>(e.original,0x2c)!=e.ssrMetadata[1]||at<unsigned>(e.original,0x34)!=e.ssrMetadata[2]))return false;
         void* container=at<void*>(e.original,0xa0);
-        return read(container,0x70)&&at<void*>(container,0x20)==e.source;
+        // Views cannot change their underlying resource. Recheck native
+        // wrapper/container/vector storage and every retained interface identity.
+        // A changed interface (including a null direct resource slot) rebuilds
+        // through cloneEntry's full validation before it can be dereferenced.
+        std::array<void*,5> inputs{};
+        return sourceInputs(container,inputs,read)&&inputs==e.inputs;
     }
     bool independentSsrInputs(Readable read,Log log)const{
         if(!ssrEnabled_)return true;
@@ -193,7 +224,8 @@ public:
         auto release=[&](Entry& e){
             if(e.wrapper)fn<void(*)(void*)>(0x552a00)(e.wrapper);
             if(e.original)fn<void(*)(void*)>(0x552a00)(e.original);
-            e.wrapper=nullptr;e.original=nullptr;e.source=nullptr;e.associated=nullptr;e.slot=nullptr;e.width=e.height=0;e.ssrMetadata={};e.clone.reset();
+            for(auto* input:e.inputs)if(input)static_cast<IUnknown*>(input)->Release();
+            e.wrapper=nullptr;e.original=nullptr;e.source=nullptr;e.associated=nullptr;e.slot=nullptr;e.width=e.height=0;e.inputs={};e.ssrMetadata={};e.clone.reset();
         };
         for(auto& e:entries_)release(e);
         for(auto& e:auxiliary_)release(e);

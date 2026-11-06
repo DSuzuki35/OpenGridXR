@@ -64,6 +64,7 @@ const preview = {
     return {...settings,restartRequired:true};
   },
   async launchLmuOffline() { throw new Error("LMU offline testing requires the Windows app."); },
+  async setLmuPreferences() { throw new Error('Machine preferences require the Windows app.'); },
   async lmuStatus() { return {paths:{executable:'',qvfrManifest:''},compatibility:{supported:false,message:'Executable verification requires the Windows app.'},providers:{qvfr:{available:false},vectorxr:{available:false,embedded:true}},capture:{state:'inactive'},validation:'Integrated headset/provider validation is pending.'}; },
   async chooseLmuExecutable() { throw new Error('Executable selection requires the Windows app.'); },
   async chooseLmuProvider() { throw new Error('Provider selection requires the Windows app.'); },

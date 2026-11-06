@@ -7,7 +7,8 @@ import os from 'node:os';
 import {createProfile} from '../src/model.mjs';
 import {EventEmitter} from 'node:events';
 const require=createRequire(import.meta.url);
-const {buildEnvironment,readProviderManifest,qvfrProfileText,validateExecutable,SUPPORTED_HASH,createLmuRendering}=require('../desktop/lmu-rendering.cjs');
+const {buildEnvironment,readProviderManifest,qvfrProfileText,validateExecutable,createLmuRendering}=require('../desktop/lmu-rendering.cjs');
+const FIXTURE_HASH='66942337813B301B87D12EDFA330F33354A2A4B8CD9B048885CBF77EB6F940CF';
 const manifestDocument=layer=>({file_format_version:'1.0.0',api_layer:{api_version:'1.0',implementation_version:'1',description:'OpenXR API layer test fixture',...layer}});
 test('integrated launch isolates inherited controls and selects only its requested provider', () => {
   const settings=createProfile('lmu').lmuRendering; settings.mode='quad'; settings.provider='vectorxr';
@@ -44,10 +45,45 @@ test('provider manifest metadata rejects missing or malformed loader versions be
   }
   valid.api_layer.api_version='1.1';valid.api_layer.implementation_version='4294967295';await fs.writeFile(file,JSON.stringify(valid));assert.equal((await readProviderManifest(file)).document.api_layer.api_version,'1.1');
 });
-test('supported game hash is mandatory for hooks', async () => {
+test('executable hash is reported while runtime anchors decide hook compatibility', async () => {
   const exe=path.resolve('Le Mans Ultimate.exe');
-  await assert.rejects(validateExecutable(exe,{stat:async()=>({isFile:()=>true}),hash:async()=> 'wrong'}),/supported build/i);
-  assert.equal((await validateExecutable(exe,{stat:async()=>({isFile:()=>true}),hash:async()=>SUPPORTED_HASH})).supported,true);
+  assert.equal((await validateExecutable(exe,{stat:async()=>({isFile:()=>true}),hash:async()=> 'new-build'})).sha256,'new-build');
+  assert.equal((await validateExecutable(exe,{stat:async()=>({isFile:()=>true}),hash:async()=>FIXTURE_HASH})).supported,true);
+});
+
+test('0.5.4 environments isolate and clamp optimizations with local CPU preference',()=>{
+ const settings={...createProfile('lmu').lmuRendering,mode:'quad',cpuUploadReuse:true,cpuUploadBatch:true,cpuOuterReuse:true,outerSsr:true,outerSmoothing:3};
+ const options={parent:{LMU_QV_CPU_AFFINITY:'hostile'},runtimeDir:path.resolve('runtime'),manifestDirectory:path.resolve('run'),preferences:{cpuCacheAffinity:false}};
+ const env=buildEnvironment(settings,options);
+ assert.equal(buildEnvironment(settings,{...options,preferences:{}}).LMU_QV_CPU_AFFINITY,'off');
+ assert.equal(env.LMU_QV_CPU_UPLOAD_BATCH,'1');assert.equal(env.LMU_QV_CPU_UPLOAD_REUSE,'0');assert.equal(env.LMU_QV_CPU_OUTER_REUSE,'0');assert.equal(env.LMU_QV_OUTER_SSR,'1');
+ assert.equal(env.LMU_QV_CPU_AFFINITY,'off');assert.equal(env.LMU_QV_OUTER_BLUR,'0');assert.equal(env.LMU_QV_DIAGNOSTICS,'0');
+ assert.equal(buildEnvironment({...settings,nativeOuterResolution:false},options).LMU_QV_OUTER_SSR,'0');
+ const vrs=buildEnvironment({...settings,mode:'stereoVrs'},{...options,preferences:{cpuCacheAffinity:true}});
+ for(const suffix of ['CPU_UPLOAD_BATCH','CPU_UPLOAD_REUSE','CPU_OUTER_REUSE','OUTER_SSR'])assert.equal(vrs[`LMU_QV_${suffix}`],'0');
+ assert.equal(vrs.LMU_QV_CPU_AFFINITY,'x3d');
+ assert.equal(buildEnvironment(settings,{...options,capture:{directory:'capture',trigger:'request'}}).LMU_QV_DIAGNOSTICS,'1');
+});
+
+test('CPU preference persists only in machine-local installation state',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'og-lmu-cpu-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ const options={dataDir:dir,runtimeDir:path.join(dir,'runtime'),discover:async()=>({executables:[],providers:[]})};
+ const service=createLmuRendering(options);
+ assert.deepEqual(await service.preferences(),{cpuCacheAffinity:false});
+ await assert.rejects(service.setPreferences({cpuCacheAffinity:'false'}),/preference/i);
+ await assert.rejects(service.setPreferences({cpuCacheAffinity:false,unexpected:true}),/preference/i);
+ await service.setPreferences({cpuCacheAffinity:false});
+ assert.deepEqual(await createLmuRendering(options).preferences(),{cpuCacheAffinity:false});
+ await service.setPreferences({cpuCacheAffinity:true});
+ assert.deepEqual(await createLmuRendering(options).preferences(),{cpuCacheAffinity:true});
+ assert.equal((await service.status()).sourceVersion,'0.5.4');
+});
+
+test('existing installation without a CPU preference leaves affinity opt-in',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'og-lmu-cpu-absent-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ await fs.writeFile(path.join(dir,'lmu-installation.json'),JSON.stringify({executable:'',qvfrManifest:''}));
+ const service=createLmuRendering({dataDir:dir,runtimeDir:dir,discover:async()=>({executables:[],providers:[]})});
+ assert.deepEqual(await service.preferences(),{cpuCacheAffinity:false});
 });
 test('QVFR block preserves unrelated content and rejects malformed backup scope', () => {
   const settings=createProfile('lmu').lmuRendering;
@@ -82,7 +118,7 @@ async function launchFixture(t,provider='native',failure=false,verifySignatures=
   await fs.writeFile(path.join(dir,'lmu-installation.json'),JSON.stringify({executable:exe,qvfrManifest:manifest}));
   const qvfrSettingsPath=path.join(dir,'settings.cfg');await fs.writeFile(qvfrSettingsPath,'[exe:unrelated.exe]\nkeep=yes\n');
   const calls=[];
-  const service=createLmuRendering({dataDir:dir,runtimeDir:runtime,qvfrSettingsPath,verifySignatures,discover:async()=>({executables:[],providers:[]}),registered:async()=>[manifest],validateGame:async executable=>({executable,supported:true,sha256:SUPPORTED_HASH}),isAlive:()=>true,spawnProcess:(...args)=>{calls.push(args);const child=new EventEmitter();child.pid=1234;child.unref=()=>{};queueMicrotask(()=>failure?child.emit('error',new Error('fixture spawn failed')):child.emit('spawn'));return child;}});
+  const service=createLmuRendering({dataDir:dir,runtimeDir:runtime,qvfrSettingsPath,verifySignatures,discover:async()=>({executables:[],providers:[]}),registered:async()=>[manifest],validateGame:async executable=>({executable,supported:true,sha256:FIXTURE_HASH}),isAlive:()=>true,spawnProcess:(...args)=>{calls.push(args);const child=new EventEmitter();child.pid=1234;child.unref=()=>{};queueMicrotask(()=>failure?child.emit('error',new Error('fixture spawn failed')):child.emit('spawn'));return child;}});
   const profile=createProfile('lmu');profile.lmuRendering.mode='quad';profile.lmuRendering.provider=provider;
   return {dir,runtime,service,profile,calls,qvfrSettingsPath};
 }
@@ -111,6 +147,7 @@ test('Steam launch forwards the real protected bootstrapper with quad setup and 
  assert.equal(f.calls[0][2].shell,false);
  assert.equal(f.calls[0][2].env.OPENGRIDXR_LMU_INTEGRATED,'1');
  assert.equal(f.calls[0][2].env.LMU_QV_DYNAMIC_FOCUS,'0');
+ assert.equal(f.calls[0][2].env.LMU_QV_CPU_AFFINITY,'off');
  assert.ok(checked.includes(await fs.realpath(bootstrap)));assert.ok(checked.includes(path.join(f.runtime,'OpenGridXR.dll')));
  assert.match(result.message,/EAC/);assert.doesNotMatch(result.message,/started offline/);
  const record=JSON.parse(await fs.readFile(path.join(f.dir,'lmu-runs',result.runId,'run.json'),'utf8'));
@@ -138,6 +175,7 @@ test('launch snapshots configuration, isolates manifests and arms only owned sce
  const f=await launchFixture(t);const result=await f.service.launch(f.profile,{capture:true});
  assert.equal(f.calls.length,1);const [exe,args,options]=f.calls[0];assert.equal(path.basename(exe),'Le Mans Ultimate.exe');assert.deepEqual(args,['+XR']);assert.equal(options.shell,false);
  assert.equal(options.env.DISABLE_CUSTOM_QUAD,'1');assert.equal(options.env.OPENGRIDXR_STATUS_DIR,f.runtime);
+ assert.equal(options.env.LMU_QV_CPU_AFFINITY,'off');
  const snapshot=await fs.readFile(options.env.OPENGRIDXR_CONFIG,'utf8');await fs.writeFile(path.join(f.runtime,'OpenGridXR.ini'),'changed');assert.equal(await fs.readFile(options.env.OPENGRIDXR_CONFIG,'utf8'),snapshot);
  const manifest=JSON.parse(await fs.readFile(path.join(options.env.XR_API_LAYER_PATH,'OpenGridXR.json'),'utf8'));assert.equal(manifest.api_layer.disable_environment,undefined);assert.equal(manifest.api_layer.library_path,path.join(f.runtime,'OpenGridXR.dll'));
  assert.equal((await f.service.captureStatus()).state,'armed');await assert.rejects(f.service.triggerCapture('wrong-run'),/capture/i);

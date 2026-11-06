@@ -1,5 +1,6 @@
 // White-box benchmark integration tests. No game process or graphics device.
 #include "../engine_bridge.cpp"
+#include <fstream>
 #include <cassert>
 #include <iostream>
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "openxr/openxr.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 namespace lmuqv {
@@ -43,18 +44,48 @@ inline bool vrs_gaze_center(const XrView& eye,const XrPosef& gaze,float& x,float
     x=(d.x/-d.z-l)/(r-l);y=(u-d.y/-d.z)/(u-b);
     return std::isfinite(x)&&std::isfinite(y)&&x>=0&&x<=1&&y>=0&&y<=1;
 }
-inline std::vector<unsigned char> vrs_map(unsigned width,unsigned height,const VrsFocus& f){
-    if(!width||!height||width>16384||height>16384)return {};
+// Fills `map` (capacity is reused) and returns false only for unsupported sizes.
+// 0.5.2: the tile test is evaluated per row and per column instead of per tile;
+// the result is identical to the original per-tile expression.
+inline bool vrs_map_into(unsigned width,unsigned height,const VrsFocus& f,std::vector<unsigned char>& map){
+    if(!width||!height||width>16384||height>16384){map.clear();return false;}
     const unsigned cols=(width+15)/16,rows=(height+15)/16;
-    std::vector<unsigned char> map(size_t(cols)*rows,0);
+    map.assign(size_t(cols)*rows,0);
     if(!std::isfinite(f.left)||!std::isfinite(f.top)||!std::isfinite(f.right)||!std::isfinite(f.bottom)||
-       f.left<0||f.top<0||f.right>1||f.bottom>1||f.left>=f.right||f.top>=f.bottom)return map;
-    for(unsigned y=0;y<rows;++y)for(unsigned x=0;x<cols;++x){
-        // Only tiles entirely outside the sharp rectangle may use coarse shading.
-        const bool outside=(x+1)*16<=f.left*width||x*16>=f.right*width||
-                           (y+1)*16<=f.top*height||y*16>=f.bottom*height;
-        map[size_t(y)*cols+x]=outside?1:0;
+       f.left<0||f.top<0||f.right>1||f.bottom>1||f.left>=f.right||f.top>=f.bottom)return true;
+    // Only tiles entirely outside the sharp rectangle may use coarse shading.
+    const float left=f.left*width,right=f.right*width,top=f.top*height,bottom=f.bottom*height;
+    for(unsigned y=0;y<rows;++y){
+        auto* row=map.data()+size_t(y)*cols;
+        if((y+1)*16<=top||y*16>=bottom){std::fill(row,row+cols,static_cast<unsigned char>(1));continue;}
+        for(unsigned x=0;x<cols;++x)row[x]=((x+1)*16<=left||x*16>=right)?1:0;
     }
-    return map;
+    return true;
 }
+inline std::vector<unsigned char> vrs_map(unsigned width,unsigned height,const VrsFocus& f){
+    std::vector<unsigned char> map;vrs_map_into(width,height,f,map);return map;
+}
+// 0.5.2: one shading-rate map per eye. The map is regenerated only when that
+// eye's focus changes and an upload is requested only when its tiles change, so
+// a fixed focus or a steady gaze costs no per-frame CPU work or GPU upload.
+class VrsEyeMapCache {
+    std::array<VrsFocus,2> focus_{};std::array<bool,2> valid_{};
+    std::array<std::vector<unsigned char>,2> maps_;std::vector<unsigned char> scratch_;
+    unsigned width_=0,height_=0;
+    static bool same(const VrsFocus& a,const VrsFocus& b){return a.left==b.left&&a.top==b.top&&a.right==b.right&&a.bottom==b.bottom;}
+public:
+    enum class Result{Invalid,Unchanged,Upload};
+    void reset(unsigned width,unsigned height){width_=width;height_=height;valid_={};for(auto& map:maps_)map.clear();}
+    Result update(unsigned eye,const VrsFocus& focus){
+        if(eye>1||!width_||!height_)return Result::Invalid;
+        if(valid_[eye]&&same(focus,focus_[eye]))return Result::Unchanged;
+        if(!vrs_map_into(width_,height_,focus,scratch_))return Result::Invalid;
+        focus_[eye]=focus;
+        if(valid_[eye]&&scratch_==maps_[eye])return Result::Unchanged;
+        maps_[eye].swap(scratch_);valid_[eye]=true;return Result::Upload;
+    }
+    // Call when an upload requested by update() did not happen.
+    void invalidate(unsigned eye){if(eye<=1)valid_[eye]=false;}
+    const std::vector<unsigned char>& map(unsigned eye)const{return maps_[eye>1?0:eye];}
+};
 }

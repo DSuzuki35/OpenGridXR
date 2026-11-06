@@ -48,6 +48,8 @@ OuterTarget xr_outer_target(unsigned eye);
 void xr_scene_focus_complete(unsigned eye);
 void log_line(const char* message);
 void flush_log();
+// Explicit teardown only, outside the XR state lock; drains the writer thread.
+void stop_log();
 
 // Engine side, called after successful xrCreateSession and before xrDestroySession.
 // No hook in trace mode. Never patch on unrecognized executable/build.

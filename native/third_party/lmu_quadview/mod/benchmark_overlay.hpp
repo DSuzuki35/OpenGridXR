@@ -54,7 +54,9 @@ public:
  bool update=sequence!=bitmapSequence_&&!(sequence&1)&&sequence!=0;
  int32_t width=h.bitmapWidth,height=h.bitmapHeight;
  if(update){if(width<=0||height<=0||width>int32_t(MaxWidth)||height>int32_t(MaxHeight)){fail(XR_ERROR_VALIDATION_FAILURE);return nullptr;}
- std::memcpy(bitmap_.get(),shared.bitmap,size_t(width)*height*4);MemoryBarrier();if(sequence_load(h.bitmapSequence)!=sequence)update=false;}
+ std::memcpy(bitmap_.get(),shared.bitmap,size_t(width)*height*4);MemoryBarrier();
+ // 0.3.6: the dimensions must also be unchanged after the copy, not only the sequence.
+ if(sequence_load(h.bitmapSequence)!=sequence||h.bitmapWidth!=width||h.bitmapHeight!=height)update=false;}
  if(update){
  // A failed release is retried before touching the image again; ownership is retained.
  if(acquired_&&waited_&&!retire())return nullptr;

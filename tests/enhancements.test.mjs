@@ -16,7 +16,7 @@ test('saved native LMU startup settings match the active profile and respect mod
   const doc=createDocument(),p=doc.profiles.find(p=>p.game==='lmu');
   p.lmuRendering={...p.lmuRendering,mode:'quad',provider:'qvfr',focusOffsetY:-50,outerSmoothing:3,debugFocus:true};
   const ini=runtimeConfig.toRuntimeIni(doc).split('[lmu]')[1];
-  for(const line of ['LmuMode=quad','LmuProvider=qvfr','LmuOffsetY=-50','LmuSmoothing=3','LmuDebugFocus=1'])assert.ok(ini.includes(line));
+  for(const line of ['LmuMode=quad','LmuProvider=qvfr','LmuOffsetY=-50','LmuSmoothing=0','LmuDebugFocus=1'])assert.ok(ini.includes(line));
   assert.doesNotMatch(runtimeConfig.toRuntimeIni(doc).split('[lmu]')[0],/LmuMode=/);
   const disabled=runtimeConfig.toRuntimeIni(effectiveDocument(doc,{...moduleDefaults(),lmuRendering:false}));
   assert.match(disabled,/LmuMode=off/);

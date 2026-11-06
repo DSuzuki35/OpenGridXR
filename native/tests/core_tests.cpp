@@ -135,6 +135,14 @@ int main() {
                          ("OpenGridXR-stream-settings-" + std::to_string(GetCurrentProcessId()) + ".ini");
         { std::ofstream out(ini); out << "[iracing]\nMode=streaming\nMirror=1\n"; }
         auto parsed = og::read_config(ini.wstring(), "iracing");
+        check(!parsed.lmu.cpuCacheAffinity&&!parsed.lmu.cpuUploadReuse&&!parsed.lmu.cpuUploadBatch&&!parsed.lmu.cpuOuterReuse&&!parsed.lmu.outerSsr,"absent LMU settings leave CPU affinity and experiments off");
+        { std::ofstream out(ini);out << "[lmu]\nLmuMode=quad\n"; }
+        check(!og::read_config(ini.wstring(),"lmu").lmu.cpuCacheAffinity,"LMU INI without affinity preference stays opt-in");
+        { std::ofstream out(ini);out << "[lmu]\nLmuCpuCacheAffinity=1\n"; }
+        check(og::read_config(ini.wstring(),"lmu").lmu.cpuCacheAffinity,"explicit LMU affinity opt-in is preserved");
+        { std::ofstream out(ini);out << "[lmu]\nLmuMode=quad\nLmuCpuUploadReuse=1\nLmuCpuUploadBatch=1\nLmuCpuOuterReuse=1\nLmuOuterSsr=1\nLmuCpuCacheAffinity=0\nLmuSmoothing=3\n"; }
+        const auto lmuConfig=og::read_config(ini.wstring(),"lmu");
+        check(lmuConfig.lmu.cpuUploadReuse&&lmuConfig.lmu.cpuUploadBatch&&lmuConfig.lmu.cpuOuterReuse&&lmuConfig.lmu.outerSsr&&!lmuConfig.lmu.cpuCacheAffinity,"LMU optimization and local CPU preference parse independently");
         check(parsed.mirrorLimit == -1 && !parsed.adaptiveHorizon && parsed.pitchLock == 0,
               "old INI keeps unlimited mirror and disabled new stabilization");
         { std::ofstream out(ini); out << "[iracing]\nMirror=1\nMirrorLimit=-1\n"; }

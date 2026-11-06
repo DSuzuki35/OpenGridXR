@@ -4,6 +4,16 @@ import {createProfile} from '../src/model.mjs';
 import {toEnhancementsConfig,toRuntimeIni} from '../desktop/runtime-config.cjs';
 import {sessionState} from '../desktop/runtime.cjs';
 
+test('automatic runtime INI carries optimizations and separate machine CPU preference',()=>{
+ const p=createProfile('lmu');p.lmuRendering={...p.lmuRendering,mode:'quad',cpuUploadReuse:true,cpuOuterReuse:true,outerSsr:true,outerSmoothing:3};
+ const doc={profiles:[p],selectedProfileId:p.id};
+ const ini=toRuntimeIni(doc,{lmuPreferences:{cpuCacheAffinity:false}});
+ for(const line of ['LmuCpuUploadReuse=1','LmuCpuUploadBatch=0','LmuCpuOuterReuse=1','LmuOuterSsr=1','LmuCpuCacheAffinity=0','LmuSmoothing=0'])assert.ok(ini.includes(line),line);
+ assert.match(toRuntimeIni(doc),/LmuCpuCacheAffinity=0/);
+ assert.match(toRuntimeIni(doc,{lmuPreferences:{cpuCacheAffinity:true}}),/LmuCpuCacheAffinity=1/);
+ assert.equal(p.lmuRendering.cpuCacheAffinity,undefined);
+});
+
 test('embedded QuadView is selected only for LMU VectorXR and forces engine availability',()=>{
  const p=createProfile('lmu'); p.framegen.enabled=false;p.overlay.enabled=false;p.helmet.enabled=false;p.spatialOverlays.enabled=false;
  p.lmuRendering={mode:'quad',provider:'vectorxr',gaze:'fixed',peripheralScale:25,focusScale:250,focusWidth:46,focusHeight:47};

@@ -10,6 +10,17 @@ function Get-LmuVersion {
     return $version
 }
 
+function Find-LmuVrsDiagnostic([string]$RepositoryRoot) {
+    $version = Get-LmuVersion
+    foreach ($candidate in @('mod/build/msvc/nv_vrs_hardware_test.exe','mod/build/tests/nv_vrs_hardware_test.exe','mod/build/nv_vrs_hardware_test.exe')) {
+        $path = Join-Path $RepositoryRoot $candidate
+        if (!(Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+        $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($path)
+        if ($metadata.ProductVersion -ceq $version -and $metadata.FileVersion -ceq ($version + '.0')) { return $candidate }
+    }
+    throw "Build the VRS hardware diagnostic for VERSION ($version) before signing or packaging."
+}
+
 function Write-LmuVersionFiles([string]$OutputDirectory) {
     $version = Get-LmuVersion
     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null

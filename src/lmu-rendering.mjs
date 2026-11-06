@@ -1,7 +1,8 @@
 export const lmuRenderingDefaults = () => ({
   mode:'off', provider:'native', gaze:'auto', peripheralScale:25, focusScale:100,
   focusWidth:50, focusHeight:50, focusOffsetX:0, focusOffsetY:0,
-  peripheralShadingRate:2, nativeOuterResolution:true, outerSmoothing:0, debugFocus:false,
+  peripheralShadingRate:2, nativeOuterResolution:true, debugFocus:false,
+  cpuUploadReuse:false, cpuUploadBatch:false, cpuOuterReuse:false, outerSsr:false,
 });
 const constrainedQuad = value => value.mode==='quad'&&['qvfr','vectorxr'].includes(value.provider);
 const fitsFocus = value => value.peripheralScale<=value.focusScale*Math.min(value.focusWidth,value.focusHeight)/100;
@@ -26,6 +27,12 @@ export function lmuRenderingLimits(value) {
 }
 export function updateLmuRendering(value,patch) {
   const next={...value,...patch};
+  delete next.outerSmoothing;
+  if(patch.cpuUploadBatch===true){next.cpuUploadReuse=false;next.cpuOuterReuse=false;}
+  if(patch.cpuUploadReuse===true||patch.cpuOuterReuse===true)next.cpuUploadBatch=false;
+  if(patch.cpuOuterReuse===true)next.cpuUploadReuse=true;
+  if(patch.cpuUploadReuse===false)next.cpuOuterReuse=false;
+  if(next.nativeOuterResolution===false)next.outerSsr=false;
   if(!constrainedQuad(next))return next;
   if(Object.hasOwn(patch,'mode')||Object.hasOwn(patch,'provider')){
     if(fitsFocus(next))return next;
@@ -45,13 +52,15 @@ export function validateLmuRendering(value, game='lmu') {
   if(value===undefined)return;
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid LMU rendering settings.');
   const defaults=lmuRenderingDefaults();
-  for(const key of Object.keys(value))if(!Object.hasOwn(defaults,key))throw new Error(`Unsupported LMU rendering setting: ${key}.`);
+  for(const key of Object.keys(value))if(key!=='outerSmoothing'&&!Object.hasOwn(defaults,key))throw new Error(`Unsupported LMU rendering setting: ${key}.`);
   for(const [key,choices] of Object.entries({mode:['off','quad','stereoVrs'],provider:['native','qvfr','vectorxr'],gaze:['auto','fixed'],peripheralShadingRate:[1,2,4]}))
     if(!choices.includes(value[key]))throw new Error(`Unsupported LMU ${key}.`);
   if(game!=='lmu'&&value.mode!=='off')throw new Error('Quad views and stereo VRS require an LMU profile.');
-  for(const [key,min,max] of [['peripheralScale',10,400],['focusScale',25,400],['focusWidth',10,90],['focusHeight',10,90],['focusOffsetX',-50,50],['focusOffsetY',-50,50],['outerSmoothing',0,3]])
+  for(const [key,min,max] of [['peripheralScale',10,400],['focusScale',25,400],['focusWidth',10,90],['focusHeight',10,90],['focusOffsetX',-50,50],['focusOffsetY',-50,50]])
     if(!Number.isFinite(value[key])||value[key]<min||value[key]>max)throw new Error(`LMU ${key} must be between ${min} and ${max}.`);
   for(const key of ['nativeOuterResolution','debugFocus'])if(typeof value[key]!=='boolean')throw new Error(`LMU ${key} must be true or false.`);
+  for(const key of ['cpuUploadReuse','cpuUploadBatch','cpuOuterReuse','outerSsr'])if(value[key]!==undefined&&typeof value[key]!=='boolean')throw new Error(`LMU ${key} must be true or false.`);
+  if(value.outerSmoothing!==undefined&&(!Number.isFinite(value.outerSmoothing)||value.outerSmoothing<0||value.outerSmoothing>3))throw new Error('Invalid legacy LMU outerSmoothing.');
   if(constrainedQuad(value)&&!fitsFocus(value))
     throw new Error(`${value.provider==='qvfr'?'QVFR':'VectorXR'} outer image must fit inside the focus buffer. Reduce peripheral scale or increase focus scale / width / height.`);
 }

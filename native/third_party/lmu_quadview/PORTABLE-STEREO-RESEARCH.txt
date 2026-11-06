@@ -1,0 +1,193 @@
+PORTABLE STEREO PROTOTYPE 5
+
+STATUS
+
+This build includes an opt-in CPU upload-reuse prototype and a separate paired
+rendering checker. Full LMU single-pass stereo / shared native CPU preparation is
+not yet enabled. No live-game CPU/FPS improvement is claimed.
+
+FIRST TEST: CPU UPLOAD REUSE
+
+Enable Experimental CPU upload reuse in Setup. Enable diagnostics and render
+profiling for the measured trial; leave stereo draw audit and paired tests off.
+Keep the same provider/runtime/rendering settings. Press Ctrl+Alt+F9 on track and
+close normally when finished. The profile and cpu_upload_reuse summary in the
+native log are saved. See CPU-UPLOAD-REUSE.md for its scope, guards and A/B checks.
+
+The optimization retains all native draws, matrices and binding operations. It
+filters only byte-identical dirty uploads within a single focused opaque group.
+It remains active with diagnostics disabled; optional counters/logs then stop.
+All new options default off. Disable CPU upload reuse and relaunch for rollback.
+
+PAIRED RENDERING CHECKER
+
+This runs one matching opaque LMU object pair into private color/depth arrays,
+using converted vertex/pixel shaders, GPU snapshots of per-eye constant buffers
+and a standard D3D11 routing path. It compares one paired draw with two original
+reference draws. Native game draws remain enabled; the checker does not change
+submitted eye images or provide a performance gain. It can cause a visible hitch.
+
+To use it, enable diagnostics, stereo draw audit, and Test paired rendering.
+Leave render profiling OFF to keep these compatibility tests separate. Load a
+track and press/release Ctrl+Alt+F8 once. The JSON and log include stereo_pair_proof
+status, coverage and differing-pixel/depth counts. No images or buffer contents
+are saved. Shader-program export is optional and remains a separate checkbox.
+Two explicitly checked opaque pixel-shader variants are accepted with the initial
+vertex shader. The second variant was present in both eyes of the latest runs;
+the original variant was absent or visible only in the right eye. Other shaders
+are still excluded. Candidate, rejected-shader and eligible-eye counts are saved.
+Nonmatching material,
+geometry, pipeline or ANY of the 128 VS/PS texture slots refuses the pair.
+Current source checks only samplers declared by the converted VS/PS; undeclared
+or dynamically indexed sampler operands are refused during conversion. Stale
+unused sampler bindings may differ. The masks are recorded in used_sampler_masks.
+The archived prototype 5 package predates this sampler-check refinement.
+Occlusion, statistics, counters and unknown query types prevent replay. Only
+timestamp-disjoint timing scopes may contain these extra private draws. Query
+type masks and timing overlaps are recorded; GPU timings spanning the test include
+its extra work and must not be used for performance comparisons. Incomplete
+device interception and unsupported states also prevent replay. A pair must come
+from the same scene frame, including when the second sampled frame is used.
+Reference and paired targets use the native depth/stencil format and preserve
+the native depth state and DSV flags. Each eye's input depth/stencil subresource
+is copied on the GPU before its game draw, then used to seed BOTH private paths.
+This supports depth-equal/no-write shading after a depth prepass, reversed depth,
+disabled depth, stencil operations and read-only views without changing the
+game's state. D16, D24/S8, D32 and D32/S8 formats are supported at single sample;
+mip-zero 2D views and individual array slices must match the color dimensions.
+The native state and formats, snapshot submission, stencil differences and
+coverage method are saved in the JSON. `covered` now counts passed samples from
+private occlusion queries (not pixels whose depth is below 1). Paired samples
+must equal the two reference counts combined; near-zero coverage is inconclusive.
+Detailed refusal messages identify different resource slots or pipeline states.
+Color inputs and other source textures are retained rather than deep-copied.
+Texture-content changes can fail the sampled comparison. A passing
+sample is not permission to share CPU data or resources in later frames.
+
+Tests exercise all four depth formats with LESS, EQUAL/no-write, GREATER,
+read-only views, disabled depth, stencil updates and fully occluded draws; plain
+2D and nonzero array slices are covered. They overwrite the source depth between
+eyes and verify native color/depth/stencil remain unchanged by the checker.
+WARP and RTX 4080 tests passed. Optional --debug validation requires the Windows
+D3D11 debug layer, which was unavailable on the local development system.
+
+LIVE PROTOTYPE 5 RESULT (2026-10-31)
+
+One sampled opaque object passed the private comparison using instanced VPRT:
+1352x1734 per eye, 535,280 and 565,315 reference samples, 1,100,595 paired samples.
+Color matched within the declared tolerance (maximum error 0.0000610352); depth
+matched exactly. The native mode was D32, GREATER comparison, depth writes on.
+Another capture refused an unused PS sampler s8 difference; source now derives
+sampler masks from the actual bytecode declarations, keeping used-slot checks.
+This validates one sampled object. A full paired game pass, shared native CPU
+preparation, released-image scheduling and a measured CPU saving remain pending.
+
+Native preparation IDs/timing are now recorded through an independently verified
+per-mesh hook. Pointer identities are anonymized; no game object names are read.
+The timings include diagnostic overhead and are not performance benchmarks.
+
+CHANGES AFTER THE FIRST LIVE CAPTURE
+
+The first captures completed but filled the 1,024-object shader cache. Many of
+those objects contained identical programs (96 unique programs in 1,024 objects).
+This build shares reflection/optional bytecode by stage and SHA256, and keeps up
+to 32,768 object aliases and 8,192 unique programs. Reflection and optional raw
+program storage are bounded to 16 MiB and 64 MiB respectively. Cache overflow
+is reported. Only definitions used by the sampled draws are written to JSON.
+
+Input-layout/shader creation is now observed from main-executable D3D11 device
+creation after XR instance initialization, rather than waiting for xrCreateSession.
+Runtime/provider helper devices are ignored. Session confirmation preserves the
+early metadata when its immediate context matches. This cannot recover definitions
+created before interception, or guarantee coverage if device creation comes from
+another DLL. The log and metadata_cache.early_device report early interception.
+
+An optional, default-off shader-program capture supplies actual DXBC for local
+conversion work. It only exports unique programs used by the sampled focus views;
+the rest of the startup shader cache stays in memory. It is disabled when either
+the draw audit or master diagnostics is off. These files are never packaged or
+included in source contributions. Existing files are reused only if their SHA and
+size match, and are never overwritten.
+
+GAME DRAW AUDIT
+
+1. Extract the whole research ZIP into a separate writable folder. Keep the
+   working candidate 5 package as rollback. Use the same provider/runtime setup.
+2. In Setup, enable diagnostics and logging, and tick:
+       Record stereo draw audit (Ctrl+Alt+F8)
+   Leave ordinary render profiling unticked for this diagnostic run.
+   Optionally enable Test paired rendering to exercise the paired checker above.
+   For the first LMU pass conversion, also tick:
+       Include shader programs for stereo conversion
+   This saves local game program files as described below.
+3. Launch LMU, load a track and wait until the scene/shaders have warmed up.
+4. Keep LMU focused on the desktop. Press and release Ctrl+Alt+F8 once while
+   driving or viewing a stable replay segment. Two scene frames are recorded.
+   This capture reads substantial D3D state and can cause a noticeable hitch.
+5. Close LMU normally. Look in this package's logs/ for stereo-audit-*.json,
+   quad-*.log and its matching *-run.json. The log should contain:
+       portable_stereo capabilities ...
+       stereo_audit armed ...
+       stereo_audit complete reason=frames frames=2 ...
+   Normal close saves a partial capture too, including other-thread teardown.
+   If shader capture was enabled, keep logs/stereo-shaders/ alongside the JSON.
+6. Untick the draw audit and relaunch before ordinary play or FPS comparisons.
+   Audit hooks add overhead while armed. These are compatibility diagnostics,
+   not timings suitable for measuring an optimization's performance.
+
+The shortcut can record another segment in the same session after releasing the
+key. Pressing it again during a capture saves early. A ten-second timeout ends
+a capture that cannot collect two scene frames, provided XR frames continue.
+At most 4,096 draws per view per sampled frame are retained; overflow is reported.
+The master diagnostics checkbox overrides the saved audit-on preference.
+
+CAPTURE CONTENTS AND LIMITATIONS
+
+The JSON includes draw types/arguments, native render-group IDs, shader IDs and
+SHA256 hashes, available shader reflection metadata, input layouts, vertex/index
+signatures, VS/PS constant-buffer bindings with observed write generations,
+render-target dimensions, and first-16-slot PS texture/sampler signatures.
+It records snapshot overhead separately from original draw-API wall intervals.
+
+The JSON contains no raw game shader bytecode, mapped-buffer content, image dump
+or system identity. If explicitly enabled, separate local .dxbc files contain
+the game's compiled shader programs and can contain embedded compilation metadata.
+They are development inputs, not redistributable mod source; keep them out of
+GitHub. The repository ignores .dxbc files and stereo-shaders folders. This option
+does not upload anything. Shader definitions created before audit hooks may
+be unavailable. Mapped WRITE memory is never read. Resource IDs/write generations
+are not content hashes, and matching signatures do not prove common object
+identity or stereo replay safety. Other shader-stage resources, GPU RT/UAV writes,
+worker contexts and Context1 update variants need further dependency analysis.
+Command-list execution advances a conservative resource epoch. Indirect draw
+arguments are not read back. Partial scopes and truncated records are explicit.
+
+Optional local summary with Python 3:
+    python tools/analyze_stereo_audit.py logs/stereo-audit-<capture>.json
+
+The original focus draw calls are all forwarded. The native build/ABI guards,
+provider configuration and existing image acquisition/release behavior remain.
+Diagnostic JSON and run files stay out of source commits.
+
+Tests cover real device-factory interception, keeping pre-session input layouts,
+more than 1,024 distinct programs, shared program definitions, used-only output,
+optional local DXBC export/reuse, diagnostics-off, and cross-thread normal close.
+
+HARDWARE PROOF TOOL
+
+Run tools/check-hardware-stereo.cmd to exercise the standalone proof on the
+default hardware adapter. It creates its own offscreen D3D11 device, does not
+attach to LMU, and saves tools/hardware-stereo-check.log. No headset is needed.
+The equivalent console command is:
+    tools/PortableStereoCheck.exe --hardware
+
+Tests compare one paired draw with two reference eye draws, including asymmetric
+views, parallax, near/far depth occlusion, array-slice copy-out, existing instances,
+nonzero IA base-instance offsets and adapted instance-data step rates. Both direct
+array routing and the geometry fallback run when supported. The default tool
+without --hardware tests Microsoft's WARP software device instead.
+
+WARP and an NVIDIA RTX 4080 passed locally. The design is vendor-neutral; actual
+AMD/Intel driver compatibility/performance still needs real-device testing.
+Any first LMU pass conversion follows this audit and must preserve per-eye
+constants, history, visibility and resource lifetimes before enabling paired draws.

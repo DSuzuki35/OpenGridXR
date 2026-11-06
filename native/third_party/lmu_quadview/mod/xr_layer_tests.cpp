@@ -5,6 +5,7 @@
 #include "xr_capture.hpp"
 #include "xr_sizes.hpp"
 #include "render_profile.hpp"
+#include "async_log.hpp"
 #include <thread>
 #include <cmath>
 #include <cassert>
@@ -53,7 +54,7 @@ bool typedSrgbRuntime=false;
 bool sampledInputsRequested=false,rejectSampledInputs=false;
 bool profileOnCloseRequested=false,profileCloseOtherThread=false,profileMenuFrames=false;
 unsigned sampledAttempts=0,sampledAccepted=0;
-bool dynamicRequested=false;
+bool legacyDynamicRequested=false;
 double focusBoxPercent=100;
 double focusHeightPercent=100;
 double focusOffsetX=0,focusOffsetY=0;
@@ -85,8 +86,37 @@ std::filesystem::path testBuildRoot() {
     return std::filesystem::path(executable).parent_path();
 }
 std::string currentLog() {
+    // Test-only barrier: production flush_log is deliberately asynchronous.
+    // The service can restart when the next adapter message is queued.
+    lmuqv::stop_log();
     std::ifstream input(testBuildRoot()/"xr-layer-test-trace.log");
     return {std::istreambuf_iterator<char>(input),std::istreambuf_iterator<char>()};
+}
+bool traceLogsAccountedFor(const std::string& text,const lmuqv::AsyncLogStats& before,const lmuqv::AsyncLogStats& after) {
+    unsigned missing=0;
+    for(const char* marker:{"xrBeginFrame mode=trace frame=1","xrLocateViews mode=trace frame=1","xrEndFrame mode=trace frame=1"})
+        if(text.find(marker)==std::string::npos)++missing;
+    // Only intentional bounded-queue losses during this frame can explain a
+    // missing marker. Earlier drops, pending writes and sink failures cannot.
+    return after.accepted==after.written&&after.writeFailures==0&&after.flushFailures==0&&
+        after.truncated==before.truncated&&after.droppedStopped==before.droppedStopped&&
+        after.droppedUnavailable==before.droppedUnavailable&&
+        after.droppedContention>=before.droppedContention&&after.droppedOverflow>=before.droppedOverflow&&
+        missing<=after.droppedContention-before.droppedContention+after.droppedOverflow-before.droppedOverflow;
+}
+void traceLogAccountingTests() {
+    const std::string complete="xrBeginFrame mode=trace frame=1\nxrLocateViews mode=trace frame=1\nxrEndFrame mode=trace frame=1\n";
+    const std::string missingLocate="xrBeginFrame mode=trace frame=1\nxrEndFrame mode=trace frame=1\n";
+    lmuqv::AsyncLogStats before{},after{};before.droppedContention=after.droppedContention=7;
+    assert(traceLogsAccountedFor(complete,before,after));
+    assert(!traceLogsAccountedFor(missingLocate,before,after)); // Old drops do not excuse a missing call.
+    ++after.droppedContention;
+    assert(traceLogsAccountedFor(missingLocate,before,after));
+    assert(!traceLogsAccountedFor("",before,after)); // One drop cannot explain three missing calls.
+    ++after.accepted;
+    assert(!traceLogsAccountedFor(complete,before,after)); // Drain is mandatory even with every marker present.
+    ++after.written;++after.writeFailures;
+    assert(!traceLogsAccountedFor(complete,before,after));
 }
 XrResult waitSwapchainResult=XR_SUCCESS;
 XrTime runtimeTime=123;
@@ -286,9 +316,6 @@ XrResult XRAPI_CALL release(XrSwapchain chain,const XrSwapchainImageReleaseInfo*
         if(runtimeSettings&&(ordinal==1||ordinal==2)){
             const unsigned fraction=ordinal==1?(runtimeTime==701?4:6):(runtimeTime==701?6:2);
             x=debugDesc.Width*fraction/16+1;
-            // At 80% span, each side moves inward by 5% of outer width;
-            // the 2.3% focus inset adds .0092 of outer width.
-            if(dynamicRequested)x=unsigned(debugDesc.Width*(fraction/16.0+.0592));
         }
         if(ordinal==1||ordinal==2)x+=unsigned(debugDesc.Width*focusOffsetX/100);
         auto border=texturePixel(textures[ordinal],x,debugDesc.Height/2);
@@ -301,7 +328,7 @@ XrResult XRAPI_CALL release(XrSwapchain chain,const XrSwapchainImageReleaseInfo*
         if(runtimeSettings&&(ordinal==1||ordinal==2)){
             // Runtime vertical tangent extent is +/- .5; outer extent is +/- 1.
             // 2.3% inset lands in row 16/29/33 at heights 64/112/128.
-            const unsigned topRow=(dynamicRequested?unsigned(debugDesc.Height*.3092):(debugDesc.Height==64?16:debugDesc.Height==112?29:33))+unsigned(debugDesc.Height*(-focusOffsetY)/100);
+            const unsigned topRow=(debugDesc.Height==64?16:debugDesc.Height==112?29:33)+unsigned(debugDesc.Height*(-focusOffsetY)/100);
             auto top=texturePixel(textures[ordinal],interior,topRow);
             assert(((top>>8)&255)==255&&((top>>16)&255)==0&&(top&255)>80);
         }
@@ -488,6 +515,7 @@ XrResult XRAPI_CALL create(const XrInstanceCreateInfo* info, const XrApiLayerCre
 int main(int argc,char** argv) {
     bool diagnosticsOff=false;for(int arg=1;arg<argc;++arg)diagnosticsOff|=!std::strcmp(argv[arg],"--diagnostics-off");
     if(diagnosticsOff)SetEnvironmentVariableA("LMU_QV_DIAGNOSTICS","0");
+    traceLogAccountingTests();
     outputSizeTests();
     captureBmpTests();
     const auto logPath=testBuildRoot()/L"xr-layer-test-trace.log";
@@ -498,7 +526,7 @@ int main(int argc,char** argv) {
         profileOnCloseRequested|=!std::strcmp(argv[arg],"--profile-on-close");
         profileMenuFrames|=!std::strcmp(argv[arg],"--profile-menu-frames");
         profileCloseOtherThread|=!std::strcmp(argv[arg],"--profile-close-other-thread");
-        dynamicRequested|=!std::strcmp(argv[arg],"--dynamic-focus");
+        legacyDynamicRequested|=!std::strcmp(argv[arg],"--legacy-dynamic-env");
         sampledInputsRequested|=!std::strcmp(argv[arg],"--sampled-inputs");
         rejectSampledInputs|=!std::strcmp(argv[arg],"--reject-sampled-inputs");
         outerBlurRequested|=!std::strcmp(argv[arg],"--outer-blur");
@@ -568,10 +596,9 @@ int main(int argc,char** argv) {
         SetEnvironmentVariableA("LMU_QV_FOCUS_PIXELS_PERCENT","200");
         focusBoxPercent=focusHeightPercent=100;
     }
-    SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS",dynamicRequested?"1":nullptr);
+    SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS",legacyDynamicRequested?"1":nullptr);
     SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS_MIN","80");
     SetEnvironmentVariableA("LMU_QV_DYNAMIC_FOCUS_MAX","80");
-    if(dynamicRequested)focusBoxPercent=focusHeightPercent=80;
     XrNegotiateLoaderInfo loader{XR_LOADER_INTERFACE_STRUCT_LOADER_INFO,1,sizeof(XrNegotiateLoaderInfo),1,1,XR_MAKE_VERSION(1,0,0),XR_CURRENT_API_VERSION};
     XrNegotiateApiLayerRequest req{};
     req.structType=XR_LOADER_INTERFACE_STRUCT_API_LAYER_REQUEST;req.structVersion=1;req.structSize=sizeof(req);
@@ -712,11 +739,11 @@ int main(int argc,char** argv) {
         XrView engineViews[4]{};assert(!lmuqv::xr_frame_views(engineViews));
     };
     begin();finish();assert(submittedLayers==0&&submittedViews==0);
-    begin();assert(!lmuqv::xr_copy_outer(0,wrongSize));finish();assert(submittedLayers==0&&acquireCount==0);
+    begin();assert(!lmuqv::xr_copy_outer(0,wrongSize));finish();assert(submittedLayers==0&&acquireCount==successfulReleases);
     if(scaledRequested||outerBlurRequested){
         auto noSampleDesc=sourceDesc;noSampleDesc.Width=32;noSampleDesc.BindFlags&=~D3D11_BIND_SHADER_RESOURCE;
         ID3D11Texture2D* noSample=nullptr;assert(SUCCEEDED(device->CreateTexture2D(&noSampleDesc,nullptr,&noSample)));
-        begin();assert(!lmuqv::xr_copy_outer(0,noSample));finish();assert(submittedLayers==0&&acquireCount==0);noSample->Release();
+        begin();assert(!lmuqv::xr_copy_outer(0,noSample));finish();assert(submittedLayers==0&&acquireCount==successfulReleases);noSample->Release();
     }
     auto checkOuterTarget=[&](unsigned eye,bool available){
         const auto target=lmuqv::xr_outer_target(eye);
@@ -731,22 +758,24 @@ int main(int argc,char** argv) {
         texture->Release();resource->Release();
     };
     checkOuterTarget(0,false);checkOuterTarget(1,false);checkOuterTarget(2,false);
-    begin();assert(lmuqv::xr_copy_outer(0,source));assert(releaseCount==0);assert(lmuqv::xr_outer_rtv(0));
+    const auto partialReleaseBase=releaseCount;
+    begin();assert(lmuqv::xr_copy_outer(0,source));assert(releaseCount==partialReleaseBase);assert(lmuqv::xr_outer_rtv(0));
     checkOuterTarget(0,true);checkOuterTarget(1,false);
     D3D11_RENDER_TARGET_VIEW_DESC outerView{};lmuqv::xr_outer_rtv(0)->GetDesc(&outerView);
     assert(outerView.Format==(typedSrgbRuntime?DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:DXGI_FORMAT_R8G8B8A8_UNORM));
     assertRenderPixels(0);
-    finish();assert(submittedLayers==0&&releaseCount==1);
+    finish();assert(submittedLayers==0&&releaseCount==partialReleaseBase+2);
     assertPaddedPixels(0);
     assert(!lmuqv::xr_outer_rtv(0));
     checkOuterTarget(0,false);
     frameCalls.clear();
-    begin();assert(lmuqv::xr_copy_outer(0,source));assert(lmuqv::xr_copy_outer(1,source));assert(releaseCount==1);
+    const auto completeReleaseBase=releaseCount;
+    begin();assert(lmuqv::xr_copy_outer(0,source));assert(lmuqv::xr_copy_outer(1,source));assert(releaseCount==completeReleaseBase);
     checkOuterTarget(0,true);checkOuterTarget(1,true);
     finish();assert(submittedLayers==1&&submittedViews==4);checkOuterTarget(0,false);checkOuterTarget(1,false);
     assert(frameCalls=="WBLE"); // LMU 5cb94b -> 5cb96b -> 5cba9c -> render -> 5cb6a2.
     runtimeShouldRender=false;begin();assert(!lmuqv::xr_copy_outer(0,source));finish();assert(submittedLayers==0);
-    assert(acquireCount==3&&releaseCount==3);
+    assert(acquireCount==successfulReleases&&releaseCount==successfulReleases);
     runtimeShouldRender=true;
     begin();assert(lmuqv::xr_copy_outer(0,source));assert(lmuqv::xr_copy_outer(1,source));
     // The next WaitFrame is permitted while current-frame engine/UI work remains active.
@@ -770,6 +799,24 @@ int main(int argc,char** argv) {
         assert(reinterpret_cast<PFN_xrReleaseSwapchainImage>(load("xrReleaseSwapchainImage"))(appChain,&ri)==XR_SUCCESS);
     }
     finish();assert(frameCalls=="WBLE"&&submittedViews==4&&acquireCount==successfulReleases);
+    if(runtimeSettings){
+        // Pimax report: the app delays Begin until after rendering/releasing.
+        // Exercise real D3D outer copies; the app Begin must not erase them.
+        frameCalls.clear();XrFrameState fs{XR_TYPE_FRAME_STATE};
+        assert(reinterpret_cast<PFN_xrWaitFrame>(load("xrWaitFrame"))(session,nullptr,&fs)==XR_SUCCESS);
+        li.displayTime=fs.predictedDisplayTime;
+        assert(locateViews(session,&li,&state,2,&count,located.views)==XR_SUCCESS);
+        assert(frameCalls=="WLB"); // Normalized before returning to engine rendering.
+        XrFovf full[2]{};assert(lmuqv::xr_frame_full_outer_fov(full));
+        XrView rendered[4]{};assert(lmuqv::xr_frame_views(rendered));
+        for(unsigned eye=0;eye<2;++eye){
+            pv[eye].pose=located.views[eye].pose;pv[eye].fov=located.views[eye].fov;
+            assert(lmuqv::xr_copy_outer(eye,source));assertRenderPixels(eye);
+        }
+        assert(frameCalls=="WLB");
+        assert(reinterpret_cast<PFN_xrBeginFrame>(load("xrBeginFrame"))(session,nullptr)==XR_SUCCESS);
+        finish();assert(frameCalls=="WLBE"&&submittedViews==4&&acquireCount==successfulReleases);
+    }
     for(unsigned frame=0;frame<25;++frame){begin();finish();}
     assert(currentLog().find("pixel_stats frame=")==std::string::npos);
     // A timed-out app wait must never trigger readback or permit release.
@@ -1150,6 +1197,7 @@ int main(int argc,char** argv) {
     assert(enumerate(instance,1,XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,2,&count,bounded.views)==XR_SUCCESS&&count==2);
     assert(bounded.views[0].recommendedImageRectWidth==1200&&bounded.views[0].recommendedImageRectHeight==1300);
     frameCalls.clear();
+    const auto traceLogBefore=lmuqv::async_log_stats();
     XrFrameState traceFrame{};traceFrame.type=XR_TYPE_FRAME_STATE;
     assert(reinterpret_cast<PFN_xrWaitFrame>(load("xrWaitFrame"))(session,nullptr,&traceFrame)==XR_SUCCESS);
     assert(reinterpret_cast<PFN_xrBeginFrame>(load("xrBeginFrame"))(session,nullptr)==XR_SUCCESS);
@@ -1157,12 +1205,9 @@ int main(int argc,char** argv) {
     XrFrameEndInfo traceEnd{};traceEnd.type=XR_TYPE_FRAME_END_INFO;traceEnd.displayTime=123;
     assert(reinterpret_cast<PFN_xrEndFrame>(load("xrEndFrame"))(session,&traceEnd)==XR_SUCCESS);
     assert(frameCalls=="WBLE");
-    std::ifstream traceLog(logPath);
-    std::string logText{std::istreambuf_iterator<char>(traceLog),std::istreambuf_iterator<char>()};
+    const auto logText=currentLog();
     if(!diagnosticsOff){
-        assert(logText.find("xrBeginFrame mode=trace frame=1")!=std::string::npos);
-        assert(logText.find("xrLocateViews mode=trace frame=1")!=std::string::npos);
-        assert(logText.find("xrEndFrame mode=trace frame=1")!=std::string::npos);
+        assert(traceLogsAccountedFor(logText,traceLogBefore,lmuqv::async_log_stats()));
     }else assert(logText.empty()&&GetFileAttributesW(logPath.c_str())==INVALID_FILE_ATTRIBUTES);
     assert(reinterpret_cast<PFN_xrDestroyInstance>(load("xrDestroyInstance"))(instance)==XR_SUCCESS);
     // VRS requests ordinary stereo, leaves runtime views untouched and falls

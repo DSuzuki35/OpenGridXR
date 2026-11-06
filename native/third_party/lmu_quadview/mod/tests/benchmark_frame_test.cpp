@@ -25,11 +25,10 @@ int main(int argc,char** argv){
 
  Fixture f;assert(benchmarkTransport.open());benchmarkEnabled=true;benchmarkBeginQpc=lmuqv::benchmark::ticks();
  s.sceneFocus[0]=s.sceneFocus[1]=true;s.running=true;
- s.dynamicFocus.configure(true,70,120,2);s.dynamicFrameScale=80; // next controller value is 100
  s.views[2].fov={-.4f,.3f,.25f,-.2f};s.views[3].fov={-.35f,.4f,.3f,-.25f};
  assert(layerEndFrame(s.session,&f.info)==XR_SUCCESS);
  auto* data=benchmarkTransport.data();assert(data&&data->header.counter==1&&data->header.projections==1);
- assert((data->header.focusFlags&3)==3&&data->header.focusScale==80&&data->header.focusFrame==s.frames);
+ assert(data->header.focusFlags==1&&data->header.focusScale==100&&data->header.focusFrame==s.frames);
  assert(std::abs(data->header.leftHorizontal-.7f*57.2957795f)<1e-4f&&std::abs(data->header.rightVertical-.55f*57.2957795f)<1e-4f);
  lmuqv::benchmark::Sample sample{};assert(lmuqv::benchmark::read_sample(*data,1,sample));assert((sample.flags&7)==7&&std::isnan(sample.gpuMs)&&sample.appMs>=0&&sample.providerMs>=0);
  f.begin();benchmarkBeginQpc=lmuqv::benchmark::ticks();s.sceneFocus[0]=s.sceneFocus[1]=true;assert(layerEndFrame(s.session,&f.info)==XR_SUCCESS);assert(lmuqv::benchmark::read_sample(*data,2,sample)&&std::isfinite(sample.intervalMs));
