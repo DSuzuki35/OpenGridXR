@@ -1,4 +1,4 @@
-import React, {
+import {
   useEffect,
   useRef,
   useState,
@@ -6,7 +6,7 @@ import React, {
 import { Gamepad2, RefreshCw, Trash2, X } from "lucide-react";
 import { Context, useInputBindings, describeInput, BindingButton } from "./BindingContext.jsx";
 import { moduleForAction } from "../modules.mjs";
-import { api, isBrowserPreview } from "../api.mjs";
+import { api } from "../api.mjs";
 import {
   bindingDefaults,
   listToggleActions,
@@ -121,7 +121,7 @@ export function InputBindingsProvider({
       } catch (error) {
         if (!disposed) {
           setCaptureError(error.message);
-          setCapture({ ...capture, state: "error" });
+          setCapture((current) => ({ ...current, state: "error" }));
           api.inputCaptureCancel?.().catch(() => {});
         }
         return;

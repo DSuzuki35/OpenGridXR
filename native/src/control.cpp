@@ -6,16 +6,15 @@
 #include <string>
 #include <vector>
 
-static bool ParseShortcut(std::string key, std::vector<WORD>& keys) {
-    keys.clear();
-    for (const auto& modifier : std::vector<std::pair<std::string, WORD>>{{"Ctrl+", VK_CONTROL}, {"Alt+", VK_MENU}, {"Shift+", VK_SHIFT}}) {
-        if (key.rfind(modifier.first, 0) == 0) { keys.push_back(modifier.second); key.erase(0, modifier.first.size()); }
-    }
-    if (key.size() < 2 || key.size() > 3 || key[0] != 'F') return false;
-    if (!std::all_of(key.begin() + 1, key.end(), [](char c) { return c >= '0' && c <= '9'; })) return false;
-    const int number = std::stoi(key.substr(1));
-    if (number < 1 || number > 12 || key != "F" + std::to_string(number)) return false;
-    keys.push_back(static_cast<WORD>(VK_F1 + number - 1)); return true;
+// Same grammar as the color shortcut (Ctrl+/Alt+/Shift+ prefixes, F1-F12).
+static bool ParseShortcut(const std::string& key, std::vector<WORD>& keys) { return og::color_shortcut_keys(key, keys); }
+// Many sims read the keyboard through DirectInput/raw input, which uses scan
+// codes. Virtual-key-only SendInput events carry scan code 0 and are ignored there.
+static INPUT KeyInput(WORD key, bool up) {
+    INPUT input{}; input.type = INPUT_KEYBOARD; input.ki.wVk = key;
+    input.ki.wScan = static_cast<WORD>(MapVirtualKeyW(key, MAPVK_VK_TO_VSC));
+    input.ki.dwFlags = (input.ki.wScan ? KEYEVENTF_SCANCODE : 0) | (up ? KEYEVENTF_KEYUP : 0);
+    return input;
 }
 static bool IsGame(const std::wstring& basename, const std::string& game) {
     if (game == "iracing") return basename == L"iracingsim64dx11.exe" || basename == L"iracingsim64dx11_test.exe";
@@ -40,6 +39,11 @@ int main(int argc, char** argv) {
         if (!ParseShortcut("Ctrl+Alt+Shift+F12", keys) || keys.size() != 4 || keys.back() != VK_F12 ||
             ParseShortcut("F0", keys) || ParseShortcut("F13", keys) || ParseShortcut("F01", keys) || ParseShortcut("Alt+Ctrl+F1", keys) ||
             !IsGame(L"iracingsim64dx11.exe", "iracing") || IsGame(L"notepad.exe", "iracing")) return 1;
+        for (WORD key : {WORD(VK_CONTROL), WORD(VK_MENU), WORD(VK_SHIFT), WORD(VK_F1), WORD(VK_F12)}) {
+            const auto down = KeyInput(key, false), up = KeyInput(key, true);
+            if (down.type != INPUT_KEYBOARD || !down.ki.wScan || down.ki.dwFlags != KEYEVENTF_SCANCODE ||
+                up.ki.wScan != down.ki.wScan || up.ki.dwFlags != (KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP)) return 1;
+        }
         std::cout << "Control validation passed; no input sent.\n"; return 0;
     }
     if (argc >= 2 && (std::string(argv[1]) == "--color-status" || std::string(argv[1]) == "--color-cycle")) {
@@ -62,8 +66,8 @@ int main(int argc, char** argv) {
         if (GetAsyncKeyState(key) & 0x8000) return Fail("Release modifier keys before centering. No key was sent.");
     if (GetAsyncKeyState(keys.back()) & 0x8000) return Fail("Release the recenter key before retrying.");
     std::vector<INPUT> inputs;
-    for (WORD key : keys) { INPUT input{}; input.type = INPUT_KEYBOARD; input.ki.wVk = key; inputs.push_back(input); }
-    for (auto it = keys.rbegin(); it != keys.rend(); ++it) { INPUT input{}; input.type = INPUT_KEYBOARD; input.ki.wVk = *it; input.ki.dwFlags = KEYEVENTF_KEYUP; inputs.push_back(input); }
+    for (WORD key : keys) inputs.push_back(KeyInput(key, false));
+    for (auto it = keys.rbegin(); it != keys.rend(); ++it) inputs.push_back(KeyInput(*it, true));
     if (GetForegroundWindow() != foreground) return Fail("Foreground window changed. No key was sent.");
     if (SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT)) != inputs.size()) {
         // Release any modifier that a partial insertion may have pressed.

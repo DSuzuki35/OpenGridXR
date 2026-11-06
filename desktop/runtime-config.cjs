@@ -143,7 +143,8 @@ function toEnhancementsConfig(doc, game) {
 }
 function toRuntimeIni(doc, {lmuPreferences={}} = {}) {
   const sections = [
-    "; OpenGrid XR. Generated from saved profiles. Restart the game after changes.",
+    "; OpenGrid XR. Generated from saved profiles. Restart the game after render geometry changes.",
+    "; Saved Reserve*/OffsetX/OffsetY update Clean Output live; other output settings require reopening it.",
   ];
   for (const game of ["iracing", "lmu"]) {
     const p = selectedForGame(doc, game);

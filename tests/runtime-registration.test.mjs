@@ -6,6 +6,7 @@ import os from 'node:os';
 import {createRequire} from 'node:module';
 import {runInNewContext} from 'node:vm';
 import {promisify} from 'node:util';
+import {EventEmitter, once} from 'node:events';
 import {createDocument} from '../src/model.mjs';
 
 async function fixture(t, initial) {
@@ -17,7 +18,15 @@ async function fixture(t, initial) {
     const bytes=file.endsWith('.json')?JSON.stringify({api_layer:{name:'XR_APILAYER_OPENGRIDXR',library_path:'.\\OpenGridXR.dll'}}):'fixture';
     await fs.writeFile(path.join(source,file),bytes); await fs.writeFile(path.join(runtimeDir,file),bytes); await fs.writeFile(path.join(machineDirectory,file),bytes);
   }
-  const registry={...initial}, calls=[];
+  const registry={...initial}, calls=[], spawned=[];
+  const spawn=(exe,args,options)=>{
+    const child=new EventEmitter();child.exitCode=null;
+    child.stdin=Object.assign(new EventEmitter(),{writable:true,destroyed:false,
+      write:line=>{child.stdin.emit('written',line);return true;}});
+    child.kill=()=>{child.exitCode=0;child.emit('exit',0);};
+    spawned.push({exe,args,options,child});process.nextTick(()=>child.emit('spawn'));
+    return child;
+  };
   let cancel=false, noWrite=false, readDenied=false;
   const execute=()=>{};
   execute[promisify.custom]=async(exe,args)=>{
@@ -46,9 +55,10 @@ async function fixture(t, initial) {
     assert.fail(`Unexpected executable ${exe}`);
   };
   const file=new URL('../desktop/runtime.cjs',import.meta.url), realRequire=createRequire(file), module={exports:{}};
-  runInNewContext(`(function(require,module,process){${await fs.readFile(file,'utf8')}\n})`)(name=>name==='node:child_process'?{execFile:execute}:realRequire(name),module,{platform:'win32',env:{},kill:process.kill});
+  runInNewContext(`(function(require,module,process){${await fs.readFile(file,'utf8')}\n})`)(name=>name==='node:child_process'?{execFile:execute,spawn}:realRequire(name),module,{platform:'win32',env:{},kill:process.kill});
   const runtime=module.exports.createRuntime({sourceDir:source,runtimeDir});
-  return {runtime,runtimeDir,machineDirectory,registry,calls,doc:createDocument(),cancel:()=>{cancel=true;},noWrite:()=>{noWrite=true;},readDenied:()=>{readDenied=true;}};
+  t.after(()=>runtime.closeOutput());
+  return {runtime,runtimeDir,machineDirectory,registry,calls,spawned,doc:createDocument(),cancel:()=>{cancel=true;},noWrite:()=>{noWrite=true;},readDenied:()=>{readDenied=true;}};
 }
 
 test('legacy user-only registration requires repair even when all installed files match',async t=>{
@@ -98,4 +108,33 @@ test('a changed or newly prepared QVFR provider requires a machine runtime updat
   const dir=path.join(f.runtimeDir,'providers','qvfr');await fs.mkdir(dir,{recursive:true});
   await fs.writeFile(path.join(dir,'OpenGridXR-QVFR.dll'),'new provider');
   assert.equal((await f.runtime.status()).updateRequired,true);
+});
+test('runtime status notices same-size replacements even when modification time is preserved',async t=>{
+  const f=await fixture(t,{HKLM:0});
+  const file=path.join(f.machineDirectory,'OpenGridXR.dll');
+  const old=new Date('2020-01-01T00:00:00Z');await fs.utimes(file,old,old);
+  assert.equal((await f.runtime.status()).updateRequired,false);
+  await fs.writeFile(file,'changed');await fs.utimes(file,old,old);
+  assert.equal((await f.runtime.status()).updateRequired,true);
+});
+test('clean output refuses an outdated installed runtime before sending new preview flags',async t=>{
+  const f=await fixture(t,{HKLM:0});
+  await fs.writeFile(path.join(f.runtimeDir,'OpenGridXR-Output.exe'),'old output binary');
+  await assert.rejects(f.runtime.launch(f.doc,f.doc.profiles[0],[]),/Update.*Setup/i);
+  assert.equal(f.spawned.length,0);
+});
+test('runtime launch owns preview stdin and binds unsaved updates to its launched profile',async t=>{
+  const f=await fixture(t,{HKLM:0}),p=f.doc.profiles[0];
+  await f.runtime.launch(f.doc,p,[{primary:true,bounds:{x:0,y:0,width:1920,height:1080}}]);
+  assert.equal(f.spawned.length,1);const launched=f.spawned[0];
+  assert.ok(launched.args.includes('--framing-stdin'));
+  assert.deepEqual(Array.from(launched.options.stdio),['pipe','ignore','ignore']);
+  const ini=await fs.readFile(path.join(f.runtimeDir,'OpenGridXR.ini'),'utf8');
+  const delivered=once(launched.child.stdin,'written');
+  assert.equal(f.runtime.previewOutputFraming({profileId:p.id,game:p.game,
+    reserve:{left:13,right:13,top:13,bottom:13},offsetX:31,offsetY:6},p.id),true);
+  assert.equal((await delivered)[0],'F 13 13 13 13 31 6\n');
+  assert.equal(await fs.readFile(path.join(f.runtimeDir,'OpenGridXR.ini'),'utf8'),ini);
+  const reset=once(launched.child.stdin,'written');f.runtime.resetOutputFraming();
+  assert.equal((await reset)[0],'R\n');assert.equal(f.spawned.length,1);
 });

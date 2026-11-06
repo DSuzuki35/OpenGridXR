@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs/promises');
+const SOURCE_VERSION=require('../package.json').version;
 const {createReadStream} = require('node:fs');
 const path = require('node:path');
 const {createHash,randomUUID} = require('node:crypto');
@@ -126,10 +127,12 @@ function qvfrProfileText(existing,settings){
 }
 function createLmuRendering({dataDir,runtimeDir,qvfrSettingsPath=path.join(process.env.LOCALAPPDATA||dataDir,'Quad-Views-Foveated','settings.cfg'),discover=discoverInstallations,registered=registeredLayers,spawnProcess=spawn,validateGame=validateExecutable,verifySignatures=checkSignatures,isAlive=pid=>{try{process.kill(pid,0);return true;}catch{return false;}}}){
   const localFile=path.join(dataDir,'lmu-installation.json'),runs=path.join(dataDir,'lmu-runs');
-  let installation,discovery,compatibilityCache,currentRun=null;
+  let installation,discovery,discoveredAt=0,compatibilityCache,currentRun=null;
   async function paths(){
     if(!installation){try{const doc=await readJson(localFile);installation={executable:typeof doc.executable==='string'?doc.executable:'',qvfrManifest:typeof doc.qvfrManifest==='string'?doc.qvfrManifest:'',cpuCacheAffinity:doc.cpuCacheAffinity===true};}catch(error){if(error.code!=='ENOENT')throw new Error(`Could not read LMU installation paths: ${error.message}`);installation={executable:'',qvfrManifest:'',cpuCacheAffinity:false};}}
-    if(!discovery)discovery=await discover();
+    // Rediscover at most once a minute while LMU or a provider is still missing,
+    // so an installation made after startup is found without restarting.
+    if(!discovery||(((!installation.executable&&!discovery.executables.length)||(!installation.qvfrManifest&&!discovery.providers.some(p=>p.provider==='qvfr')))&&Date.now()-discoveredAt>60000)){discovery=await discover();discoveredAt=Date.now();}
     return {...installation,executable:installation.executable||discovery.executables[0]||'',qvfrManifest:installation.qvfrManifest||discovery.providers.find(p=>p.provider==='qvfr')?.file||''};
   }
   async function preferences(){await paths();return {cpuCacheAffinity:installation.cpuCacheAffinity};}
@@ -147,7 +150,7 @@ function createLmuRendering({dataDir,runtimeDir,qvfrSettingsPath=path.join(proce
     compatibilityCache={key,value};return value;
   }
   async function captureStatus(){if(!currentRun?.capture)return {state:'inactive'};const files=['outer0.bmp','outer1.bmp','app0.bmp','app1.bmp'];const captured=await Promise.all(files.map(file=>fs.access(path.join(currentRun.capture.directory,file)).then(()=>true,()=>false)));return {runId:currentRun.id,state:captured.every(Boolean)?'complete':!isAlive(currentRun.pid)?'stopped':currentRun.triggered?'requested':'armed',directory:currentRun.capture.directory,files:files.filter((_,i)=>captured[i]),message:'Four scene views are captured once after the trigger, with matching FOV and pose metadata in the run log.'};}
-  async function status(){const local=await paths();let qvfr={available:false,message:'Choose a QVFR manifest or install QVFR.'};if(local.qvfrManifest)try{const p=await readProviderManifest(local.qvfrManifest);qvfr={available:true,manifest:p.file,message:'QVFR manifest and library found.'};}catch(error){qvfr.message=error.message;}return {paths:local,compatibility:await compatibility(local.executable),preferences:await preferences(),sourceVersion:'0.5.4',providers:{qvfr,vectorxr:{available:!!(await fs.stat(path.join(runtimeDir,'OpenGridXR-Enhancements.dll')).catch(()=>null))?.isFile(),embedded:true}},capture:await captureStatus(),validation:'Headset/provider validation is still required for the integrated path.'};}
+  async function status(){const local=await paths();let qvfr={available:false,message:'Choose a QVFR manifest or install QVFR.'};if(local.qvfrManifest)try{const p=await readProviderManifest(local.qvfrManifest);qvfr={available:true,manifest:p.file,message:'QVFR manifest and library found.'};}catch(error){qvfr.message=error.message;}return {paths:local,compatibility:await compatibility(local.executable),preferences:await preferences(),sourceVersion:SOURCE_VERSION,providers:{qvfr,vectorxr:{available:!!(await fs.stat(path.join(runtimeDir,'OpenGridXR-Enhancements.dll')).catch(()=>null))?.isFile(),embedded:true}},capture:await captureStatus(),validation:'Headset/provider validation is still required for the integrated path.'};}
   async function prepare(profile){
     const {validateLmuRendering}=await import(pathToFileURL(path.join(__dirname,'../src/lmu-rendering.mjs')).href);validateLmuRendering(profile.lmuRendering,profile.game);
     if(profile.game!=='lmu'||!profile.lmuRendering||profile.lmuRendering.mode==='off')throw new Error('Choose quad views or stereo VRS in the saved LMU profile.');

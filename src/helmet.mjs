@@ -286,8 +286,13 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
     context.save();
     context.translate(0, -visorLift * helmet.scale / 100);
     if (!uvUrl || !uvVUrl) throw new Error('The curved visor projection maps are missing. Reinstall the application assets.');
-    const texture = document.createElement('canvas'); texture.width = 1600; texture.height = 900;
-    const paint = texture.getContext('2d', { willReadFrequently: true }); paint.scale(2, 2);
+    // Keep the legacy preview density, but rasterize print at the selected
+    // output resolution so Detail does not enlarge 1600px glyphs to 4K.
+    const textureWidth = Math.max(1600, width), textureHeight = Math.round(textureWidth * 9 / 16);
+    const textureScale = textureWidth / 800, printBlur = (visor.softness ?? .6) * textureScale / 2;
+    const fitPrint = helmet.openingAngle !== undefined || helmet.openingWidth !== undefined;
+    const texture = document.createElement('canvas'); texture.width = textureWidth; texture.height = textureHeight;
+    const paint = texture.getContext('2d', { willReadFrequently: true }); paint.scale(textureScale, textureScale);
     let backgroundTexture = texture, bandTexture;
     paint.fillStyle = helmet.visorTintColor ?? '#142035'; paint.globalAlpha = helmet.visorTint / 100; paint.fillRect(0, 0, 800, 450); paint.globalAlpha = 1;
     if (visor.enabled) {
@@ -296,14 +301,18 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
     paint.quadraticCurveTo(400, bottom + visor.curve * 9, 0, bottom); paint.closePath();
     paint.fillStyle = visor.color; paint.globalAlpha = visor.opacity / 100; paint.fill();
     // Separate visor material, printable artwork and the allowed print region.
-    backgroundTexture = document.createElement('canvas'); backgroundTexture.width = 1600; backgroundTexture.height = 900;
+    backgroundTexture = document.createElement('canvas'); backgroundTexture.width = textureWidth; backgroundTexture.height = textureHeight;
     backgroundTexture.getContext('2d').drawImage(texture, 0, 0);
     paint.clearRect(0, 0, 800, 450); paint.fillStyle = '#ffffff'; paint.globalAlpha = 1; paint.fill();
-    bandTexture = document.createElement('canvas'); bandTexture.width = 1600; bandTexture.height = 900;
+    bandTexture = document.createElement('canvas'); bandTexture.width = textureWidth; bandTexture.height = textureHeight;
     bandTexture.getContext('2d').drawImage(texture, 0, 0);
     paint.clearRect(0, 0, 800, 450);
-    paint.globalAlpha = (visor.textOpacity ?? 100) / 100; paint.clip();
-    paint.filter = `blur(${visor.softness ?? .6}px)`;
+    paint.globalAlpha = (visor.textOpacity ?? 100) / 100;
+    // The opening fitter must measure complete glyphs before constraining them
+    // to the strip. Clipping here would permanently cut rounded bottoms and
+    // descenders, then fit the already-damaged lettering with a visible margin.
+    if (!fitPrint) paint.clip();
+    paint.filter = `blur(${printBlur}px)`;
     if (visor.mirror) { paint.translate(800, 0); paint.scale(-1, 1); }
     if (visor.graphic && !fullGraphic) {
       const graphic = await loadImage(visor.graphic);
@@ -311,6 +320,7 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
       const scale = Math.min(boxWidth / graphic.naturalWidth, boxHeight / graphic.naturalHeight);
       const w = graphic.naturalWidth * scale, h = graphic.naturalHeight * scale;
       paint.save();
+      if (fitPrint) paint.clip(); // Preserve the sunstrip graphic crop; avoid clipping antialiased edges twice.
       // The legacy print context mirrors lettering. Cancel that transform only
       // when this graphic has its own different mirror choice.
       if (graphicMirror !== visor.mirror) { paint.translate(800, 0); paint.scale(-1, 1); }
@@ -332,48 +342,72 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
         paint.scale(textWidth / Math.max(1, paint.measureText(visor.text).width), 1);
         paint.fillText(visor.text, 0, 0);
       } else {
-        // Warp the whole text raster, including the glyphs, at the 2x texture
+        // Warp the whole text raster, including the glyphs, at the output texture
         // resolution. The parabola matches the strip's quadratic curve: positive
         // values raise the edges while keeping the text's center in place.
         const lettering = document.createElement('canvas');
-        lettering.width = Math.ceil(textWidth * 2) + 8; lettering.height = Math.ceil(visor.textSize * 4) + 8;
-        const letters = lettering.getContext('2d'); letters.scale(2, 2);
+        lettering.width = Math.ceil((textWidth + 4) * textureScale); lettering.height = Math.ceil((visor.textSize * 2 + 4) * textureScale);
+        const letters = lettering.getContext('2d'); letters.scale(textureScale, textureScale);
         letters.fillStyle = visor.textColor; letters.font = paint.font;
         letters.textAlign = 'center'; letters.textBaseline = 'middle'; letters.letterSpacing = '2px';
-        letters.translate(lettering.width / 4, lettering.height / 4);
+        letters.translate(lettering.width / (2 * textureScale), lettering.height / (2 * textureScale));
         letters.scale(textWidth / Math.max(1, letters.measureText(visor.text).width), 1);
         letters.fillText(visor.text, 0, 0);
-        const edgeShift = Math.ceil(Math.abs(textCurve) * 9 * (lettering.width / 1600) ** 2) + 2;
+        const edgeShift = Math.ceil(Math.abs(textCurve) * 4.5 * textureScale * (lettering.width / textureWidth) ** 2) + Math.ceil(textureScale);
         const bent = document.createElement('canvas');
         bent.width = lettering.width; bent.height = lettering.height + edgeShift * 2;
         const bend = bent.getContext('2d');
         for (let x = 0; x < lettering.width; x++) {
-          const shift = -textCurve * 9 * ((x + .5 - lettering.width / 2) / 800) ** 2;
+          const shift = -textCurve * 4.5 * textureScale * ((x + .5 - lettering.width / 2) / (400 * textureScale)) ** 2;
           bend.drawImage(lettering, x, 0, 1, lettering.height, x, edgeShift + shift, 1, lettering.height);
         }
         // Apply the existing mirror transform, opacity and blur once, after
         // warping; filtering individual columns would leave visible seams.
-        paint.drawImage(bent, -bent.width / 4, -lettering.height / 4 - edgeShift / 2, bent.width / 2, bent.height / 2);
+        paint.drawImage(bent, -bent.width / (2 * textureScale), -(lettering.height / 2 + edgeShift) / textureScale, bent.width / textureScale, bent.height / textureScale);
       }
     }
     }
     const uvImage = await loadImage(uvUrl), vImage = await loadImage(uvVUrl);
     const mapping = document.createElement('canvas'); mapping.width = width; mapping.height = height;
     const mapped = mapping.getContext('2d', { willReadFrequently: true });
-    mapped.drawImage(uvImage, 0, 0, width, height);
-    const uPixels = mapped.getImageData(0, 0, width, height).data;
-    mapped.clearRect(0, 0, width, height); mapped.drawImage(vImage, 0, 0, width, height);
-    const vPixels = mapped.getImageData(0, 0, width, height).data;
+    const resizeCoordinates = image => {
+      const source = document.createElement('canvas'); source.width = image.naturalWidth; source.height = image.naturalHeight;
+      const sourceContext = source.getContext('2d', { willReadFrequently: true });
+      sourceContext.drawImage(image, 0, 0);
+      const pixels = sourceContext.getImageData(0, 0, source.width, source.height).data;
+      if (source.width === width && source.height === height) return pixels;
+      const output = new Uint8ClampedArray(width * height * 4);
+      // RG stores one 16-bit coordinate, not two color channels. Canvas scaling
+      // rounds each byte independently, introducing a visible grid at carries.
+      // Interpolate decoded coordinates and coverage, then pack only once.
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const px = Math.max(0, Math.min(source.width - 1, (x + .5) * source.width / width - .5));
+        const py = Math.max(0, Math.min(source.height - 1, (y + .5) * source.height / height - .5));
+        const x0 = Math.floor(px), y0 = Math.floor(py), fx = px - x0, fy = py - y0;
+        const a = (y0 * source.width + x0) * 4, b = (y0 * source.width + Math.min(x0 + 1, source.width - 1)) * 4;
+        const c = (Math.min(y0 + 1, source.height - 1) * source.width + x0) * 4;
+        const d = (Math.min(y0 + 1, source.height - 1) * source.width + Math.min(x0 + 1, source.width - 1)) * 4;
+        const wa = (1 - fx) * (1 - fy) * pixels[a + 3], wb = fx * (1 - fy) * pixels[b + 3];
+        const wc = (1 - fx) * fy * pixels[c + 3], wd = fx * fy * pixels[d + 3], alpha = wa + wb + wc + wd;
+        if (!alpha) continue;
+        const value = Math.round(((pixels[a] * 256 + pixels[a + 1]) * wa + (pixels[b] * 256 + pixels[b + 1]) * wb +
+          (pixels[c] * 256 + pixels[c + 1]) * wc + (pixels[d] * 256 + pixels[d + 1]) * wd) / alpha);
+        const at = (y * width + x) * 4;
+        output[at] = value >> 8; output[at + 1] = value & 255; output[at + 3] = alpha;
+      }
+      return output;
+    };
+    const uPixels = resizeCoordinates(uvImage), vPixels = resizeCoordinates(vImage);
     const project = inkCanvas => {
-    const ink = inkCanvas.getContext('2d').getImageData(0, 0, 1600, 900).data;
+    const ink = inkCanvas.getContext('2d').getImageData(0, 0, textureWidth, textureHeight).data;
     const projection = mapped.createImageData(width, height), output = projection.data;
     for (let at = 0; at < output.length; at += 4) {
       if (!uPixels[at + 3]) continue;
-      const tx = Math.min(1599, (uPixels[at] * 256 + uPixels[at + 1]) / 65535 * 1599);
-      const ty = Math.min(899, (vPixels[at] * 256 + vPixels[at + 1]) / 65535 * 899);
+      const tx = Math.min(textureWidth - 1, (uPixels[at] * 256 + uPixels[at + 1]) / 65535 * (textureWidth - 1));
+      const ty = Math.min(textureHeight - 1, (vPixels[at] * 256 + vPixels[at + 1]) / 65535 * (textureHeight - 1));
       const x = Math.floor(tx), y = Math.floor(ty), fx = tx - x, fy = ty - y;
-      const a = (y * 1600 + x) * 4, b = (y * 1600 + Math.min(x + 1, 1599)) * 4;
-      const c = (Math.min(y + 1, 899) * 1600 + x) * 4, d = (Math.min(y + 1, 899) * 1600 + Math.min(x + 1, 1599)) * 4;
+      const a = (y * textureWidth + x) * 4, b = (y * textureWidth + Math.min(x + 1, textureWidth - 1)) * 4;
+      const c = (Math.min(y + 1, textureHeight - 1) * textureWidth + x) * 4, d = (Math.min(y + 1, textureHeight - 1) * textureWidth + Math.min(x + 1, textureWidth - 1)) * 4;
       const wa = (1 - fx) * (1 - fy) * ink[a + 3], wb = fx * (1 - fy) * ink[b + 3];
       const wc = (1 - fx) * fy * ink[c + 3], wd = fx * fy * ink[d + 3], alpha = wa + wb + wc + wd;
       if (!alpha) continue;
@@ -390,10 +424,10 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
       // strip path and its lettering fit. Preserve image aspect with transparent
       // margins; the template itself controls placement instead of logo sliders.
       const graphic = await loadImage(visor.graphic);
-      const fullTexture = document.createElement('canvas'); fullTexture.width = 1600; fullTexture.height = 900;
-      const fullPaint = fullTexture.getContext('2d'); fullPaint.scale(2, 2);
+      const fullTexture = document.createElement('canvas'); fullTexture.width = textureWidth; fullTexture.height = textureHeight;
+      const fullPaint = fullTexture.getContext('2d'); fullPaint.scale(textureScale, textureScale);
       fullPaint.globalAlpha = (visor.textOpacity ?? 100) / 100;
-      fullPaint.filter = `blur(${visor.softness ?? .6}px)`;
+      fullPaint.filter = `blur(${printBlur}px)`;
       if (graphicMirror) { fullPaint.translate(800, 0); fullPaint.scale(-1, 1); }
       const scale = Math.min(800 / graphic.naturalWidth, 450 / graphic.naturalHeight);
       const w = graphic.naturalWidth * scale, h = graphic.naturalHeight * scale;
@@ -402,7 +436,7 @@ export async function composeHelmetRaster({ helmet, shellUrl, uvUrl, uvVUrl, pad
     }
     if (visor.enabled) {
       let print = project(texture);
-      if (helmet.openingAngle !== undefined || helmet.openingWidth !== undefined) {
+      if (fitPrint) {
         // The opening deforms the visor material, not the lettering. Fit the
         // original projected artwork uniformly inside the new visible strip.
         const printContext = print.getContext('2d', { willReadFrequently: true });

@@ -1,5 +1,5 @@
 import {usesFullRenderArea} from "../model.mjs";
-import React, { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Aperture, Download, ImagePlus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Button, Note, Panel, Range, Segmented, Toggle } from './Controls.jsx';
 import { BindingButton } from './BindingContext.jsx';

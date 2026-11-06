@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {Aperture} from 'lucide-react';
 import {Button, Panel, Range, Toggle} from './Controls.jsx';
 import {composeHelmetRaster, streamHelmetAppearance, visorSettings} from '../helmet.mjs';

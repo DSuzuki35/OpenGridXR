@@ -1,4 +1,3 @@
-import React from 'react';
 
 // The same normalized sRGB operation order as gradeColorRgb/native shading.
 // Keep artwork outside this filter; alpha is preserved at every step.

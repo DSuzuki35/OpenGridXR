@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Crosshair,
   Link2,
@@ -10,7 +10,7 @@ import {
   Unlink2,
 } from "lucide-react";
 import { isSimplePolygon, polygonArea, contourPreset, effectiveCrop } from "../model.mjs";
-import { Button, Segmented } from "./Controls.jsx";
+import { Segmented } from "./Controls.jsx";
 
 const box = { x: 42, y: 38, w: 716, h: 370 };
 const coord = (point) =>

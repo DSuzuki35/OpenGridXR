@@ -6,6 +6,17 @@ const path = require("node:path");
 const { createHash, randomUUID } = require("node:crypto");
 const { pathToFileURL } = require("node:url");
 const MAX = 2 * 1024 * 1024;
+// The editor lists the newest 100 backups; older copies are never reachable.
+const MAX_BACKUPS = 100;
+const BACKUP_NAME = /^\d{13}-[0-9a-f-]{36}\.json$/;
+// Recover incomplete lock creation after a grace period; never steal a lock
+// from a live writer, which may have been suspended or delayed by storage.
+const LOCK_STALE_MS = 30000;
+// The editor owns Electron's single-instance lock. Serialize its store objects
+// before any async lock recovery, otherwise two saves can both observe an old
+// lock and one can unlink the other's newly acquired lock. The disk lock still
+// refuses live external owners; this is not an arbitrary cross-process mutex.
+const activeTransactions = new Set();
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 async function atomicWrite(file, contents, beforeReplace) {
   await fs.mkdir(path.dirname(file), { recursive: true });
@@ -47,6 +58,8 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
     backupDir = path.join(root, "backups");
   const normalize = document => normalizeDocument(document, {helmetModuleEnabled:helmetModuleEnabled()});
   await fs.mkdir(root, { recursive: true });
+  const canonicalRoot = await fs.realpath(root);
+  const transactionKey = process.platform === 'win32' ? canonicalRoot.toLowerCase() : canonicalRoot;
   let initial = createDocument();
   async function raw() {
     try {
@@ -76,17 +89,43 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
   async function backups() {
     await fs.mkdir(backupDir, { recursive: true });
     const names = (await fs.readdir(backupDir)).filter((n) =>
-      /^\d{13}-[0-9a-f-]{36}\.json$/.test(n),
+      BACKUP_NAME.test(n),
     );
     return names
       .sort()
       .reverse()
-      .slice(0, 100)
+      .slice(0, MAX_BACKUPS)
       .map((id) => ({
         id,
         name: "Saved configuration",
         createdAt: new Date(Number(id.slice(0, 13))).toISOString(),
       }));
+  }
+  async function pruneBackups() {
+    const names = (await fs.readdir(backupDir)).filter((n) => BACKUP_NAME.test(n)).sort();
+    for (const name of names.slice(0, Math.max(0, names.length - MAX_BACKUPS)))
+      await fs.unlink(path.join(backupDir, name)).catch(() => {});
+  }
+  async function lockAbandoned(lockPath) {
+    let owner = null;
+    try {
+      const text = await fs.readFile(lockPath, "utf8");
+      owner = text ? JSON.parse(text) : null;
+    } catch {}
+    if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+      try {
+        process.kill(owner.pid, 0);
+      } catch (err) {
+        if (err.code === "ESRCH") return true;
+      }
+      return false;
+    }
+    // Empty or unreadable locks may be left by a crash before writing the PID.
+    try {
+      return Date.now() - (await fs.stat(lockPath)).mtimeMs > LOCK_STALE_MS;
+    } catch {
+      return false;
+    }
   }
   async function load() {
     const current = await raw();
@@ -110,6 +149,16 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
     };
   }
   async function transact(doc, revision, recover = false, {beforeReplace} = {}) {
+    if (activeTransactions.has(transactionKey))
+      throw new Error("Profiles are busy in another operation. Try again.");
+    activeTransactions.add(transactionKey);
+    try {
+      return await transactLocked(doc, revision, recover, {beforeReplace});
+    } finally {
+      activeTransactions.delete(transactionKey);
+    }
+  }
+  async function transactLocked(doc, revision, recover, {beforeReplace}) {
     beforeReplace?.();
     validateDocument(doc);
     doc = normalize(doc);
@@ -126,24 +175,14 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
       lock = await fs.open(lockPath, "wx");
     } catch (e) {
       if (e.code !== "EEXIST") throw e;
-      let abandoned = false;
-      try {
-        const owner = JSON.parse(await fs.readFile(lockPath, "utf8"));
-        if (Number.isSafeInteger(owner.pid) && owner.pid > 0) {
-          try {
-            process.kill(owner.pid, 0);
-          } catch (err) {
-            abandoned = err.code === "ESRCH";
-          }
-        }
-      } catch {}
+      const abandoned = await lockAbandoned(lockPath);
       if (!abandoned)
         throw new Error("Profiles are busy in another operation. Try again.");
       await fs.unlink(lockPath);
       lock = await fs.open(lockPath, "wx");
     }
-    await lock.writeFile(JSON.stringify({ pid: process.pid }), "utf8");
     try {
+      await lock.writeFile(JSON.stringify({ pid: process.pid }), "utf8");
       const current = await raw();
       if (current.revision !== revision)
         throw new Error(
@@ -168,6 +207,9 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
         );
       }
       await atomicWrite(file, serialized, beforeReplace);
+      // Pruning is maintenance after successful publication, never a reason to
+      // report an already-published save as failed.
+      await pruneBackups().catch(() => {});
       return await load();
     } finally {
       await lock.close();
@@ -175,7 +217,7 @@ async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
     }
   }
   async function restore(id, revision) {
-    if (typeof id !== "string" || !/^\d{13}-[0-9a-f-]{36}\.json$/.test(id))
+    if (typeof id !== "string" || !BACKUP_NAME.test(id))
       throw new Error("Invalid backup ID.");
     const target = path.join(backupDir, id);
     if ((await fs.stat(target)).size > MAX)

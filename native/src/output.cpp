@@ -1,6 +1,8 @@
 #include "channel.hpp"
 #include "core.hpp"
 #include "settings.hpp"
+#include "output_framing.hpp"
+#include "output_framing_preview.hpp"
 #include "stabilization.hpp"
 #include "stream_overlay_renderer.hpp"
 #include "stream_helmet_renderer.hpp"
@@ -449,7 +451,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     wchar_t module[32768];
     GetModuleFileNameW(nullptr, module, 32768);
     std::wstring path = (std::filesystem::path(module).parent_path() / L"OpenGridXR.ini").wstring();
-    bool selftest = false, startFullscreen = false;
+    bool selftest = false, startFullscreen = false, framingStdin = false;
     for (int i = 1; i < argc; ++i) {
         std::wstring arg = argv[i];
         if (arg == L"--config" && i + 1 < argc)
@@ -459,6 +461,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
             game = g == L"iracing" ? "iracing" : g == L"lmu" ? "lmu" : "";
         } else if (arg == L"--self-test")
             selftest = true;
+        else if (arg == L"--framing-stdin")
+            framingStdin = true;
         else if (arg == L"--fullscreen")
             startFullscreen = true;
         else if (arg == L"--display" && i + 1 < argc) {
@@ -475,6 +479,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     if (game != "iracing" && game != "lmu")
         return 2;
     auto config = og::read_config(path, game);
+    auto savedConfig = config;
+    og::OutputFramingReload framingReload(path, game);
+    og::OutputFramingPreview framingPreview(framingStdin ? GetStdHandle(STD_INPUT_HANDLE) : nullptr);
     WNDCLASSW wc{};
     wc.lpfnWndProc = wndproc;
     wc.hInstance = instance;
@@ -513,6 +520,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         if (quit)
             break;
         auto now = GetTickCount64();
+        // Disk checks belong to this output process, outside the game channel
+        // lock. Keep session geometry and the renderer's pose reference intact.
+        const bool restoreSavedFraming = framingPreview.poll(now);
+        framingReload.poll(savedConfig, now, restoreSavedFraming);
+        framingPreview.apply(savedConfig, config);
         if (channel.lock()) {
             auto *f = channel.data();
             if (!f->consumer || f->consumer == GetCurrentProcessId() ||

@@ -5,6 +5,8 @@ Starting with version 0.3.12, original OpenGrid XR code and assets are offered u
 
 ## Credits
 
+**Markus Stahl** contributed the OpenGrid XR review-fixes patch integrated and adapted for **0.6.0**: close confirmation, bounded backups, stale-lock recovery, version-aware startup, scan-code recentering, reduced redundant work, unlocked image waits, helper hardening and CI permissions/pinning. The wait change includes added lifetime protection. See the [changelog](../CHANGELOG.md).
+
 Optional support links are available at the bottom of the sidebar, above **Quick start & about**: [Buy me a coffee](https://buymeacoffee.com/dansuzuki) and [affiliate discounts](https://dansuzuki.com/discounts/). Affiliate purchases may earn Dan a commission. Support is optional and does not unlock features.
 
 OpenGrid XR is developed by **Dan Suzuki and contributors**, with OpenAI Codex assistance in code, documentation, debugging and development iterations. AI assistance is not evidence of correctness or compatibility. The toolkit builds on the following projects and references:
@@ -21,4 +23,4 @@ OpenGrid XR is developed by **Dan Suzuki and contributors**, with OpenAI Codex a
 
 The optional external QVFR provider is **mbucchia's Quad-Views-Foveated**, installed separately; selecting it does not redistribute it or change its license. OpenXR headers, MinHook, NVIDIA interface headers, Electron/Chromium, React, Lucide and the Archivo, Inter and DM Mono fonts also retain their respective notices. See [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) for full attributions, pinned revisions, license texts and corresponding source. Credits do not imply endorsement by upstream authors.
 
-OpenGrid 0.5.4 retains the LMU upstream v0.5.4 source pin. OpenGrid's integration adds coordinated crop and rendered-frame ownership, stronger data-layout guards, bounded waits and minimal startup/error reporting; these adaptations do not change the upstream attribution or licenses. The cache-core scheduling algorithm remains the upstream policy and is opt-in in OpenGrid. See [modification provenance](../native/third_party/lmu_quadview/OPENGRID-PROVENANCE.md).
+OpenGrid 0.6.0 retains the LMU upstream v0.5.4 source pin. OpenGrid's integration adds coordinated crop and rendered-frame ownership, stronger data-layout guards, bounded waits and minimal startup/error reporting; these adaptations do not change the upstream attribution or licenses. The cache-core scheduling algorithm remains the upstream policy and is opt-in in OpenGrid. See [modification provenance](../native/third_party/lmu_quadview/OPENGRID-PROVENANCE.md).

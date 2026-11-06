@@ -42,6 +42,17 @@ int main() {
         check(install_assets(source, machine) == 0, "Install executable assets");
         check(std::filesystem::exists(machine / L"OpenGridXR.dll") && std::filesystem::exists(machine / L"providers" / L"qvfr" / L"OpenGridXR-QVFR.dll"), "Install base and optional provider");
         check(!std::filesystem::exists(machine / L"OpenGridXR.ini"), "Keep mutable settings out of machine files");
+        std::filesystem::remove(source / L"OpenGridXR.dll");
+        std::filesystem::create_directory(source / L"OpenGridXR.dll");
+        check(install_assets(source, machine) == ERROR_ACCESS_DENIED, "Reject a directory masquerading as a source DLL");
+        std::filesystem::remove(source / L"OpenGridXR.dll");
+        if (CreateSymbolicLinkW((source / L"OpenGridXR.dll").c_str(), (source / L"OpenGridXR-Enhancements.dll").c_str(), SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)) {
+            check(install_assets(source, machine) == ERROR_ACCESS_DENIED, "Reject a redirected source DLL");
+            std::filesystem::remove(source / L"OpenGridXR.dll");
+        } else {
+            check(GetLastError() == ERROR_PRIVILEGE_NOT_HELD, "Unexpected symbolic link setup failure");
+            std::cout << "Source symlink fixture unavailable without Developer Mode or symlink privilege\n";
+        }
         wchar_t local[32768]{};
         check(GetEnvironmentVariableW(L"LOCALAPPDATA", local, 32768) != 0, "User data environment available");
         check(og::runtime_data_directory(machine) == std::filesystem::path(local) / L"OpenGridXR" / L"runtime", "Machine binaries use current user config/artwork/status");

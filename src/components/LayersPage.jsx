@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layers, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-react';
 import { api, isBrowserPreview } from '../api.mjs';
 import { Button, Note, Panel, Toggle } from './Controls.jsx';

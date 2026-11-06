@@ -4,7 +4,7 @@
 
 A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**: shape your view, add a helmet or dashboard, adjust the VR image and create a clean stream output. Source-available and free for noncommercial use.
 
-[Download 0.5.4](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
+[Download 0.6.0](https://github.com/DSuzuki35/OpenGridXR/releases/latest) · [What's new](CHANGELOG.md) · [Getting started](docs/getting-started.md) · [All guides](#guides) · [Build and test](https://github.com/DSuzuki35/OpenGridXR/actions/workflows/build.yml) · [Contributing](CONTRIBUTING.md)
 
 ## In the headset
 
@@ -60,13 +60,15 @@ Use Windows x64 and a supported OpenXR path. Native OpenVR does not load this la
 
 LMU rendering is experimental and tied to checked executable builds/providers. A protected Steam/EAC cockpit launch has been tested on the documented rig; **online-race acceptance and every headset/provider combination have not been established**. [Evidence and limits →](docs/lmu-rendering.md#verify-at-the-rig)
 
-OpenGrid 0.5.4 adds stronger LMU data-layout checks, bounded image waits and startup/error status that remains available with verbose logging off. The AMD cache-core preference now defaults off unless explicitly saved on. Compare image quality and frametimes on your rig; no new performance gain is claimed.
+OpenGrid 0.6.0 improves visor lettering and adds live stream framing, with community fixes from Markus Stahl. It retains the LMU data-layout checks, bounded image waits and startup/error status introduced in 0.5.4. The AMD cache-core preference defaults off unless explicitly saved on. Compare image quality and frametimes on your rig; no new performance gain is claimed.
 
 ## Development, authorship and license
 
 See [Contributing](CONTRIBUTING.md) for source builds and verification. Automated/synthetic checks do not replace game and headset testing.
 
 Developed by **Dan Suzuki and contributors**, with OpenAI Codex assistance in code, documentation and debugging. AI assistance is not evidence of correctness or compatibility.
+
+**Markus Stahl** contributed the application, runtime and release-workflow fixes integrated in 0.6.0. See the [changelog](CHANGELOG.md) for details.
 
 Original work from 0.3.12 uses [PolyForm Noncommercial 1.0.0](LICENSE); dependencies retain their own terms. Earlier license grants remain valid. No expiry, account or paid feature gates. [Credits and license details](docs/credits.md) · [Third-party notices and corresponding source](THIRD-PARTY-NOTICES.md)
 

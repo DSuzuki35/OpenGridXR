@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Activity, Download, Play, Square } from 'lucide-react';
 import { api } from '../api.mjs';
 import { Button, Note, Panel } from './Controls.jsx';
@@ -42,9 +42,13 @@ export default function BenchmarkPanel({profile,dirty}){
   const [status,setStatus]=useState(null),[report,setReport]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   const [logFrametimes,setLogFrametimes]=useState(false);
   useEffect(()=>{
-    let disposed=false,timer;
+    let disposed=false,timer,reported='';
     const poll=async()=>{
-      try{const next=await api.benchmarkStatus();if(!disposed){setStatus(next);if(next.state==='complete')setReport(await api.benchmarkReport());}}
+      try{const next=await api.benchmarkStatus();if(!disposed){setStatus(next);
+        // Fetch a finished report once per recording instead of every second.
+        const key=next.state==='complete'?`${next.game??''}:${next.startedAtMs??''}:${next.frameCount??0}`:'';
+        if(key&&key!==reported){const result=await api.benchmarkReport();if(!disposed){setReport(result);setError('');reported=key;}}
+        else if(!key)reported='';}}
       catch(e){if(!disposed)setError(e.message);}
       finally{if(!disposed)timer=setTimeout(poll,1000);}
     };poll();return()=>{disposed=true;clearTimeout(timer);};

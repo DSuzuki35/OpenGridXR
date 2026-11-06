@@ -81,6 +81,7 @@ else {
         transformDocument: effective,
         outputEnabled: () => enabled('stream'),
         getLmuPreferences: () => lmuRendering.preferences(),
+        lmuRendering,
         prepareAssets: async doc => {
           if (["iracing", "lmu"].some(game => {
             const profile = selectedForGame(doc, game);
@@ -457,10 +458,20 @@ else {
       handle("inputStatus", () => services.peek('bindings')?.status() || idleInput());
       handle("inputEditorState", (state) => {
         if (!state || typeof state.dirty !== 'boolean' || typeof state.busy !== 'boolean' || typeof state.profileId !== 'string' || state.profileId.length > 128) throw new Error('Invalid input editor state.');
+        if (state.profileId !== editorStatus.profileId || !state.dirty) runtime.resetOutputFraming();
         editorGeneration++;
         editorStatus = { dirty: state?.dirty !== false, busy: state?.busy !== false, profileId: state?.profileId };
         gameControl.cancelIfInvalid();
         return services.peek('bindings')?.editorState(state) || idleInput();
+      });
+      ipcMain.on('opengrid:previewOutputFraming', (event, request) => {
+        if (!win || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) return;
+        if (!request) { runtime.resetOutputFraming(); return; }
+        const selected = telemetryDocument.profiles.find(p => p.id === editorStatus.profileId);
+        if (!enabled('stream') || modulesChanging || request.profileId !== selected?.id || request.game !== selected?.game) {
+          runtime.resetOutputFraming(); return;
+        }
+        runtime.previewOutputFraming(request, editorStatus.profileId);
       });
       handle("inputCaptureStart", async (actionId, profileId) => {
         requireModule('bindings');
@@ -486,7 +497,8 @@ else {
         await synchronizeServices();
         let pendingNativeError;
         try {
-          await runtime.writeConfig(doc);
+          // Use the stored (normalized) document, like every other writer.
+          await runtime.writeConfig(state.document);
         } catch (e) {
           pendingNativeError = `Profiles saved, but the runtime configuration could not be updated: ${e.message}`;
         }
@@ -651,6 +663,23 @@ else {
       });
       win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       win.webContents.on("will-navigate", (event) => event.preventDefault());
+      win.webContents.on('render-process-gone', () => runtime.resetOutputFraming());
+      win.webContents.on('destroyed', () => runtime.resetOutputFraming());
+      // Electron cancels a prevented beforeunload silently. Ask instead, so
+      // unsaved edits neither trap the window nor get discarded without notice.
+      win.webContents.on("will-prevent-unload", (event) => {
+        const choice = dialog.showMessageBoxSync(win, {
+          type: "warning",
+          title: "Unsaved changes",
+          message: "You have unsaved profile changes.",
+          detail: "Close OpenGrid XR and discard them?",
+          buttons: ["Keep editing", "Discard and close"],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        if (choice === 1) event.preventDefault();
+      });
       win.once("ready-to-show", () => win.show());
       await win.loadFile(path.join(__dirname, "../dist/index.html"));
       updates.start();

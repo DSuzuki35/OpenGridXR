@@ -85,6 +85,11 @@ DWORD install_assets(const std::filesystem::path& source, const std::filesystem:
     for (const auto& relative : {L"OpenGridXR.dll", L"OpenGridXR-Enhancements.dll", L"OpenGridXR.json", L"providers\\qvfr\\OpenGridXR-QVFR.dll"}) {
         const auto from = source / relative, to = destination / relative;
         if (std::wstring(relative).find(L"providers") == 0 && !std::filesystem::exists(from)) continue;
+        // Reject visible file reparse points in the user-writable source.
+        // This preflight check is defense in depth, not an atomic trust check.
+        const auto sourceAttributes = GetFileAttributesW(from.c_str());
+        if (sourceAttributes == INVALID_FILE_ATTRIBUTES) return GetLastError();
+        if (sourceAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) return ERROR_ACCESS_DENIED;
         std::filesystem::create_directories(to.parent_path(), error);
         if (error) return DWORD(error.value());
         const auto staged = to.wstring() + L".new";
@@ -188,6 +193,10 @@ DWORD execute(const std::vector<std::wstring>& args) {
 
 #ifndef OPENGRID_CONNECTION_TEST
 int wmain(int argc, wchar_t** argv) {
+    // This helper elevates itself from a per-user folder. Resolve any DLL that
+    // is loaded at run time from System32 only, never from the exe directory
+    // (static imports are covered by /DEPENDENTLOADFLAG in CMakeLists.txt).
+    SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
     try {
         const auto error = opengrid::connection::execute(std::vector<std::wstring>(argv + 1, argv + argc));
         if (error) std::cerr << "OpenGrid connection failed: Win32 " << error << '\n';

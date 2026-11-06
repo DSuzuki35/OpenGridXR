@@ -16,7 +16,7 @@ With **Stream → Keep full render area for stream on**, the native layer preser
 
 The global Driving/Streaming selector was removed in 0.5.0. Existing profiles migrate to the matching explicit option; the saved contour is retained. Disabling the Clean Output module makes the effective option off without erasing its preference.
 
-Render/contour changes are snapshots at game session startup: restart the game to apply them. Clean Output reads its settings when launched; close and reopen it after changing output/framing settings. No live geometry resizing occurs underneath the game.
+Render/contour changes are snapshots at game session startup: restart the game to apply them. From **0.6.0**, stabilization reserve and horizontal/vertical framing preview **while you move the controls** in an open Clean Output window launched by the app. **Save profile** makes them permanent; discarding edits or switching profiles restores saved framing. Other output settings still require closing and reopening Clean Output. No live geometry resizing occurs underneath the game.
 
 **Stream stabilization:** **Adaptive roll leveling** uses the Horizon lock strength to reduce small tilts while retaining deliberate lean. **Pitch stabilization** reduces small up/down movements around the initial view. Press **R** with the output window focused to reset the horizon/pitch reference. **Mirrored borders** includes a maximum extension, softness and stretch. Stabilization and border effects run in the existing output pass; softness adds samples only in reflected areas.
 
@@ -42,6 +42,6 @@ Set the Windows display mode to the capture card's supported resolution and refr
 
 **Symmetric extra area** links both expansion sliders. Turning it on sets both to the larger existing side; turning it off keeps the values for independent editing. The choice is stored in each profile.
 
-**Stabilization reserve** sets all four margins together. Expand the individual controls to fine-tune left, right, top and bottom. With different margins, the global value shows their average; moving it sets every margin to the new value.
+**Stabilization reserve** crops the game image to leave room for stabilization: more reserve means more zoom. **13% on each side** keeps the central **74%**, approximately **1.35× zoom** compared with zero reserve. Expand the individual controls to fine-tune left, right, top and bottom. With different margins, the global value shows their average; moving it sets every margin to the new value. Changes preview live; save to keep them. The stream helmet keeps its separate size and position.
 
 The output uses D3D11 shared textures, so its graphics adapter must be compatible with the game's. Supported stereo D3D11 projection capture is the initial path. Unsupported capture formats/view modes should remain pass-through for the game and must not be represented as working capture. No automatic game launch or runtime switch is performed.

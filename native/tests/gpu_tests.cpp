@@ -2,6 +2,7 @@
 // registration or game configuration is needed to exercise shared textures.
 #include "../src/output.cpp"
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 void require(bool ok, const char *message) {
     if (!ok)
@@ -205,6 +206,71 @@ int main() {
                     "finite mirror reflects inside cropped image boundary");
             require(sampleMirror(1.3f, -1, 0, 0)[1] == 128,
                     "legacy omitted mirror allowance preserves sampler reflection");
+            // Measure the actual production warp after aspect fitting, using a
+            // gradient so source-image span is directly visible in pixel values.
+            config.width = 640;
+            config.height = 360;
+            config.offsetX = config.offsetY = 0;
+            require(renderer.render(window, config), "reserve test canvas");
+            ComPtr<ID3D11Texture2D> reserveReadback;
+            renderer.canvas->GetDesc(&d);
+            d.Usage = D3D11_USAGE_STAGING;
+            d.BindFlags = d.MiscFlags = 0;
+            d.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            require(SUCCEEDED(renderer.device->CreateTexture2D(&d, nullptr, &reserveReadback)),
+                    "reserve canvas readback allocation");
+            const auto reserveSpan = [&]() {
+                require(renderer.render(window, config), "production reserve render");
+                renderer.context->CopyResource(reserveReadback.Get(), renderer.canvas.Get());
+                D3D11_MAPPED_SUBRESOURCE result{};
+                require(SUCCEEDED(renderer.context->Map(reserveReadback.Get(), 0, D3D11_MAP_READ, 0,
+                                                       &result)), "reserve pixel readback");
+                const auto row = static_cast<unsigned char*>(result.pData) + 180 * result.RowPitch;
+                const int span = int(row[480 * 4]) - int(row[160 * 4]);
+                renderer.context->Unmap(reserveReadback.Get(), 0);
+                return span;
+            };
+            const auto zeroSpan = reserveSpan();
+            config.reserve = {13, 13, 13, 13};
+            const auto thirteenSpan = reserveSpan();
+            config.reserve = {30, 30, 30, 30};
+            const auto thirtySpan = reserveSpan();
+            require(std::abs(zeroSpan - 128) <= 2 && std::abs(thirteenSpan - zeroSpan * .74) <= 2 &&
+                        std::abs(thirtySpan - zeroSpan * .40) <= 2,
+                    "0/13/30 percent reserve keeps 100/74/40 percent source span after aspect fitting");
+            const auto savedPath = std::filesystem::temp_directory_path() /
+                (L"OpenGridXR-gpu-framing-" + std::to_wstring(GetCurrentProcessId()) + L".ini");
+            { std::ofstream saved(savedPath);
+              saved << "[lmu]\nReserveLeft=13\nReserveRight=13\nReserveTop=13\nReserveBottom=13\n"
+                       "OffsetX=0\nOffsetY=0\n"; }
+            og::OutputFramingReload reload(savedPath.wstring(), "lmu");
+            const auto originalDevice = renderer.device.Get();
+            const auto originalSource = renderer.local.Get();
+            const auto originalSequence = renderer.sequence;
+            const bool reloaded = reload.poll(config, 1000);
+            std::filesystem::remove(savedPath);
+            require(reloaded && reserveSpan() == thirteenSpan &&
+                        renderer.device.Get() == originalDevice && renderer.local.Get() == originalSource &&
+                        renderer.sequence == originalSequence,
+                    "saved reserve updates actual GPU pixels without recreating renderer or capture");
+            HANDLE previewReader{}, previewWriter{};
+            require(CreatePipe(&previewReader, &previewWriter, nullptr, 4096) != 0, "GPU preview pipe");
+            og::OutputFramingPreview preview(previewReader);
+            const auto savedConfig = config;
+            const auto previewCommand = [&](const char* command) {
+                DWORD written{};
+                require(WriteFile(previewWriter, command, DWORD(std::strlen(command)), &written, nullptr) != 0,
+                        "GPU preview command");
+                preview.poll(1000); preview.apply(savedConfig, config);
+            };
+            previewCommand("F 30 30 30 30 0 0\n");
+            require(reserveSpan() == thirtySpan && savedConfig.reserve.left == 13,
+                    "unsaved reserve stdin command changes actual GPU pixels while saved config stays intact");
+            previewCommand("R\n");
+            require(reserveSpan() == thirteenSpan, "discard restores saved reserve GPU pixels immediately");
+            CloseHandle(previewWriter); CloseHandle(previewReader);
+            std::cout << "Reserve source spans (0/13/30%): " << zeroSpan << "/" << thirteenSpan <<
+                "/" << thirtySpan << "; saved 13% applied to same renderer\n";
             renderer.upright.reset();
             renderer.upright.correction({}, {}, 0, false, 100);
             const auto pitched = vrst::axis_angle({1, 0, 0}, .2);

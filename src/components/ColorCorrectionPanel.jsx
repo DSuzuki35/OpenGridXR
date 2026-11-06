@@ -1,4 +1,4 @@
-import React,{useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 import {Palette} from 'lucide-react';
 import {api} from '../api.mjs';
 import {COLOR_PRESET_IDS,COLOR_RANGES,colorCorrectionDefaults,resolvedColorPreset,colorPresetIsIdentity} from '../color-correction.mjs';

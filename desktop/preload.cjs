@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld(
     installRuntime: () => invoke("installRuntime"),
     removeRuntime: () => invoke("removeRuntime"),
     launchOutput: (profile) => invoke("launchOutput", profile),
+    previewOutputFraming: request => ipcRenderer.send('opengrid:previewOutputFraming', request),
     launchLmuOffline: (profileId, revision, options) => invoke("launchLmuOffline", profileId, revision, options),
     lmuStatus: () => invoke('lmuStatus'),
     setLmuPreferences: value => invoke('setLmuPreferences', value),

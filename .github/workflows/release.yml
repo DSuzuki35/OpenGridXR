@@ -2,15 +2,17 @@ name: Build release installer
 on:
   push:
     tags: ['v*']
+# Building runs third-party install scripts (npm ci), so it gets a read-only
+# token. Only the small publish job below may write to the repository.
 permissions:
-  contents: write
+  contents: read
 jobs:
   release:
     runs-on: windows-2022
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -29,7 +31,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build native/build --config Release --parallel 4
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
+          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|swapchain-wait|output-framing|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
           exit $LASTEXITCODE
       - run: npm run package:installer
       - name: Check packaged module settings and helmet visor states
@@ -63,23 +65,48 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/full-visor-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/close-confirmation.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/output-framing-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/visor-template-export.cjs
           exit $LASTEXITCODE
       - run: npm run test:update-download
-      - name: Create draft release with updater metadata
+      - name: Collect installer, blockmap and updater metadata
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           $files = Get-ChildItem "release/$version" -File | Where-Object { $_.Name -match '\.exe$|\.blockmap$|^latest\.yml$' }
           if ($files.Count -lt 3) { throw 'Installer, blockmap and latest.yml are required.' }
+          New-Item -ItemType Directory -Force publish | Out-Null
+          $files | Copy-Item -Destination publish
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-assets
+          path: publish/
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-assets
+          path: publish
+      - name: Create draft release with updater metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
           # A locally signed release may already have been published for this tag.
           # Preserve its assets instead of creating a second, unsigned draft.
-          gh release view $env:GITHUB_REF_NAME --json id --jq .id *> $null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host 'Release already exists; keeping its assets unchanged.'
+          if gh release view "$GITHUB_REF_NAME" --json id --jq .id > /dev/null 2>&1; then
+            echo 'Release already exists; keeping its assets unchanged.'
             exit 0
-          }
-          gh release create $env:GITHUB_REF_NAME --draft --verify-tag --title "OpenGrid XR $version" --generate-notes @($files.FullName)
-          exit $LASTEXITCODE
+          fi
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "OpenGrid XR $version" --generate-notes publish/*

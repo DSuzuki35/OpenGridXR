@@ -13,7 +13,6 @@ import {
   Palette,
   RefreshCw,
   Settings2,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Button, Note, Panel, Range, Segmented, Toggle } from "./Controls.jsx";

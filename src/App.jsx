@@ -11,7 +11,6 @@ import {
   CircleHelp,
   Copy,
   Download,
-  Expand,
   Eye,
   Flag,
   FolderHeart,
@@ -21,7 +20,6 @@ import {
   Grid2X2,
   Info,
   Layers,
-  Link2,
   Monitor,
   Plus,
   Radio,
@@ -37,6 +35,7 @@ import {
   X,
 } from "lucide-react";
 import { api, isBrowserPreview } from "./api.mjs";
+import { createFramingPreviewSender } from './output-framing.mjs';
 import {
   createDocument,
   createProfile,
@@ -211,7 +210,10 @@ export default function App() {
   const profile =
     document.profiles.find((p) => p.id === document.selectedProfileId) ||
     document.profiles[0];
-  const dirty = JSON.stringify(document) !== saved;
+  // Profiles can embed helmet graphics (up to 2 MiB); serialize only when the
+  // document changes, not on every unrelated render (toasts, busy state, …).
+  const serializedDocument = useMemo(() => JSON.stringify(document), [document]);
+  const dirty = serializedDocument !== saved;
   const editorState = useRef({
     dirty: true,
     busy: true,
@@ -253,6 +255,25 @@ export default function App() {
   useEffect(() => {
     api.inputEditorState?.(editorState.current).catch(() => {});
   }, [dirty, busy, profile.id, loading, helmetPreparing]);
+  const framingPreview = useRef(null);
+  useEffect(() => {
+    framingPreview.current = createFramingPreviewSender(request => api.previewOutputFraming?.(request));
+    return () => { framingPreview.current?.close(); framingPreview.current = null; };
+  }, []);
+  const framingValues = JSON.stringify([profile.stream.reserve.left, profile.stream.reserve.right,
+    profile.stream.reserve.top, profile.stream.reserve.bottom, profile.stream.offsetX, profile.stream.offsetY]);
+  const savedFramingValues = useMemo(() => {
+    const previous = saved ? JSON.parse(saved).profiles.find(p => p.id === profile.id)?.stream : null;
+    return previous ? JSON.stringify([previous.reserve.left, previous.reserve.right,
+      previous.reserve.top, previous.reserve.bottom, previous.offsetX, previous.offsetY]) : null;
+  }, [saved, profile.id]);
+  useEffect(() => {
+    const values = JSON.parse(framingValues);
+    framingPreview.current?.update(!loading && modules.stream && savedFramingValues && framingValues !== savedFramingValues ? {
+      profileId:profile.id, game:profile.game,
+      reserve:{left:values[0],right:values[1],top:values[2],bottom:values[3]}, offsetX:values[4],offsetY:values[5],
+    } : null);
+  }, [framingValues, profile.id, profile.game, savedFramingValues, loading, modules.stream]);
   useEffect(
     () =>
       api.onInputProfile?.((result) => {
@@ -452,6 +473,12 @@ export default function App() {
       },
       "Profile saved. Restart your XR session to apply allocation changes.",
     );
+  }
+  function discardFraming() {
+    const persisted = saved ? JSON.parse(saved).profiles.find(p => p.id === profile.id) : null;
+    if (!persisted) return;
+    changeGroup('stream', {reserve:{...persisted.stream.reserve}, offsetX:persisted.stream.offsetX,
+      offsetY:persisted.stream.offsetY});
   }
   function refreshRuntime() {
     action(
@@ -1122,7 +1149,7 @@ export default function App() {
             )}
             {tab === "stream" && <StreamPage profile={profile} dirty={dirty} busy={busy} launch={launch} changeGroup={changeGroup} change={change} displays={displays} displayError={displayError} setExtraSymmetric={setExtraSymmetric} changeExtraArea={changeExtraArea}
               importSteadyXr={importSteadyXr} importReport={streamImportReport?.profileId === profile.id ? streamImportReport : null}
-              dismissImportReport={() => setStreamImportReport(null)} helmetAvailable={modules.helmet !== false} />}
+              dismissImportReport={() => setStreamImportReport(null)} helmetAvailable={modules.helmet !== false} discardFraming={discardFraming} />}
 
             {tab === "profiles" && (
               <div className="profiles-layout">

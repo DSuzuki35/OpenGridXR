@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {Boxes} from "lucide-react";
 import {Button, Panel, Toggle, Note} from "./Controls.jsx";
 import {MODULES, moduleDefaults} from "../modules.mjs";

@@ -1,11 +1,10 @@
 import {usesFullRenderArea} from "../model.mjs";
-import React from "react";
 import {Monitor, ScanLine, Eye, ShieldCheck, Expand} from "lucide-react";
 import {Button, Panel, Range, Stepper, Toggle, Segmented, Note} from "./Controls.jsx";
 import {TrackArt} from "./ContourEditor.jsx";
 import {isBrowserPreview} from "../api.mjs";
 import {StreamHelmetPreview, StreamHelmetControls} from './StreamHelmet.jsx';
-export default function StreamPage({profile,dirty,busy,launch,changeGroup,change,displays,displayError,setExtraSymmetric,changeExtraArea,importSteadyXr,importReport,dismissImportReport,helmetAvailable}) { return (
+export default function StreamPage({profile,dirty,busy,launch,changeGroup,change,displays,displayError,setExtraSymmetric,changeExtraArea,importSteadyXr,importReport,dismissImportReport,helmetAvailable,discardFraming}) { return (
               <div className="stream-layout">
                 <div className="stream-main">
                   {importReport && <Panel title="steadyXR preset imported">
@@ -211,11 +210,11 @@ export default function StreamPage({profile,dirty,busy,launch,changeGroup,change
                     </Panel>
                     <Panel title="Stabilization reserve" icon={ShieldCheck}>
                       <p className="panel-description">
-                        Extra image area for smoother framing.
+                        Zoom in to leave image area around the output for stabilization. Reserve and framing preview live in the open clean output. Save to keep your changes; discard to restore saved framing.
                       </p>
                       <Range label="Global reserve" max={30}
                         value={Math.round(Object.values(profile.stream.reserve).reduce((sum, value) => sum + value, 0) / 4)}
-                        hint="Sets all four sides to the same amount. Fine-tune individual sides below."
+                        hint="Reserves this percentage on each side. 13% keeps the central 74% (about 1.35× zoom). Fine-tune individual sides below."
                         onChange={(value) => changeGroup("stream", { reserve: { left: value, right: value, top: value, bottom: value } })} />
                       <details className="reserve-details">
                         <summary>Fine-tune individual sides{new Set(Object.values(profile.stream.reserve)).size > 1 ? " · Individual values" : " · All sides equal"}</summary>
@@ -236,6 +235,7 @@ export default function StreamPage({profile,dirty,busy,launch,changeGroup,change
                         ))}
                       </div>
                       </details>
+                      <Button onClick={discardFraming} disabled={!!busy || !dirty}>Discard framing changes</Button>
                     </Panel>
                   </div>
                 </div>
@@ -278,6 +278,7 @@ export default function StreamPage({profile,dirty,busy,launch,changeGroup,change
                       hint="Reduce small up/down movements around the starting view; larger looks remain possible. Press R in the output window to reset the reference." />
                     <Range
                       label="Horizontal framing"
+                      hint="Previews live in the open clean output. Save to keep your changes."
                       value={profile.stream.offsetX}
                       min={-100}
                       max={100}
@@ -285,6 +286,7 @@ export default function StreamPage({profile,dirty,busy,launch,changeGroup,change
                     />
                     <Range
                       label="Vertical framing"
+                      hint="Previews live in the open clean output. Save to keep your changes."
                       value={profile.stream.offsetY}
                       min={-100}
                       max={100}

@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Info, Minus, Plus } from "lucide-react";
 import { BindingButton, useInputBindings } from "./BindingContext.jsx";
 

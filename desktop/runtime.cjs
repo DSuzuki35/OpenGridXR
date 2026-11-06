@@ -6,6 +6,7 @@ const { promisify } = require("node:util");
 const { createHash } = require("node:crypto");
 const run = promisify(execFile);
 const { atomicWrite } = require("./store.cjs");
+const { createOutputFraming } = require('./output-framing.cjs');
 const { toRuntimeIni, toEnhancementsConfig, selectedForGame } = require("./runtime-config.cjs");
 const REG = "HKCU\\SOFTWARE\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit";
 const FILES = [
@@ -143,9 +144,31 @@ function assertSavedOutputProfile(doc, profile) {
   if (selected?.id !== profile.id)
     throw new Error("Save the selected profile before opening Clean Output.");
 }
-function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.APPDATA || runtimeDir, 'opengrid-xr'), testMode = false, prepareAssets = async () => {}, transformDocument = doc => doc, outputEnabled = () => true, getLmuPreferences = async () => ({cpuCacheAffinity:false}) }) {
+function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.APPDATA || runtimeDir, 'opengrid-xr'), testMode = false, prepareAssets = async () => {}, transformDocument = doc => doc, outputEnabled = () => true, getLmuPreferences = async () => ({cpuCacheAffinity:false}), lmuRendering = null }) {
   const manifest = path.join(runtimeDir, "OpenGridXR.json");
   let output = null;
+  let outputFraming = null;
+  // Reuse one LMU service so saves do not repeat registry/Steam discovery.
+  const lmu = () => lmuRendering ||= require('./lmu-rendering.cjs').createLmuRendering({dataDir,runtimeDir});
+  // status() runs after every save. Include identity and change time so a
+  // same-size replacement with a preserved modification time is rehashed.
+  const digests = new Map();
+  const digestKey = stat => `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  async function digest(file) {
+    const key = digestKey(await fs.stat(file, {bigint:true})), cached = digests.get(file);
+    if (cached?.key === key) return cached.value;
+    const value = createHash("sha256").update(await fs.readFile(file)).digest("hex");
+    // A concurrent installation must not seed a stale cache entry.
+    if (digestKey(await fs.stat(file, {bigint:true})) === key) digests.set(file, {key, value});
+    else digests.delete(file);
+    return value;
+  }
+  async function sameContents(a, b) {
+    const [left, right] = await Promise.all([fs.stat(a), fs.stat(b)]);
+    if (left.size !== right.size) return false;
+    const [x, y] = await Promise.all([digest(a), digest(b)]);
+    return x === y;
+  }
   async function registrations() {
     const absent = {present:false, enabled:false};
     if (process.platform !== 'win32' || testMode) return {machine:absent, legacyMachine:absent, user:absent};
@@ -155,10 +178,6 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
         !['machine','legacyMachine','user'].every(key => typeof state[key]?.present === 'boolean' && typeof state[key]?.enabled === 'boolean'))
       throw new Error('Invalid connection status from the native helper.');
     return state;
-  }
-  async function queryRegistration() {
-    const {machine, legacyMachine, user} = await registrations();
-    return machine.enabled || legacyMachine.enabled || user.enabled;
   }
   async function changeMachineRegistration(operation) {
     // The signed helper elevates itself and installs executable assets under
@@ -228,16 +247,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     if (registered && available) {
       for (const file of FILES) {
         try {
-          const [packaged, installed] = await Promise.all([
-            fs.readFile(path.join(sourceDir, file)),
-            fs.readFile(path.join(runtimeDir, file)),
-          ]);
-          if (
-            !createHash("sha256")
-              .update(packaged)
-              .digest()
-              .equals(createHash("sha256").update(installed).digest())
-          ) {
+          if (!(await sameContents(path.join(sourceDir, file), path.join(runtimeDir, file)))) {
             updateRequired = true;
             break;
           }
@@ -252,8 +262,7 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
         if (await fs.access(path.join(runtimeDir,provider)).then(()=>true,()=>false)) executableFiles.push(provider);
         for (const file of executableFiles) {
           try {
-            const [prepared, installed] = await Promise.all([fs.readFile(path.join(runtimeDir,file)), fs.readFile(path.join(machineDirectory,file))]);
-            if (!createHash('sha256').update(prepared).digest().equals(createHash('sha256').update(installed).digest())) {updateRequired=true;break;}
+            if (!(await sameContents(path.join(runtimeDir,file), path.join(machineDirectory,file)))) {updateRequired=true;break;}
           } catch {updateRequired=true;break;}
         }
       }
@@ -297,9 +306,9 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
   }
   async function writeConfig(doc) {
     doc = transformDocument(doc);
-    const lmu = selectedForGame(doc, 'lmu');
-    if (!testMode && lmu?.lmuRendering?.mode === 'quad' && lmu.lmuRendering.provider === 'qvfr')
-      await require('./lmu-rendering.cjs').createLmuRendering({dataDir,runtimeDir}).prepareAutomatic(lmu);
+    const lmuProfile = selectedForGame(doc, 'lmu');
+    if (!testMode && lmuProfile?.lmuRendering?.mode === 'quad' && lmuProfile.lmuRendering.provider === 'qvfr')
+      await lmu().prepareAutomatic(lmuProfile);
     await prepareAssets(doc);
     for (const game of ["iracing", "lmu"]) {
       await atomicWrite(
@@ -363,6 +372,8 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
       throw new Error(
         "Install the OpenXR connection in Setup before opening Clean Output.",
       );
+    if (native.updateRequired)
+      throw new Error('Update the OpenXR connection in Setup before opening Clean Output. Close both sims and Clean Output, then update the runtime.');
     assertSavedOutputProfile(doc, profile);
     // Equality uses the saved profile; only runtime preparation sees overrides.
     profile = transformDocument(doc).profiles.find(p => p.id === profile.id);
@@ -375,10 +386,14 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
         path.join(runtimeDir, "OpenGridXR.ini"),
         "--game",
         profile.game,
+        "--framing-stdin",
         ...args,
       ],
-      { cwd: runtimeDir, windowsHide: false, stdio: "ignore" },
+      { cwd: runtimeDir, windowsHide: false, stdio: ['pipe', 'ignore', 'ignore'] },
     );
+    outputFraming?.close();
+    const framing = outputFraming = createOutputFraming(output.stdin, profile);
+    output.once('exit', () => framing.close());
     await new Promise((resolve, reject) => {
       output.once("spawn", resolve);
       output.once("error", reject);
@@ -391,10 +406,18 @@ function createRuntime({ sourceDir, runtimeDir, dataDir = path.join(process.env.
     };
   }
   function closeOutput() {
+    outputFraming?.close();
+    outputFraming = null;
     if (output && output.exitCode === null) output.kill();
     output = null;
   }
-  return { status, sessionsStatus, lmuDiagnosticsStatus, install, remove, writeConfig, launch, closeOutput, ensureGamesClosed };
+  function previewOutputFraming(request, selectedProfileId) {
+    if (!request || !outputEnabled()) { outputFraming?.reset(); return false; }
+    return outputFraming?.preview(request, selectedProfileId) || false;
+  }
+  function resetOutputFraming() { outputFraming?.reset(); }
+  return { status, sessionsStatus, lmuDiagnosticsStatus, install, remove, writeConfig, launch, closeOutput, ensureGamesClosed,
+    previewOutputFraming, resetOutputFraming };
 }
 module.exports = {
   createRuntime,

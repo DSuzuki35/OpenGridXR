@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { ArrowUpRight, Coffee, ExternalLink } from "lucide-react";
 import { api } from "../api.mjs";
 

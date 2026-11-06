@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
 import { api } from "../api.mjs";
 import { Button, Panel } from "./Controls.jsx";

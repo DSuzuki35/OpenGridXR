@@ -1,4 +1,4 @@
-import React, {useEffect,useState} from 'react';
+import {useEffect,useState} from 'react';
 import {Eye,FolderOpen,Play,Camera,RefreshCw} from 'lucide-react';
 import {Button,Note,Panel,Range,Toggle} from './Controls.jsx';
 import {api,isBrowserPreview} from '../api.mjs';
@@ -13,7 +13,11 @@ export default function QuadViewPage({profile,onChange,onViewChange,revision,dir
   useEffect(()=>{
     let live=true,pending=false;
     const refresh=async()=>{if(pending)return;pending=true;try{const next=await api.lmuStatus();if(live){setStatus(next);setSession(next.session||null);setError('');}}catch(e){if(live)setError(e.message);}finally{pending=false;}};
-    refresh();const timer=setInterval(refresh,3000);return()=>{live=false;clearInterval(timer);};
+    // Pause while the window is hidden; refresh immediately when it returns.
+    const tick=()=>{if(!window.document.hidden)void refresh();};
+    const visible=()=>tick();
+    refresh();const timer=setInterval(tick,3000);window.document.addEventListener('visibilitychange',visible);
+    return()=>{live=false;clearInterval(timer);window.document.removeEventListener('visibilitychange',visible);};
   },[]);
   useEffect(()=>setReview(null),[profile.id,revision,dirty]);
   if(profile.game!=='lmu')return <Panel title="LMU rendering"><Note>Select a Le Mans Ultimate profile to configure quad views or stereo VRS.</Note></Panel>;

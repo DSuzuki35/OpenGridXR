@@ -10,8 +10,8 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -30,7 +30,7 @@ jobs:
           exit $LASTEXITCODE
       - name: Run portable native checks
         shell: pwsh
-        run: ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
+        run: ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|swapchain-wait|output-framing|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
       - name: Package unsigned application
         run: npm run package
       - name: Check packaged module settings and lazy pages
@@ -62,9 +62,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/full-visor-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/close-confirmation.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/output-framing-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/visor-template-export.cjs
           exit $LASTEXITCODE
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: OpenGridXR-windows-x64-development
           path: release/*/win-unpacked/

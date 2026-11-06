@@ -76,7 +76,15 @@ test('CPU preference persists only in machine-local installation state',async t=
  assert.deepEqual(await createLmuRendering(options).preferences(),{cpuCacheAffinity:false});
  await service.setPreferences({cpuCacheAffinity:true});
  assert.deepEqual(await createLmuRendering(options).preferences(),{cpuCacheAffinity:true});
- assert.equal((await service.status()).sourceVersion,'0.5.4');
+ assert.equal((await service.status()).sourceVersion,require('../package.json').version);
+});
+test('discovery retries a missing QVFR installation even when VectorXR was found',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'og-lmu-discovery-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ t.mock.timers.enable({apis:['Date'],now:100000});
+ let discoveries=0;
+ const service=createLmuRendering({dataDir:dir,runtimeDir:dir,discover:async()=>{discoveries++;return {executables:['game.exe'],providers:[{provider:'vectorxr',file:'vector.json'}]};}});
+ await service.preferences();await service.preferences();assert.equal(discoveries,1);
+ t.mock.timers.tick(60001);await service.preferences();assert.equal(discoveries,2);
 });
 
 test('existing installation without a CPU preference leaves affinity opt-in',async t=>{

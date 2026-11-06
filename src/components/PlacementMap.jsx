@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Move } from "lucide-react";
 import { Panel, Segmented } from "./Controls.jsx";
 import { mapBounds, mapPatch, mapPosition, nudgePosition } from "../placement-map.mjs";

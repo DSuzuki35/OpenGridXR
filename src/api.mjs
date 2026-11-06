@@ -182,6 +182,7 @@ const preview = {
   async launchOutput() {
     throw new Error("Clean output requires the Windows app.");
   },
+  previewOutputFraming() {},
   async openDataFolder() {
     throw new Error("Browser profiles are stored in this browser.");
   },

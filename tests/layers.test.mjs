@@ -179,7 +179,8 @@ test('corrupt backups are reported and never sent to the helper',async t=>{
   await assert.rejects(editor.restore({id:backup.id,admin:true}),/cannot be restored/);
   assert.equal(state.calls.filter(args=>args[0]==='--set').length,prior);
 });
-test('manifest health parses local metadata without loading the library and reports missing files',async t=>{
+// Manifest inspection accepts only local Windows paths (drive letters, path.win32).
+test('manifest health parses local metadata without loading the library and reports missing files',{skip:process.platform!=='win32'},async t=>{
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'layer-manifest-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
   const manifest=path.join(dir,'layer.json'); const library=path.join(dir,'test.dll');
   await fs.writeFile(library,'This is not an executable.');

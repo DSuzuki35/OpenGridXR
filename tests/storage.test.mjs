@@ -169,3 +169,75 @@ test("an oversized existing file can be restored and is preserved exactly", asyn
     ).some((s) => s.size === large.length),
   );
 });
+test("saving keeps only the newest 100 backups on disk", async (t) => {
+  const { store, dir } = await fixture(t);
+  let state = await store.load();
+  state = await store.save(state.document, state.revision);
+  const backupDir = path.join(dir, "backups");
+  await fs.mkdir(backupDir, { recursive: true });
+  // Simulate a long-running installation that predates pruning.
+  for (let n = 0; n < 120; n++)
+    await fs.writeFile(path.join(backupDir, `${String(1e12 + n)}-00000000-0000-0000-0000-${String(n).padStart(12, "0")}.json`), "{}");
+  const next = await store.save(state.document, state.revision);
+  const names = (await fs.readdir(backupDir)).sort();
+  assert.equal(names.length, 100);
+  assert.equal(next.backups.length, 100);
+  assert.ok(!names.includes(`${String(1e12)}-00000000-0000-0000-0000-000000000000.json`), "oldest backup is pruned");
+});
+test("abandoned empty locks recover but live writers retain even old locks", async (t) => {
+  const { store, dir } = await fixture(t);
+  const a = await store.load();
+  const lock = path.join(dir, "profiles.lock");
+  await fs.writeFile(lock, "");
+  await assert.rejects(() => store.save(a.document, a.revision), /busy/i);
+  const old = new Date(Date.now() - 60000);
+  await fs.utimes(lock, old, old);
+  const b = await store.save(a.document, a.revision);
+  assert.notEqual(b.revision, a.revision);
+  // Age alone cannot distinguish a suspended writer from a reused PID.
+  await fs.writeFile(lock, JSON.stringify({ pid: process.pid }));
+  await assert.rejects(() => store.save(b.document, b.revision), /busy/i);
+  await fs.utimes(lock, old, old);
+  b.document.profiles[0].name = "Recovered";
+  await assert.rejects(() => store.save(b.document, b.revision), /busy/i);
+  assert.equal(JSON.parse(await fs.readFile(lock, 'utf8')).pid, process.pid);
+});
+test('a cancelled save does not prune existing recovery backups', async t => {
+  const {store,dir}=await fixture(t);
+  let state=await store.load();state=await store.save(state.document,state.revision);
+  const backupDir=path.join(dir,'backups');
+  for(let n=0;n<101;n++)await fs.writeFile(path.join(backupDir,`${1e12+n}-00000000-0000-0000-0000-${String(n).padStart(12,'0')}.json`),'{}');
+  let checks=0;
+  await assert.rejects(store.save(state.document,state.revision,{beforeReplace(){if(++checks>1)throw new Error('cancelled');}}),/cancelled/);
+  assert.equal((await fs.readdir(backupDir)).length,102);
+});
+test('concurrent store instances cannot steal a recovered writer lock', async t => {
+  const {store,dir}=await fixture(t), other=await createStore(path.join(dir,'.'));
+  const state=await store.load(), lock=path.join(dir,'profiles.lock');
+  await fs.writeFile(lock,'');
+  const old=new Date(Date.now()-60000);await fs.utimes(lock,old,old);
+  let entered, resume, intercepted=false;
+  const recovering=new Promise(resolve=>{entered=resolve;});
+  const continueRecovery=new Promise(resolve=>{resume=resolve;});
+  const unlink=fs.unlink;
+  t.mock.method(fs,'unlink',async function(file,...args){
+    if(file===lock&&!intercepted){intercepted=true;entered();await continueRecovery;}
+    return unlink.call(this,file,...args);
+  });
+  const first=structuredClone(state.document);first.profiles[0].name='First writer';
+  const second=structuredClone(state.document);second.profiles[0].name='Second writer';
+  const saving=store.save(first,state.revision);
+  // Observe any failure immediately, including in the intentionally failing run.
+  const finished=saving.then(value=>({value}),error=>({error}));
+  await recovering;
+  try {
+    await assert.rejects(other.save(second,state.revision),/busy/i);
+  } finally {
+    resume();await finished;
+  }
+  const result=await finished;
+  assert.ifError(result.error);
+  assert.equal((await store.load()).document.profiles[0].name,'First writer');
+  // The guard must be released after publication so a later save can proceed.
+  const next=await store.load();await other.save(next.document,next.revision);
+});

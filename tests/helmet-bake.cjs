@@ -6,8 +6,117 @@ const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 
+// Packed 16-bit coordinates cross a byte carry here. Resizing their RG bytes
+// separately jitters a narrow line by several pixels even though the actual
+// coordinate changes by only 1/65535 across the entire image.
+async function measureCoordinatePrecision(compose, aperture, helmet) {
+  const canvas = (width, height) => Object.assign(document.createElement('canvas'), {width, height});
+  const shell = canvas(2, 2), map = canvas(2, 2), ctx = map.getContext('2d');
+  const data = ctx.createImageData(2, 2);
+  const mapping = vertical => {
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+      const at = (y * 2 + x) * 4, value = 32767 + (vertical ? y : x);
+      data.data.set([value >> 8, value & 255, 0, 255], at);
+    }
+    ctx.putImageData(data, 0, 0); return map.toDataURL();
+  };
+  const uvUrl = mapping(false), uvVUrl = mapping(true);
+  Object.assign(helmet, {opacity:0, visorTint:0, scale:100, offsetX:0, offsetY:0});
+  delete helmet.openingAngle; delete helmet.openingWidth;
+  Object.assign(helmet.visor, {enabled:false, graphicPlacement:'full', graphicMirror:false, mirror:false, textOpacity:100, softness:0});
+  const results = [];
+  for (const vertical of [false, true]) {
+    const art = canvas(800, 450), paint = art.getContext('2d'); paint.fillStyle = 'white';
+    if (vertical) paint.fillRect(399, 0, 2, 450); else paint.fillRect(0, 224, 800, 2);
+    helmet.visor.graphic = art.toDataURL();
+    const result = await compose({helmet, shellUrl:shell.toDataURL(), uvUrl, uvVUrl, width:256, height:144}, aperture);
+    const image = new Image(); image.src = result.png; await image.decode();
+    const output = canvas(256, 144), out = output.getContext('2d'); out.drawImage(image, 0, 0);
+    const pixels = out.getImageData(0, 0, 256, 144).data;
+    let minimum = 255;
+    for (let i = 3; i < pixels.length; i += 4) minimum = Math.min(minimum, pixels[i]);
+    results.push(minimum);
+  }
+  // Transparent map texels must not drag the surviving coordinate toward zero.
+  data.data.set([128, 0, 0, 255], 0); data.data.set([0, 0, 0, 0], 4);
+  data.data.set([128, 0, 0, 255], 8); data.data.set([0, 0, 0, 0], 12);
+  ctx.putImageData(data, 0, 0);
+  const masked = await compose({helmet, shellUrl:shell.toDataURL(), uvUrl:map.toDataURL(), uvVUrl, width:256, height:144}, aperture);
+  const image = new Image(); image.src = masked.png; await image.decode();
+  const output = canvas(256, 144), out = output.getContext('2d'); out.drawImage(image, 0, 0);
+  const row = out.getImageData(0, 72, 256, 1).data;
+  return {lineMinimum:results, coverage:[0, 127, 128, 255].map(x => row[x * 4 + 3])};
+}
+
+async function measureLetterEdges(compose, aperture, helmet) {
+  const map = document.createElement('canvas'); map.width = 800; map.height = 450;
+  const ctx = map.getContext('2d'), data = ctx.createImageData(800, 450);
+  const shellUrl = map.toDataURL();
+  const mapping = vertical => {
+    for (let y = 0; y < 450; y++) for (let x = 0; x < 800; x++) {
+      const at = (y * 800 + x) * 4, value = Math.round((vertical ? y / 449 : x / 799) * 65535);
+      data.data.set([value >> 8, value & 255, 0, 255], at);
+    }
+    ctx.putImageData(data, 0, 0); return map.toDataURL();
+  };
+  const uvUrl = mapping(false), uvVUrl = mapping(true);
+  Object.assign(helmet, {opacity:0, visorTint:0, scale:100, offsetX:0, offsetY:0});
+  delete helmet.openingAngle; delete helmet.openingWidth;
+  Object.assign(helmet.visor, {enabled:true, opacity:0, height:40, curve:0, text:'I'.repeat(40),
+    textSize:44, font:'arial', textWidth:80, textCurve:0, textX:0, textY:0,
+    softness:0, textOpacity:100, mirror:false, graphic:''});
+  const result = await compose({helmet, shellUrl, uvUrl, uvVUrl, width:4096, height:2304}, aperture);
+  const image = new Image(); image.src = result.png; await image.decode();
+  map.width = 4096; map.height = 2304; ctx.drawImage(image, 0, 0);
+  const row = ctx.getImageData(0, Math.round(156 / 450 * 2304), 4096, 1).data;
+  let partial = 0, edges = 0, previous = false;
+  for (let x = 0; x < 4096; x++) {
+    const alpha = row[x * 4 + 3], inside = alpha >= 128;
+    if (alpha > 10 && alpha < 245) partial++;
+    if (inside !== previous) edges++;
+    previous = inside;
+  }
+  return {edges, transitionWidth:partial / edges};
+}
+
+async function measureFittedGlyphs(compose, aperture, helmet) {
+  const map = document.createElement('canvas'); map.width = 800; map.height = 450;
+  const ctx = map.getContext('2d'), data = ctx.createImageData(800, 450), shellUrl = map.toDataURL();
+  const mapping = vertical => {
+    for (let y = 0; y < 450; y++) for (let x = 0; x < 800; x++) {
+      const at = (y * 800 + x) * 4, value = Math.round((vertical ? y / 449 : x / 799) * 65535);
+      data.data.set([value >> 8, value & 255, 0, 255], at);
+    }
+    ctx.putImageData(data, 0, 0); return map.toDataURL();
+  };
+  const uvUrl = mapping(false), uvVUrl = mapping(true);
+  Object.assign(helmet, {opacity:0, visorTint:0, scale:100, offsetX:0, offsetY:0, openingWidth:100});
+  delete helmet.openingAngle;
+  Object.assign(helmet.visor, {enabled:true, opacity:0, height:26, curve:12, text:'Ug j y Q',
+    textSize:44, textWidth:45, textCurve:10, textX:0, softness:0, textOpacity:100, mirror:true, graphic:''});
+  const results = [];
+  for (const [font, customFont] of [['arialNarrow',''], ['custom','Segoe UI']]) {
+    const samples = [];
+    for (const textY of [-5, 3]) {
+      Object.assign(helmet.visor, {font, customFont, textY});
+      const result = await compose({helmet, shellUrl, uvUrl, uvVUrl, width:800, height:450}, aperture);
+      const image = new Image(); image.src = result.png; await image.decode();
+      ctx.clearRect(0, 0, 800, 450); ctx.drawImage(image, 0, 0);
+      const pixels = ctx.getImageData(0, 0, 800, 450).data;
+      let top = 450, bottom = 0, alphaSum = 0;
+      for (let y = 0; y < 450; y++) for (let x = 0; x < 800; x++) {
+        const alpha = pixels[(y * 800 + x) * 4 + 3]; alphaSum += alpha;
+        if (alpha > 10) { top = Math.min(top, y); bottom = Math.max(bottom, y); }
+      }
+      samples.push({height:bottom - top + 1, alphaSum});
+    }
+    results.push({font, samples});
+  }
+  return results;
+}
+
 // Identity maps isolate text bending from the baked visor perspective.
-async function measureTextCurves(compose, aperture, helmet) {
+async function measureTextCurves(compose, aperture, helmet, renderWidth = 800) {
   const shell = document.createElement('canvas'); shell.width = 800; shell.height = 450;
   const map = document.createElement('canvas'); map.width = 800; map.height = 450;
   const ctx = map.getContext('2d'), pixels = ctx.createImageData(800, 450);
@@ -24,9 +133,9 @@ async function measureTextCurves(compose, aperture, helmet) {
   const results = [];
   for (const textCurve of [-20, 0, 20]) {
     helmet.visor.textCurve = textCurve;
-    const { png } = await compose({ helmet, shellUrl, uvUrl, uvVUrl, width: 800, height: 450 }, aperture);
+    const { png } = await compose({ helmet, shellUrl, uvUrl, uvVUrl, width: renderWidth, height: renderWidth * 9 / 16 }, aperture);
     const image = new Image(); image.src = png; await image.decode();
-    ctx.clearRect(0, 0, 800, 450); ctx.drawImage(image, 0, 0);
+    ctx.clearRect(0, 0, 800, 450); ctx.drawImage(image, 0, 0, 800, 450);
     const data = ctx.getImageData(0, 0, 800, 450).data;
     const centroid = (start, end) => {
       let weight = 0, sum = 0;
@@ -70,6 +179,18 @@ if (!process.versions.electron) {
       const curveWindow = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, offscreen: true } });
       try {
         await curveWindow.loadURL('data:text/html,<title>Text curvature regression</title>');
+        const precision = await curveWindow.webContents.executeJavaScript(`(${measureCoordinatePrecision.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)})`);
+        assert.deepEqual(precision.lineMinimum, [255, 255], 'Resized packed U and V coordinates preserve continuous narrow artwork across byte carries');
+        assert.deepEqual(precision.coverage, [255, 128, 127, 0], 'Coordinate interpolation preserves smooth coverage without pulling transparent-map coordinates into visible ink');
+        const sharpness = await curveWindow.webContents.executeJavaScript(`(${measureLetterEdges.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)})`);
+        assert.equal(sharpness.edges, 80, 'Detailed output retains each of the 40 separate letter strokes');
+        assert.ok(sharpness.transitionWidth < 2, `4K letter edges must not magnify a fixed 1600px raster: ${JSON.stringify(sharpness)}`);
+        console.log('UV continuity, alpha coverage and 4K letter-edge measurements:', JSON.stringify({precision, sharpness}));
+        const glyphs = await curveWindow.webContents.executeJavaScript(`(${measureFittedGlyphs.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)})`);
+        for (const {font, samples:[reference, lowered]} of glyphs) {
+          assert.ok(Math.abs(lowered.height - reference.height) <= 2, `${font}: fitting retains complete rounded glyphs and descenders near the strip edge: ${JSON.stringify({reference, lowered})}`);
+          assert.ok(Math.abs(lowered.alphaSum / reference.alphaSum - 1) < .02, `${font}: fitting moves the complete glyph ink without clipping it`);
+        }
         const curves = await curveWindow.webContents.executeJavaScript(`(${measureTextCurves.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)})`);
         assert.ok(curves[0].png !== curves[1].png, 'Negative curvature must bend the rendered text');
         assert.ok(curves[2].png !== curves[1].png, 'Positive curvature must bend the rendered text');
@@ -78,6 +199,10 @@ if (!process.versions.electron) {
         assert.ok(curves[0].right - curves[0].center > 10, 'Negative curvature lowers mirrored right edge');
         assert.ok(curves[2].center - curves[2].left > 10, 'Positive curvature raises both edges');
         assert.ok(curves[2].center - curves[2].right > 10, 'Positive curvature raises mirrored right edge');
+        const detailedCurves = await curveWindow.webContents.executeJavaScript(`(${measureTextCurves.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)}, 4096)`);
+        for (let i = 0; i < curves.length; i++) for (const part of ['left', 'center', 'right']) {
+          assert.ok(Math.abs(detailedCurves[i][part] - curves[i][part]) < 1, `4K output preserves ${part} lettering placement for curve ${i}`);
+        }
         const clear=await curveWindow.webContents.executeJavaScript(`(${measureClearVisor.toString()})(${composeHelmetRaster.toString()}, ${deriveHelmetAperture.toString()}, ${JSON.stringify(p.helmet)})`);
         assert.ok(clear.half!==clear.open,'Half-open clear glass needs a visible lower rim even without tint or sunstrip');
       } finally { curveWindow.destroy(); }

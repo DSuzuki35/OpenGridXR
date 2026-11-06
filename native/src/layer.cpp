@@ -31,6 +31,7 @@ namespace {
 constexpr char layerName[] = "XR_APILAYER_OPENGRIDXR";
 struct Instance {
     XrInstance handle{};
+    size_t imageWaits{}; // Protected by guard; pins downstream handle lifetime.
     PFN_xrGetInstanceProcAddr gipa{};
     og::Config config;
     std::wstring path;
@@ -63,6 +64,7 @@ struct Instance {
 uint64_t nextSessionId = GetTickCount64() << 16;
 struct Session {
     Instance *instance{};
+    size_t imageWaits{};
     XrSession handle{};
     uint64_t identity{++nextSessionId};
     bool mutableFov{}, haveFov{};
@@ -107,6 +109,7 @@ struct Session {
 };
 struct Swapchain {
     Session *session{};
+    size_t imageWaits{};
     XrSwapchainCreateInfo info{};
     std::vector<XrSwapchainImageD3D11KHR> images;
     std::deque<std::pair<uint32_t, bool>> acquired;
@@ -137,6 +140,20 @@ std::unordered_map<XrSession, std::unique_ptr<Session>> sessions;
 std::unordered_map<XrSwapchain, std::unique_ptr<Swapchain>> chains;
 PFN_xrGetInstanceProcAddr fallback{};
 #define LOCK std::lock_guard<std::recursive_mutex> lock(guard)
+// Construct and destroy under guard. Destruction hooks refuse conflicting
+// teardown until these reservations are released. This also handles runtime
+// callbacks on the waiting thread without waiting on their own completion.
+struct ImageWaitPin {
+    Swapchain &chain;
+    Session &session;
+    Instance &instance;
+    explicit ImageWaitPin(Swapchain &c) : chain(c), session(*c.session), instance(*session.instance) {
+        ++chain.imageWaits; ++session.imageWaits; ++instance.imageWaits;
+    }
+    ~ImageWaitPin() { --chain.imageWaits; --session.imageWaits; --instance.imageWaits; }
+    ImageWaitPin(const ImageWaitPin&) = delete;
+    ImageWaitPin& operator=(const ImageWaitPin&) = delete;
+};
 bool color_shortcut_down(const Session &s) {
     return !s.colorKeys.empty() &&
            std::all_of(s.colorKeys.begin(), s.colorKeys.end(),
@@ -587,6 +604,8 @@ XrResult XRAPI_CALL destroy_instance(XrInstance h) {
     auto it = instances.find(h);
     if (it == instances.end())
         return XR_ERROR_HANDLE_INVALID;
+    if (it->second->imageWaits)
+        return XR_ERROR_RUNTIME_FAILURE;
     auto result = it->second->DestroyInstance(h);
     if (XR_SUCCEEDED(result)) {
         for (auto s = sessions.begin(); s != sessions.end();)
@@ -665,6 +684,8 @@ XrResult XRAPI_CALL destroy_session(XrSession h) {
     auto it = sessions.find(h);
     if (it == sessions.end())
         return XR_ERROR_HANDLE_INVALID;
+    if (it->second->imageWaits)
+        return XR_ERROR_RUNTIME_FAILURE;
     auto r = it->second->instance->DestroySession(h);
     if (XR_SUCCEEDED(r)) {
         status(*it->second, false);
@@ -878,6 +899,8 @@ XrResult XRAPI_CALL destroy_swapchain(XrSwapchain h) {
     auto it = chains.find(h);
     if (it == chains.end())
         return XR_ERROR_HANDLE_INVALID;
+    if (it->second->imageWaits)
+        return XR_ERROR_RUNTIME_FAILURE;
     auto r = it->second->session->instance->DestroySwapchain(h);
     if (XR_SUCCEEDED(r))
         chains.erase(it);
@@ -889,19 +912,32 @@ XrResult XRAPI_CALL acquire_image(XrSwapchain h, const XrSwapchainImageAcquireIn
     auto it = chains.find(h);
     if (it == chains.end())
         return XR_ERROR_HANDLE_INVALID;
+    if (it->second->imageWaits)
+        return XR_ERROR_CALL_ORDER_INVALID;
     auto r = it->second->session->instance->AcquireSwapchainImage(h, info, index);
     if (XR_SUCCEEDED(r))
         it->second->acquired.emplace_back(*index, false);
     return r;
 }
 XrResult XRAPI_CALL wait_image(XrSwapchain h, const XrSwapchainImageWaitInfo *info) {
-    LOCK;
+    std::unique_lock<std::recursive_mutex> lock(guard);
     auto it = chains.find(h);
     if (it == chains.end())
         return XR_ERROR_HANDLE_INVALID;
-    auto r = it->second->session->instance->WaitSwapchainImage(h, info);
+    if (it->second->imageWaits)
+        return XR_ERROR_CALL_ORDER_INVALID;
+    ImageWaitPin pin(*it->second);
+    const auto wait = pin.instance.WaitSwapchainImage;
+    // OpenXR requires external synchronization for this swapchain. Explicit
+    // reservations additionally protect its parents against invalid concurrent
+    // destruction and same-thread callbacks while unrelated calls can progress.
+    lock.unlock();
+    XrResult r;
+    try { r = wait(h, info); }
+    catch (...) { r = XR_ERROR_RUNTIME_FAILURE; }
+    lock.lock();
     if (r == XR_SUCCESS)
-        for (auto &item : it->second->acquired)
+        for (auto &item : pin.chain.acquired)
             if (!item.second) {
                 item.second = true;
                 break;
@@ -913,6 +949,8 @@ XrResult XRAPI_CALL release_image(XrSwapchain h, const XrSwapchainImageReleaseIn
     auto it = chains.find(h);
     if (it == chains.end())
         return XR_ERROR_HANDLE_INVALID;
+    if (it->second->imageWaits)
+        return XR_ERROR_CALL_ORDER_INVALID;
     auto &c = *it->second;
     if (!c.session->instance->lmuQuad && !c.acquired.empty() && c.acquired.front().second) {
         snapshot(c, c.acquired.front().first);

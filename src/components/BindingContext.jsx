@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 import { Gamepad2 } from "lucide-react";
 import { isBrowserPreview } from "../api.mjs";
 export const Context = createContext(null);

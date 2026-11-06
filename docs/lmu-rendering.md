@@ -1,6 +1,6 @@
 # LMU rendering
 
-OpenGrid **0.5.4** includes the LMU renderer from [LMU Quad View Mod v0.5.4](https://github.com/DSuzuki35/LMU-Quad-View-Mod/tree/v0.5.4), commit `aa04884be7d8f52e585ffe9ad2d58be10a1ccd8f`. Its adapter is linked into `OpenGridXR.dll`. Save your profile, update the installed runtime layer, then restart LMU to use the new renderer.
+OpenGrid **0.6.0** includes the LMU renderer from [LMU Quad View Mod v0.5.4](https://github.com/DSuzuki35/LMU-Quad-View-Mod/tree/v0.5.4), commit `aa04884be7d8f52e585ffe9ad2d58be10a1ccd8f`. Its adapter is linked into `OpenGridXR.dll`. Save your profile, update the installed runtime layer, then restart LMU to use the new renderer.
 
 ![LMU provider and focus settings](images/screenshots/quad-views.png)
 

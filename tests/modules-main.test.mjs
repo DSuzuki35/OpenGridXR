@@ -17,20 +17,26 @@ async function fixture(t, options={}) {
   Object.assign(app,{isPackaged:false,requestSingleInstanceLock:()=>true,whenReady:()=>Promise.resolve(),setName(){},setPath(){},getPath:()=>dir,getVersion:()=> '1.0.0',quit(){}});
   let ready, failed, window, created=0, stopped=0, applyBinding;
   const centers=[];
+  const previews=[];let previewResets=0;
   const initialized=new Promise((resolve,reject)=>{ready=resolve;failed=reject;});
   const handlers=new Map(), imported=[];
   class BrowserWindow extends EventEmitter {
     constructor(){super();window=this;this.webContents=new EventEmitter();Object.assign(this.webContents,{mainFrame:{},isDestroyed:()=>false,setWindowOpenHandler(){},send(){}});}
     isDestroyed(){return false;} async loadFile(){ready();}
   }
-  const electron={app,BrowserWindow,ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},dialog:{showErrorBox:(_title,error)=>failed(new Error(error))},shell:{},screen:{getAllDisplays:()=>[]}};
+  const ipcMain=Object.assign(new EventEmitter(),{handle:(name,fn)=>handlers.set(name,fn)});
+  const electron={app,BrowserWindow,ipcMain,dialog:{showErrorBox:(_title,error)=>failed(new Error(error))},shell:{},screen:{getAllDisplays:()=>[]}};
   const source=new URL('../desktop/main.cjs',import.meta.url), require=createRequire(source);
   const localRequire=name=>{
     imported.push(name);
     if(name==='electron')return electron;
     if(name==='electron-updater')return {autoUpdater:Object.assign(new EventEmitter(),{setFeedURL(){}})};
     if(name==='./telemetry.cjs')return {createTelemetry:()=>{created++;return {status:async()=>({running:true}),close:()=>{stopped++;}};}};
-    if(options.bindings && name==='./runtime.cjs')return {createRuntime:args=>require(name).createRuntime({...args,testMode:true})};
+    if((options.bindings||options.preview) && name==='./runtime.cjs')return {createRuntime:args=>{
+      const runtime=require(name).createRuntime({...args,testMode:true});
+      if(options.preview){runtime.previewOutputFraming=(...args)=>previews.push(args);runtime.resetOutputFraming=()=>previewResets++;}
+      return runtime;
+    }};
     if(options.bindings && name==='./game-control.cjs')return {createGameControl:()=>({center:(...args)=>{centers.push(args);return {message:'fixture'};},cancelIfInvalid(){},close(){}})};
     if(options.bindings && name==='./input-controller.cjs')return {createInputController:args=>{applyBinding=args.applyAction;return require(name).createInputController(args);}};
     if(options.bindings && name==='./input-host.cjs')return {createInputHost:()=>({setActive(){},state:()=>({running:true,devices:[]}),close(){}})};
@@ -39,7 +45,11 @@ async function fixture(t, options={}) {
   new Function('require','__dirname','process',await fs.readFile(source,'utf8'))(localRequire,path.dirname(fileURLToPath(source)),{...process,env:{...process.env,OPENGRIDXR_TEST_MODE:options.bindings && !options.testMode?'0':'1',OPENGRIDXR_DATA_DIR:dir}});
   await initialized;
   t.after(()=>{app.emit('before-quit',{preventDefault(){}});app.emit('will-quit');});
-  return {dir,imported,centers,applyBinding:(...args)=>applyBinding(...args),hasHandler:name=>handlers.has(`opengrid:${name}`),counts:()=>({created,stopped}),invoke:(name,...args)=>{
+  return {dir,imported,centers,previews,previewResets:()=>previewResets,
+    preview:(request,trusted=true)=>ipcMain.emit('opengrid:previewOutputFraming',
+      {sender:window.webContents,senderFrame:trusted?window.webContents.mainFrame:{}},request),
+    crash:()=>window.webContents.emit('render-process-gone'),
+    applyBinding:(...args)=>applyBinding(...args),hasHandler:name=>handlers.has(`opengrid:${name}`),counts:()=>({created,stopped}),invoke:(name,...args)=>{
     const handler=handlers.get(`opengrid:${name}`); assert.ok(handler,`IPC ${name} is registered`);
     return handler({sender:window.webContents,senderFrame:window.webContents.mainFrame},...args);
   }};
@@ -66,6 +76,24 @@ test('centering controller action uses saved game shortcut without saving a togg
   await f.invoke('inputEditorState',{dirty:false,busy:false,profileId:'other-profile'});
   await assert.rejects(f.applyBinding(p.id,'centering.game'),/save|discard|profile/i);
   assert.equal(f.centers.length,1);
+});
+test('live framing IPC checks sender, selected profile, game and module, and restores on crash',async t=>{
+  const f=await fixture(t,{preview:true}),state=await f.invoke('load');
+  const p=state.document.profiles[0];
+  await f.invoke('inputEditorState',{dirty:false,busy:false,profileId:p.id});
+  const settings=await f.invoke('getModuleSettings');settings.enabled.stream=true;
+  await f.invoke('setModuleSettings',settings);
+  await f.invoke('inputEditorState',{dirty:true,busy:false,profileId:p.id});
+  const request={profileId:p.id,game:p.game,reserve:{left:13,right:13,top:13,bottom:13},offsetX:31,offsetY:6};
+  const resets=f.previewResets();f.preview(request,false);
+  assert.equal(f.previews.length,0);assert.equal(f.previewResets(),resets,'untrusted subframe cannot alter preview');
+  f.preview(request);assert.equal(f.previews.length,1);assert.equal(f.previews[0][1],p.id);
+  f.preview({...request,game:'lmu'});f.preview({...request,profileId:'other'});
+  assert.equal(f.previews.length,1);assert.equal(f.previewResets(),resets+2);
+  f.preview(null);f.crash();assert.equal(f.previewResets(),resets+4);
+  await f.invoke('inputEditorState',{dirty:false,busy:false,profileId:p.id});
+  settings.enabled.stream=false;await f.invoke('setModuleSettings',settings);
+  f.preview(request);assert.equal(f.previews.length,1);
 });
 
 test('desktop starts without optional services and enforces module gates at IPC boundaries',async t=>{
