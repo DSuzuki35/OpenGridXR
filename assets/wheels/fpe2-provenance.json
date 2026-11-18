@@ -1,0 +1,1500 @@
+{
+  "model": "Gomez Sim Industries FPE2",
+  "authorization": "The user stated they are a GSI member and explicitly authorized extracting and using these official models in oVRlay.",
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "source_manifest": "gsi-source-manifest.json",
+  "identity_evidence": "Official chooser id/file=fpe; default theme model=fpe, hub=qrs1.",
+  "original_model": {
+    "copyright": "anderson_mancini",
+    "generator": "Khronos glTF Blender I/O v4.1.63",
+    "version": "2.0"
+  },
+  "credits": {
+    "configurator": "GSI / Neotix",
+    "materials": [
+      {
+        "name": "Black Plastic",
+        "id": "7241e7a9-cc3e-4f80-ab34-076465f5e7b7",
+        "license": "royalty_free",
+        "author": "Nobody",
+        "url": "https://www.blenderkit.com/api/v1/assets/7241e7a9-cc3e-4f80-ab34-076465f5e7b7/"
+      },
+      {
+        "name": "Die-cast aluminum",
+        "id": "76f47d07-e067-4870-b5b7-5bcc5777ddfa",
+        "license": "royalty_free",
+        "author": "Joachim Bornemann",
+        "url": "https://www.blenderkit.com/api/v1/assets/76f47d07-e067-4870-b5b7-5bcc5777ddfa/"
+      },
+      {
+        "name": "Carbon Fiber",
+        "id": "aade2d53-0952-4140-a04b-049737a57bae",
+        "license": "royalty_free",
+        "author": "Linka Palm",
+        "url": "https://www.blenderkit.com/api/v1/assets/aade2d53-0952-4140-a04b-049737a57bae/"
+      }
+    ],
+    "baked_font": "Poppins, SIL Open Font License 1.1; see POPPINS-OFL.txt."
+  },
+  "output": {
+    "format": "AGMESH1",
+    "version": 4,
+    "vertex_stride": 36,
+    "file": "fpe2.agm",
+    "sha256": "5c311f9bb4680c05918f984398b0f050353885c5e7a5e985c9394b99d3ac9259",
+    "bytes": 23349660,
+    "vertices": 128766,
+    "triangles": 161403,
+    "indices": 484209,
+    "atlas": [
+      2048,
+      2048
+    ],
+    "source_width": 9.648602485656738,
+    "source_shaft_origin": [
+      0.125,
+      0.35,
+      0
+    ],
+    "source_hub_translation": [
+      0.125,
+      0.35,
+      -0.75
+    ],
+    "width_m": 0.3,
+    "kind": 5,
+    "screen_rectangle": {
+      "source_node": "static_FPE_Assembly_V1.001",
+      "source_material": "Screen",
+      "center": [
+        -0.013353905535798953,
+        0.10472478378109638,
+        0.12867644042729612
+      ],
+      "width": 0.3416904106661732,
+      "height": 0.2014936857369,
+      "aspect_ratio": 1.6957871876557704,
+      "right": [
+        1,
+        0,
+        0
+      ],
+      "up": [
+        0,
+        0.9999999999999323,
+        3.679048345469626e-07
+      ],
+      "normal": [
+        0,
+        -3.679048345469626e-07,
+        0.9999999999999323
+      ],
+      "corners": [
+        [
+          -0.18419911086888557,
+          0.003977940912653219,
+          0.12867640336204555
+        ],
+        [
+          -0.18419911086888557,
+          0.20547162664953955,
+          0.12867647749254668
+        ],
+        [
+          0.15749129979728768,
+          0.003977940912653219,
+          0.12867640336204555
+        ],
+        [
+          0.15749129979728768,
+          0.20547162664953955,
+          0.12867647749254668
+        ]
+      ],
+      "recommended_dashboard_surface_offset_m": 0.0005
+    },
+    "normalized_bounds": [
+      [
+        -0.5129556655883789,
+        -0.3548058569431305,
+        -0.18044030666351318
+      ],
+      [
+        0.4870443642139435,
+        0.25171011686325073,
+        0.18617573380470276
+      ]
+    ],
+    "led_mapping": {
+      "verified_control_groups": true,
+      "angular_wiring_verified": false,
+      "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+      "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+      "telemetry_banks": [
+        3,
+        14,
+        3
+      ],
+      "telemetry_bank_sizes_verified": true,
+      "telemetry_within_bank_orientation_verified": false,
+      "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+      "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+      "tagged_vertices": 6473,
+      "groups": [
+        {
+          "node": 59,
+          "name": "sticker_16_fpe_v2",
+          "tag": 101,
+          "vertices": 512,
+          "triangles": 808,
+          "center": [
+            -1.0322052240371704,
+            -0.4105815291404724,
+            1.239791989326477
+          ],
+          "bounds": [
+            [
+              -1.6306489706039429,
+              -0.9162432551383972,
+              1.1920859813690186
+            ],
+            [
+              -0.4337615668773651,
+              0.09508019685745239,
+              1.2874979972839355
+            ]
+          ],
+          "physical_first": 0,
+          "physical_count": 5
+        },
+        {
+          "node": 60,
+          "name": "sticker_18_fpe_v2",
+          "tag": 105,
+          "vertices": 399,
+          "triangles": 584,
+          "center": [
+            -0.0013070106506347656,
+            -0.6075620651245117,
+            1.2442378997802734
+          ],
+          "bounds": [
+            [
+              -0.50483638048172,
+              -1.1787655353546143,
+              1.196471929550171
+            ],
+            [
+              0.5022223591804504,
+              -0.036358535289764404,
+              1.2920037508010864
+            ]
+          ],
+          "physical_first": 5,
+          "physical_count": 4
+        },
+        {
+          "node": 64,
+          "name": "sticker_17_fpe_v2",
+          "tag": 109,
+          "vertices": 515,
+          "triangles": 808,
+          "center": [
+            1.0290586948394775,
+            -0.4105815291404724,
+            1.239791989326477
+          ],
+          "bounds": [
+            [
+              0.43061497807502747,
+              -0.9162432551383972,
+              1.1920859813690186
+            ],
+            [
+              1.6275023221969604,
+              0.09508019685745239,
+              1.2874979972839355
+            ]
+          ],
+          "physical_first": 9,
+          "physical_count": 5
+        },
+        {
+          "node": 61,
+          "name": "sticker_19_fpe_v2",
+          "tag": 113,
+          "vertices": 532,
+          "triangles": 828,
+          "center": [
+            -0.8879554271697998,
+            -1.4762074947357178,
+            1.2601044178009033
+          ],
+          "bounds": [
+            [
+              -1.4863991737365723,
+              -1.9818692207336426,
+              1.2123984098434448
+            ],
+            [
+              -0.28951165080070496,
+              -0.9705457091331482,
+              1.3078104257583618
+            ]
+          ],
+          "physical_first": 14,
+          "physical_count": 5
+        },
+        {
+          "node": 65,
+          "name": "sticker_20_fpe_v2",
+          "tag": 117,
+          "vertices": 531,
+          "triangles": 826,
+          "center": [
+            0.8848088383674622,
+            -1.4762074947357178,
+            1.2601044178009033
+          ],
+          "bounds": [
+            [
+              0.2863651216030121,
+              -1.9818692207336426,
+              1.2123984098434448
+            ],
+            [
+              1.4832525253295898,
+              -0.9705457091331482,
+              1.3078104257583618
+            ]
+          ],
+          "physical_first": 19,
+          "physical_count": 5
+        },
+        {
+          "node": 44,
+          "name": "custom_button_l_0_fpe_v2",
+          "tag": 21,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -3.3022983074188232,
+            2.316654682159424,
+            1.401336669921875
+          ],
+          "bounds": [
+            [
+              -3.4765396118164062,
+              2.1424977779388428,
+              1.3836572170257568
+            ],
+            [
+              -3.1280570030212402,
+              2.490811586380005,
+              1.4190160036087036
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 2
+        },
+        {
+          "node": 53,
+          "name": "sticker_l_0_fpe_v2",
+          "tag": 121,
+          "vertices": 24,
+          "triangles": 22,
+          "center": [
+            -3.299698829650879,
+            2.3179922103881836,
+            1.4194533824920654
+          ],
+          "bounds": [
+            [
+              -3.438685417175293,
+              2.1790056228637695,
+              1.4194533824920654
+            ],
+            [
+              -3.160712480545044,
+              2.4569785594940186,
+              1.4194533824920654
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 2
+        },
+        {
+          "node": 43,
+          "name": "custom_button_l_1_fpe_v2",
+          "tag": 25,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.2569847106933594,
+            1.800727367401123,
+            1.401336669921875
+          ],
+          "bounds": [
+            [
+              -2.4312262535095215,
+              1.6265703439712524,
+              1.3836572170257568
+            ],
+            [
+              -2.0827434062957764,
+              1.9748845100402832,
+              1.4190161228179932
+            ]
+          ],
+          "physical_first": 26,
+          "physical_count": 2
+        },
+        {
+          "node": 3,
+          "name": "sticker_l_1_fpe_v2",
+          "tag": 125,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.2543818950653076,
+            1.8020795583724976,
+            1.4194804430007935
+          ],
+          "bounds": [
+            [
+              -2.3933818340301514,
+              1.6630796194076538,
+              1.4194804430007935
+            ],
+            [
+              -2.115381956100464,
+              1.9410794973373413,
+              1.4194804430007935
+            ]
+          ],
+          "physical_first": 26,
+          "physical_count": 2
+        },
+        {
+          "node": 54,
+          "name": "static_sticker_l_3_fpe_v2",
+          "tag": 129,
+          "vertices": 31,
+          "triangles": 29,
+          "center": [
+            -2.070086717605591,
+            1.0256128311157227,
+            1.2884423732757568
+          ],
+          "bounds": [
+            [
+              -2.3267805576324463,
+              0.8907243609428406,
+              1.2884423732757568
+            ],
+            [
+              -1.8133927583694458,
+              1.16050124168396,
+              1.2884423732757568
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 1
+        },
+        {
+          "node": 42,
+          "name": "custom_button_l_5_fpe_v2",
+          "tag": 33,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.354520559310913,
+            0.06376449018716812,
+            1.401336431503296
+          ],
+          "bounds": [
+            [
+              -2.528761863708496,
+              -0.11039255559444427,
+              1.3836569786071777
+            ],
+            [
+              -2.18027925491333,
+              0.23792153596878052,
+              1.419015884399414
+            ]
+          ],
+          "physical_first": 29,
+          "physical_count": 2
+        },
+        {
+          "node": 2,
+          "name": "sticker_l_5_fpe_v2",
+          "tag": 133,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.351912021636963,
+            0.06511107087135315,
+            1.4194728136062622
+          ],
+          "bounds": [
+            [
+              -2.490906238555908,
+              -0.07388317584991455,
+              1.4194728136062622
+            ],
+            [
+              -2.2129178047180176,
+              0.20410531759262085,
+              1.4194728136062622
+            ]
+          ],
+          "physical_first": 29,
+          "physical_count": 2
+        },
+        {
+          "node": 41,
+          "name": "custom_button_l_6_fpe_v2",
+          "tag": 37,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.1600069999694824,
+            -0.6490013599395752,
+            1.4013363122940063
+          ],
+          "bounds": [
+            [
+              -2.3342485427856445,
+              -0.8231583833694458,
+              1.3836568593978882
+            ],
+            [
+              -1.9857656955718994,
+              -0.4748442769050598,
+              1.4190157651901245
+            ]
+          ],
+          "physical_first": 31,
+          "physical_count": 2
+        },
+        {
+          "node": 49,
+          "name": "sticker_l_6_fpe_v2",
+          "tag": 137,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.157402992248535,
+            -0.6476320028305054,
+            1.4251561164855957
+          ],
+          "bounds": [
+            [
+              -2.2963802814483643,
+              -0.7866361141204834,
+              1.4251561164855957
+            ],
+            [
+              -2.018425703048706,
+              -0.5086279511451721,
+              1.4251561164855957
+            ]
+          ],
+          "physical_first": 31,
+          "physical_count": 2
+        },
+        {
+          "node": 40,
+          "name": "custom_button_l_7_fpe_v2",
+          "tag": 41,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -1.8775101900100708,
+            -1.3338738679885864,
+            1.4013361930847168
+          ],
+          "bounds": [
+            [
+              -2.0517516136169434,
+              -1.508030891418457,
+              1.3836567401885986
+            ],
+            [
+              -1.7032687664031982,
+              -1.1597168445587158,
+              1.419015645980835
+            ]
+          ],
+          "physical_first": 33,
+          "physical_count": 2
+        },
+        {
+          "node": 48,
+          "name": "sticker_l_7_fpe_v2",
+          "tag": 141,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -1.8749110698699951,
+            -1.332517147064209,
+            1.4274042844772339
+          ],
+          "bounds": [
+            [
+              -2.0139174461364746,
+              -1.4714958667755127,
+              1.4274042844772339
+            ],
+            [
+              -1.7359046936035156,
+              -1.1935384273529053,
+              1.4274042844772339
+            ]
+          ],
+          "physical_first": 33,
+          "physical_count": 2
+        },
+        {
+          "node": 36,
+          "name": "custom_button_r_8_fpe_v2",
+          "tag": 45,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            3.302290439605713,
+            2.316654682159424,
+            1.401336669921875
+          ],
+          "bounds": [
+            [
+              3.12804913520813,
+              2.1424977779388428,
+              1.3836572170257568
+            ],
+            [
+              3.476531505584717,
+              2.490811586380005,
+              1.4190160036087036
+            ]
+          ],
+          "physical_first": 35,
+          "physical_count": 2
+        },
+        {
+          "node": 56,
+          "name": "sticker_r_8_fpe_v2",
+          "tag": 145,
+          "vertices": 24,
+          "triangles": 22,
+          "center": [
+            3.2996985912323,
+            2.3179922103881836,
+            1.4194533824920654
+          ],
+          "bounds": [
+            [
+              3.160712242126465,
+              2.1790056228637695,
+              1.4194533824920654
+            ],
+            [
+              3.4386849403381348,
+              2.4569787979125977,
+              1.4194533824920654
+            ]
+          ],
+          "physical_first": 35,
+          "physical_count": 2
+        },
+        {
+          "node": 35,
+          "name": "custom_button_r_9_fpe_v2",
+          "tag": 49,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.256977081298828,
+            1.800727367401123,
+            1.401336669921875
+          ],
+          "bounds": [
+            [
+              2.082735776901245,
+              1.6265703439712524,
+              1.3836572170257568
+            ],
+            [
+              2.431218385696411,
+              1.9748845100402832,
+              1.4190161228179932
+            ]
+          ],
+          "physical_first": 37,
+          "physical_count": 2
+        },
+        {
+          "node": 51,
+          "name": "sticker_r_9_fpe_v2",
+          "tag": 149,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.2543818950653076,
+            1.8020795583724976,
+            1.4194804430007935
+          ],
+          "bounds": [
+            [
+              2.115381956100464,
+              1.6630796194076538,
+              1.4194804430007935
+            ],
+            [
+              2.3933818340301514,
+              1.9410794973373413,
+              1.4194804430007935
+            ]
+          ],
+          "physical_first": 37,
+          "physical_count": 2
+        },
+        {
+          "node": 57,
+          "name": "static_sticker_r_11_fpe_v2",
+          "tag": 153,
+          "vertices": 31,
+          "triangles": 29,
+          "center": [
+            2.068988561630249,
+            1.0256128311157227,
+            1.2884423732757568
+          ],
+          "bounds": [
+            [
+              1.812294602394104,
+              0.8907243609428406,
+              1.2884423732757568
+            ],
+            [
+              2.3256824016571045,
+              1.16050124168396,
+              1.2884423732757568
+            ]
+          ],
+          "physical_first": 39,
+          "physical_count": 1
+        },
+        {
+          "node": 39,
+          "name": "custom_button_r_13_fpe_v2",
+          "tag": 57,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.354512929916382,
+            0.06376449018716812,
+            1.401336431503296
+          ],
+          "bounds": [
+            [
+              2.180271625518799,
+              -0.11039255559444427,
+              1.3836569786071777
+            ],
+            [
+              2.528754234313965,
+              0.23792153596878052,
+              1.419015884399414
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 2
+        },
+        {
+          "node": 68,
+          "name": "sticker_r_13_fpe_v2",
+          "tag": 157,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.351912021636963,
+            0.06511107087135315,
+            1.4194728136062622
+          ],
+          "bounds": [
+            [
+              2.2129178047180176,
+              -0.07388317584991455,
+              1.4194728136062622
+            ],
+            [
+              2.490906238555908,
+              0.20410531759262085,
+              1.4194728136062622
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 2
+        },
+        {
+          "node": 38,
+          "name": "custom_button_r_14_fpe_v2",
+          "tag": 61,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.1551735401153564,
+            -0.6421070098876953,
+            1.4013363122940063
+          ],
+          "bounds": [
+            [
+              1.9809322357177734,
+              -0.8162640333175659,
+              1.3836568593978882
+            ],
+            [
+              2.3294148445129395,
+              -0.46794992685317993,
+              1.4190157651901245
+            ]
+          ],
+          "physical_first": 42,
+          "physical_count": 2
+        },
+        {
+          "node": 67,
+          "name": "sticker_r_14_fpe_v2",
+          "tag": 161,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.157402992248535,
+            -0.6476320028305054,
+            1.4230159521102905
+          ],
+          "bounds": [
+            [
+              2.018425703048706,
+              -0.7866361141204834,
+              1.4230159521102905
+            ],
+            [
+              2.2963802814483643,
+              -0.5086279511451721,
+              1.4230159521102905
+            ]
+          ],
+          "physical_first": 42,
+          "physical_count": 2
+        },
+        {
+          "node": 37,
+          "name": "custom_button_r_15_fpe_v2",
+          "tag": 65,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            1.87750244140625,
+            -1.3338738679885864,
+            1.4013361930847168
+          ],
+          "bounds": [
+            [
+              1.703261137008667,
+              -1.508030891418457,
+              1.3836567401885986
+            ],
+            [
+              2.051743745803833,
+              -1.1597168445587158,
+              1.419015645980835
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 2
+        },
+        {
+          "node": 58,
+          "name": "sticker_r_15_fpe_v2",
+          "tag": 165,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            1.8749110698699951,
+            -1.332517147064209,
+            1.423982858657837
+          ],
+          "bounds": [
+            [
+              1.735904574394226,
+              -1.4714958667755127,
+              1.423982858657837
+            ],
+            [
+              2.0139174461364746,
+              -1.1935384273529053,
+              1.423982858657837
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 2
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 69,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.8097624778747559,
+            1.45097815990448,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.850289225578308,
+              1.4068188667297363,
+              1.28194260597229
+            ],
+            [
+              -1.7692358493804932,
+              1.4951374530792236,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 46,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 70,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.8097624778747559,
+            1.6824455261230469,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.850289225578308,
+              1.6383998394012451,
+              1.28194260597229
+            ],
+            [
+              -1.7692358493804932,
+              1.7264913320541382,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 47,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 71,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.8097624778747559,
+            1.9123237133026123,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.850289225578308,
+              1.8681644201278687,
+              1.28194260597229
+            ],
+            [
+              -1.7692358493804932,
+              1.9564831256866455,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 72,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.4919061660766602,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.5324329137802124,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -1.4513795375823975,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 49,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 73,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.2619144916534424,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.3024412393569946,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -1.2213878631591797,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 50,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 74,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.0320364236831665,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -1.072676658630371,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -0.9913961887359619,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 51,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 75,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -0.8021582365036011,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -0.8426848649978638,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -0.7616316080093384,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 52,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 76,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -0.5721665024757385,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -0.612693190574646,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -0.531639814376831,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 53,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 77,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -0.3422883152961731,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -0.3829284906387329,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -0.3016481399536133,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 54,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 78,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -0.11241018772125244,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              -0.15293681621551514,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              -0.07188355922698975,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 55,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 79,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            0.11746799945831299,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              0.0768277645111084,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              0.15810823440551758,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 56,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 80,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            0.3473461866378784,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              0.30681943893432617,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              0.38787293434143066,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 57,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 81,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            0.5773378610610962,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              0.536811113357544,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              0.6178646087646484,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 58,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 82,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            0.8072160482406616,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              0.766575813293457,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              0.8478562831878662,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 59,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 83,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.037094235420227,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              0.9965674877166748,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              1.0776209831237793,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 60,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 84,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.2670859098434448,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              1.2265591621398926,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              1.307612657546997,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 61,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 85,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.4969640970230103,
+            2.542133331298828,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              1.4563238620758057,
+              2.497973918914795,
+              1.28194260597229
+            ],
+            [
+              1.5376043319702148,
+              2.5862925052642822,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 62,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 86,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.814820408821106,
+            1.9123237133026123,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              1.7741801738739014,
+              1.8681644201278687,
+              1.28194260597229
+            ],
+            [
+              1.8554606437683105,
+              1.9564831256866455,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 63,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 87,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.814820408821106,
+            1.6824455261230469,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              1.7741801738739014,
+              1.6383998394012451,
+              1.28194260597229
+            ],
+            [
+              1.8554606437683105,
+              1.7264913320541382,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 64,
+          "physical_count": 1
+        },
+        {
+          "node": 17,
+          "name": "FPE_Controls.016",
+          "tag": 88,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            1.814820408821106,
+            1.4525673389434814,
+            1.2859158515930176
+          ],
+          "bounds": [
+            [
+              1.7741801738739014,
+              1.4084080457687378,
+              1.28194260597229
+            ],
+            [
+              1.8554606437683105,
+              1.4967267513275146,
+              1.2898889780044556
+            ]
+          ],
+          "physical_first": 65,
+          "physical_count": 1
+        }
+      ]
+    },
+    "geometry_adjustments": [
+      {
+        "source_node": 2,
+        "source_name": "sticker_l_5_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 133,
+        "selected_vertices": 48,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 110,
+        "vertex_count": 221,
+        "triangle_start": 106,
+        "triangle_count": 189
+      },
+      {
+        "source_node": 3,
+        "source_name": "sticker_l_1_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 125,
+        "selected_vertices": 48,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 331,
+        "vertex_count": 48,
+        "triangle_start": 295,
+        "triangle_count": 46
+      },
+      {
+        "source_node": 51,
+        "source_name": "sticker_r_9_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 149,
+        "selected_vertices": 48,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 97268,
+        "vertex_count": 48,
+        "triangle_start": 126846,
+        "triangle_count": 46
+      },
+      {
+        "source_node": 53,
+        "source_name": "sticker_l_0_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 121,
+        "selected_vertices": 24,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 97320,
+        "vertex_count": 68,
+        "triangle_start": 126894,
+        "triangle_count": 64
+      },
+      {
+        "source_node": 56,
+        "source_name": "sticker_r_8_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 145,
+        "selected_vertices": 24,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 97431,
+        "vertex_count": 68,
+        "triangle_start": 126993,
+        "triangle_count": 64
+      },
+      {
+        "source_node": 68,
+        "source_name": "sticker_r_13_fpe_v2",
+        "selection": "Only the front icon component identified by light_group",
+        "light_group": 157,
+        "selected_vertices": 48,
+        "normalized_z_offset": 0.0005,
+        "nominal_offset_mm": 0.15,
+        "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+        "vertex_start": 106262,
+        "vertex_count": 221,
+        "triangle_start": 133762,
+        "triangle_count": 189
+      }
+    ],
+    "approximations": [
+      "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+      "Default configurator canvas stickers are baked from original font and icons.",
+      "Screen pixels are opaque dark for a separately fitted live dashboard.",
+      "New controls use verified physical-group means; individual angular wiring is unknown.",
+      "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+    ],
+    "optimization": {
+      "tool": "meshoptimizer 0.25",
+      "source_sha256": "39236aae7cfcfa0e2cd12f12880cd2f0c57b5de78befd745001e5aa0dcb3260d",
+      "source_vertices": 279042,
+      "source_triangles": 267132,
+      "triangle_reduction_percent": 39.579309105610704,
+      "target_error_mm": 0.075,
+      "max_reported_error_mm": 0.07496668549720198,
+      "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+    },
+    "model": {
+      "path": "assets/models/fpe2.agm",
+      "bytes": 23349660,
+      "sha256": "5c311f9bb4680c05918f984398b0f050353885c5e7a5e985c9394b99d3ac9259"
+    },
+    "preview": {
+      "path": "assets/models/fpe2-preview.png",
+      "bytes": 267642,
+      "sha256": "39e24799bdb172cf55d95b90097cde12f9ebab7d306dcd073aca8f20506ba383"
+    },
+    "suggested_physical_width_m": 0.3,
+    "physical_width_source": "https://gomezsimindustries.com/products/formula-pro-elite-v2"
+  },
+  "conversion_tools": [
+    "tools/download_gsi_models.py",
+    "tools/decode_gsi_glb.cjs",
+    "tools/rasterize_gsi_icons.cjs",
+    "tools/convert_gsi_models.py",
+    "tools/gsi_model_lights.py",
+    "tools/gsi_light_sources.json",
+    "tools/optimize_gsi_mesh.cjs"
+  ],
+  "verification": [
+    "Decoded primitives preserve original node transforms and reverse winding for negative determinants; explicit decal-clearance adjustments are recorded separately.",
+    "Every protected control, sticker, LED, screen and logo triangle retains its attributes and winding after the documented decal-clearance correction.",
+    "Optimizer selects existing converted vertices only; it does not reposition geometry. Atlas bytes are unchanged by optimization.",
+    "Two complete conversion and optimization runs produced byte-identical AGM files.",
+    "Native front and angled stereo previews were reviewed before staging."
+  ]
+}

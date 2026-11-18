@@ -1,0 +1,13 @@
+# Used to break up over-long lines (see CONTRIBUTING.md). Only whitespace changes:
+# no include sorting, no comment reflow. Format touched lines, not whole files.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 140
+SortIncludes: false
+ReflowComments: false
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortLambdasOnASingleLine: All
+BreakStringLiterals: false

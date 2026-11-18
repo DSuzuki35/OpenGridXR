@@ -1,0 +1,3 @@
+__pycache__/
+/openxr-api-layer/framework/dispatch.gen.cpp
+/openxr-api-layer/framework/dispatch.gen.h

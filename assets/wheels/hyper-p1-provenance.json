@@ -1,0 +1,647 @@
+{
+  "model": "Gomez Sim Industries Hyper P1",
+  "authorization": "The user stated they are part of GSI and explicitly authorized extracting and using this model in oVRlay on 2026-09-08.",
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "identity_evidence": {
+    "html": "The HYPER P1 chooser element has id=hyper and image file=hyper.",
+    "loader": "The configurator calls models/gltf/${modelId}.glb; default theme declares model=hyper and hub=qrs1."
+  },
+  "downloads": [
+    {
+      "path": "index.html",
+      "url": "https://custom.gomezsimindustries.com/",
+      "saved_utc": "2026-09-08T10:52:07.220497+00:00",
+      "bytes": 27262,
+      "sha256": "3669182ae08358f76d4d6c995c75d850ce78bc22eaac5fd7a84d409cb27cb260"
+    },
+    {
+      "path": "configurator.js",
+      "url": "https://custom.gomezsimindustries.com/bundle.756c385310f4b2f8.js",
+      "saved_utc": "2026-09-08T10:52:19.978775+00:00",
+      "bytes": 897724,
+      "sha256": "f355dbacdd7a4408dd2b5fca975bb0648b9067f4ea7be6ab913c2e21e309dc58"
+    },
+    {
+      "path": "main.css",
+      "url": "https://custom.gomezsimindustries.com/main.css",
+      "saved_utc": "2026-09-08T10:58:49.800475+00:00",
+      "bytes": 55043,
+      "sha256": "1f7e1461399aa1f795e946f31df75468e4582a10f0f280e628fd9f0e65fe52eb"
+    },
+    {
+      "path": "hyper.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/hyper.glb",
+      "saved_utc": "2026-09-08T10:54:45.539618+00:00",
+      "bytes": 3588992,
+      "sha256": "b8a21278b3c77b5e78b6cd9250b9c0c1c2854b331d13b484bbaac9482fcb9c79"
+    },
+    {
+      "path": "qrs1.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/hubs/qrs1.glb",
+      "saved_utc": "2026-09-08T10:56:18.455281+00:00",
+      "bytes": 176356,
+      "sha256": "7c7ec91612345f7ccdc84092adc6228bf9facfde7b6f0598b24cb1e841e8e4e2"
+    },
+    {
+      "path": "hyper_default.json",
+      "url": "https://custom.gomezsimindustries.com/models/themes/hyper_default.json",
+      "saved_utc": "2026-09-08T10:54:45.622929+00:00",
+      "bytes": 10849,
+      "sha256": "610ebebd1599e56b1d3b9b67cd595e186b38c09cd027cd490cbbdc0232104daa"
+    },
+    {
+      "path": "hyper-p1-site-thumbnail.png",
+      "url": "https://custom.gomezsimindustries.com/assets/images/2042874b15bc425e.png",
+      "saved_utc": "2026-09-08T10:57:37.249930+00:00",
+      "bytes": 476390,
+      "sha256": "d7708b6d7f60ee9b743d913059afa5935f6ca1d4aa2d8bd8c62d17b21160691b"
+    },
+    {
+      "path": "draco_decoder.js",
+      "url": "https://www.gstatic.com/draco/v1/decoders/draco_decoder.js",
+      "saved_utc": "2026-09-08T10:55:54.158966+00:00",
+      "bytes": 720148,
+      "sha256": "5656ccaf1f50300e3c318e15c3313430483f3866cd9c25f22fbf9d6f229e6728"
+    },
+    {
+      "path": "draco_decoder-1.5.7.cjs",
+      "url": "https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_decoder.js",
+      "saved_utc": "2026-09-08T10:56:17.941268+00:00",
+      "bytes": 720148,
+      "sha256": "5656ccaf1f50300e3c318e15c3313430483f3866cd9c25f22fbf9d6f229e6728"
+    },
+    {
+      "path": "DRACO-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/google/draco/1.5.7/LICENSE",
+      "saved_utc": "2026-09-08T10:56:18.341542+00:00",
+      "bytes": 13898,
+      "sha256": "d3709b0fb4b8a94bbb1d02b8a2e484f258b0d9c5c5a01f940391f3fe662cd1a4"
+    },
+    {
+      "path": "poppins.css",
+      "url": "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap",
+      "saved_utc": "2026-09-08T10:58:59.746029+00:00",
+      "bytes": 611,
+      "sha256": "9e3f5a403fd2a5f53ac24314e02a2625fcd3b076672ea2f567e87249e27ad798"
+    },
+    {
+      "path": "Poppins-Bold.ttf",
+      "url": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7V1s.ttf",
+      "saved_utc": "2026-09-08T11:03:01.574473+00:00",
+      "bytes": 150292,
+      "sha256": "1984efdda0fbe207d7ac20feac2ba7c2768c92a90094b02a206c9d58cc30ff2e"
+    },
+    {
+      "path": "POPPINS-OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt",
+      "saved_utc": "2026-09-08T11:03:01.797416+00:00",
+      "bytes": 4385,
+      "sha256": "6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573"
+    },
+    {
+      "path": "icons/icon_bbox_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_bbox_black.svg",
+      "saved_utc": "2026-09-08T10:58:48.682443+00:00",
+      "bytes": 2005,
+      "sha256": "e6c140dc6eab5b24358f8331df378efd8f83d480cae2eb0a7f2a05d573b5b785"
+    },
+    {
+      "path": "icons/icon_flash_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_flash_black.svg",
+      "saved_utc": "2026-09-08T10:58:48.759371+00:00",
+      "bytes": 1484,
+      "sha256": "8b6e3b8810d07828f5dd382d12b44698abd85ade9e1e1a88fff494d83224b437"
+    },
+    {
+      "path": "icons/icon_fuel.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_fuel.svg",
+      "saved_utc": "2026-09-08T10:58:48.861933+00:00",
+      "bytes": 839,
+      "sha256": "67e26587a33eb7683fd758374aab18cbdb856e707c70a5f54ef04b54a7f158e8"
+    },
+    {
+      "path": "icons/icon_fuel_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_fuel_black.svg",
+      "saved_utc": "2026-09-08T10:58:48.984404+00:00",
+      "bytes": 742,
+      "sha256": "95fefb493d3ae9aa0c19a87a3ac12b3d5352526a5af81775be6aa6df9968d2a9"
+    },
+    {
+      "path": "icons/icon_light_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_light_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.067294+00:00",
+      "bytes": 551,
+      "sha256": "b349457b05fef841dc4cf94dfada4b94b237cf04b724930efbe39c2b7da68894"
+    },
+    {
+      "path": "icons/icon_mute_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_mute_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.141474+00:00",
+      "bytes": 767,
+      "sha256": "1f7c854fa75a06bcd0240eccf51e8e42169780827405c59c287183bfc6863309"
+    },
+    {
+      "path": "icons/icon_next_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_next_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.207471+00:00",
+      "bytes": 791,
+      "sha256": "98547f25346ec3486e82f0ac6f05029548bb30e056e0533056c1f8e50b422cfb"
+    },
+    {
+      "path": "icons/icon_pit_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_pit_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.277517+00:00",
+      "bytes": 1147,
+      "sha256": "920927b95d8e74b088063b10c8bc16e4d32832d1d89325f7f8947bd0d2ef289c"
+    },
+    {
+      "path": "icons/icon_prev_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_prev_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.365730+00:00",
+      "bytes": 790,
+      "sha256": "f794f92d5b48fee05b710c12f652a209082067e1cb88b7134675db7fc2ba033f"
+    },
+    {
+      "path": "icons/icon_radio_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_radio_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.441492+00:00",
+      "bytes": 2023,
+      "sha256": "e46cc17f60896587b3a5649c9dbd13e59430729c0e0421852ca3ccd0aec1b471"
+    },
+    {
+      "path": "icons/icon_reset_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_reset_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.512790+00:00",
+      "bytes": 977,
+      "sha256": "2b4b0f14103179b12342e89349ae576eb2fe2e41192a57233d763764ec3c64f5"
+    },
+    {
+      "path": "icons/icon_tow_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_tow_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.584381+00:00",
+      "bytes": 1494,
+      "sha256": "fe49f4291f762784edbb0291eb38674db9c7edeb60086461784ca82c67dae53b"
+    },
+    {
+      "path": "icons/icon_volMinus_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_volMinus_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.655140+00:00",
+      "bytes": 261,
+      "sha256": "cab8cec0739bb2c7a3cc0f9355b038489a6b848ea2651ed16fdd31bc3754e86f"
+    },
+    {
+      "path": "icons/icon_volPlus_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_volPlus_black.svg",
+      "saved_utc": "2026-09-08T10:58:49.722685+00:00",
+      "bytes": 341,
+      "sha256": "a3fa74f18871ea4b57904b81a75d5357bb3011d7f3253be05d1ee93831fc8105"
+    }
+  ],
+  "original_model": {
+    "format": "GLB 2 / glTF 2.0",
+    "asset": {
+      "copyright": "anderson_mancini",
+      "generator": "Khronos glTF Blender I/O v1.8.19",
+      "version": "2.0"
+    },
+    "extensions_used": [
+      "KHR_draco_mesh_compression",
+      "KHR_materials_clearcoat",
+      "KHR_texture_transform"
+    ],
+    "extensions_required": [
+      "KHR_draco_mesh_compression",
+      "KHR_texture_transform"
+    ],
+    "scene_nodes": 75,
+    "mesh_primitives": 84,
+    "vertices": 273426,
+    "triangles": 256817,
+    "images_embedded": [
+      {
+        "bufferView": 3,
+        "mimeType": "image/jpeg",
+        "name": "Carbon_Fiber_01_normal"
+      },
+      {
+        "bufferView": 4,
+        "mimeType": "image/jpeg",
+        "name": "Carbon_Fiber_01_basecolor_darker"
+      },
+      {
+        "bufferView": 5,
+        "mimeType": "image/jpeg",
+        "name": "Carbon_Fiber_01_metallic-Carbon_Fiber_01_roughness"
+      },
+      {
+        "bufferView": 16,
+        "mimeType": "image/jpeg",
+        "name": "screen"
+      },
+      {
+        "bufferView": 35,
+        "mimeType": "image/png",
+        "name": "laser"
+      }
+    ],
+    "external_model_texture_uris": []
+  },
+  "credits": {
+    "configurator": "Neotix (page footer)",
+    "model_copyright": "anderson_mancini",
+    "embedded_material_metadata": [
+      {
+        "name": "Black Plastic",
+        "license": "royalty_free",
+        "url": "https://www.blenderkit.com/api/v1/assets/7241e7a9-cc3e-4f80-ab34-076465f5e7b7/",
+        "assetBaseId": "335d2f7f-b9f3-497d-ac3c-f01c67ff1478",
+        "author": "Nobody"
+      },
+      {
+        "name": "Die-cast aluminum",
+        "license": "royalty_free",
+        "url": "https://www.blenderkit.com/api/v1/assets/76f47d07-e067-4870-b5b7-5bcc5777ddfa/",
+        "assetBaseId": "a025e4a8-edec-4bef-9967-aed70ef0b687",
+        "author": "Joachim Bornemann"
+      },
+      {
+        "name": "Carbon Fiber 02",
+        "license": "royalty_free",
+        "url": "https://www.blenderkit.com/api/v1/assets/adc5d201-fe07-4b9c-bc48-51b1df5e433e/",
+        "assetBaseId": "d8db928e-2e27-4ec7-a131-68af23eadfb8",
+        "author": "Paco Salas"
+      },
+      {
+        "name": "Rubber Black",
+        "license": "royalty_free",
+        "url": "https://www.blenderkit.com/api/v1/assets/13ad6c74-f4ff-4f2a-a3e4-d313b491c39a/",
+        "assetBaseId": "5753435b-0f59-4776-a46b-284b08e873e4",
+        "author": "Arfat Ikhte Rohman"
+      },
+      {
+        "name": "Carbon Fiber",
+        "license": "royalty_free",
+        "url": "https://www.blenderkit.com/api/v1/assets/aade2d53-0952-4140-a04b-049737a57bae/",
+        "assetBaseId": "7051e3b4-a56a-4bf3-9836-1ba6ef44e539",
+        "author": "Linka Palm"
+      }
+    ],
+    "usage_text": "The configurator payload has no standalone model redistribution license statement. Embedded BlenderKit material metadata labels listed source materials royalty_free; this metadata is retained, not interpreted as an open-source license for the complete model.",
+    "offline_decoder": "Google Draco 1.5.7, Apache-2.0; decoder and full license preserved in source folder, not shipped as a runtime dependency.",
+    "baked_font": "Poppins, SIL Open Font License 1.1; see POPPINS-OFL.txt."
+  },
+  "output": {
+    "model": {
+      "path": "assets/models/hyper-p1.agm",
+      "bytes": 23871024,
+      "sha256": "9c0ffa3b247d7d30dd2f5a746c51b1054ccb92c69440e03695533d7d8969edde"
+    },
+    "preview": {
+      "path": "assets/models/hyper-p1-preview.png",
+      "url": "https://custom.gomezsimindustries.com/assets/images/2042874b15bc425e.png",
+      "bytes": 476390,
+      "sha256": "d7708b6d7f60ee9b743d913059afa5935f6ca1d4aa2d8bd8c62d17b21160691b"
+    },
+    "vertices": 136803,
+    "triangles": 180739,
+    "atlas_size": [
+      2048,
+      2048
+    ],
+    "normalized_bounds": [
+      [
+        -0.5,
+        -0.335231214761734,
+        -0.20253567397594452
+      ],
+      [
+        0.5,
+        0.2753463685512543,
+        0.1986335664987564
+      ]
+    ],
+    "source_shaft_origin": [
+      0,
+      0.4,
+      0
+    ],
+    "source_width": 8.842870712280273,
+    "normalized_screen_bounds": [
+      [
+        -0.15806134578430533,
+        0.014435640440005856,
+        0.14728037075965697
+      ],
+      [
+        0.15819647768403983,
+        0.2058929533189926,
+        0.14745413873527327
+      ]
+    ],
+    "approximations": [
+      "PBR metallic/roughness, normal maps and clearcoat are not included in AGMESH1; tagged diffusers support live LED emission.",
+      "Pure-black diffuse colors receive a 1% linear floor for native simple lighting.",
+      "The stock display is replaced with opaque dark pixels for a separate live dashboard.",
+      "Default canvas stickers are baked with the original Poppins font and source icons."
+    ],
+    "screen_rectangle": {
+      "source_node": "static_screen",
+      "source_node_index": 7,
+      "source_material": "Screen",
+      "source_material_index": 9,
+      "measurement": "Four decoded driver-facing surface vertices after original node transform, excluding bezel and screen-box thickness.",
+      "center": [
+        6.756594986725151e-05,
+        0.11016429687949923,
+        0.14745411851401932
+      ],
+      "width": 0.3162578234683452,
+      "height": 0.191457312878991,
+      "aspect_ratio": 1.651845096500614,
+      "right": [
+        1,
+        0,
+        0
+      ],
+      "up": [
+        0,
+        0.9999999999999777,
+        2.1123511707776305e-07
+      ],
+      "normal": [
+        0,
+        -2.1123511707776305e-07,
+        0.9999999999999777
+      ],
+      "corners": {
+        "bottom_left": [
+          -0.15806134578430533,
+          0.014435640440005856,
+          0.14745409829276537
+        ],
+        "bottom_right": [
+          0.15819647768403983,
+          0.014435640440005856,
+          0.14745409829276537
+        ],
+        "top_left": [
+          -0.15806134578430533,
+          0.2058929533189926,
+          0.14745413873527327
+        ],
+        "top_right": [
+          0.15819647768403983,
+          0.2058929533189926,
+          0.14745413873527327
+        ]
+      },
+      "units": "Model coordinates normalized to complete wheel width 1; origin at shaft reference; +Z toward driver.",
+      "recommended_dashboard_surface_offset_m": 0.0005
+    },
+    "suggested_physical_width_m": 0.3,
+    "physical_width_source": "https://gomezsimindustries.com/products/hyper-p1-simucube-bundle",
+    "format": "AGMESH1",
+    "version": 3,
+    "vertex_stride": 36,
+    "file": "hyper-p1.agm",
+    "sha256": "9c0ffa3b247d7d30dd2f5a746c51b1054ccb92c69440e03695533d7d8969edde",
+    "bytes": 23871024,
+    "indices": 542217,
+    "atlas": [
+      2048,
+      2048
+    ],
+    "atlas_encoding": "straight RGBA8 sRGB; top-left origin",
+    "source_bounds": [
+      [
+        -4.421435356140137,
+        -2.564406394958496,
+        -1.790996789932251
+      ],
+      [
+        4.421435356140137,
+        2.8348522186279297,
+        1.757030725479126
+      ]
+    ],
+    "geometry_adjustments": [
+      {
+        "source_node": 18,
+        "source_name": "Curve",
+        "description": "Separate the front GSI logo from the casing to prevent depth flicker.",
+        "offset_normalized": [
+          0,
+          0,
+          0.0005
+        ],
+        "offset_mm_at_300mm": 0.15,
+        "vertex_start": 79682,
+        "vertex_count": 201,
+        "triangle_start": 106193,
+        "triangle_count": 184
+      }
+    ],
+    "led_mapping": {
+      "count": 88,
+      "ring_order": [
+        "top",
+        "right",
+        "bottom",
+        "left"
+      ],
+      "tagged_vertices": 4882,
+      "ring_groups": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21,
+        25,
+        29,
+        33,
+        37,
+        41,
+        45,
+        49,
+        53,
+        57,
+        61,
+        65
+      ],
+      "dot_groups": [
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88
+      ],
+      "icon_groups": [
+        121,
+        125,
+        129,
+        133,
+        137,
+        141,
+        145,
+        149,
+        153,
+        157,
+        161,
+        165
+      ],
+      "icon_color": "Uniform arithmetic mean of the associated four linear LED colors, using ring gain.",
+      "icon_coverage": "Authored white grayscale ink in existing opaque sticker RGB; black background retains body shading and atlas alpha is unchanged.",
+      "icon_surfaces": [
+        {
+          "name": "sticker_l_1_hyper",
+          "node": 29,
+          "tag": 121,
+          "ring_first_index": 21,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_l_2_hyper",
+          "node": 44,
+          "tag": 125,
+          "ring_first_index": 25,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_l_3_hyper",
+          "node": 45,
+          "tag": 129,
+          "ring_first_index": 29,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_l_6_hyper",
+          "node": 46,
+          "tag": 133,
+          "ring_first_index": 33,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_l_7_hyper",
+          "node": 47,
+          "tag": 137,
+          "ring_first_index": 37,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_l_8_hyper",
+          "node": 48,
+          "tag": 141,
+          "ring_first_index": 41,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_10_hyper",
+          "node": 49,
+          "tag": 145,
+          "ring_first_index": 45,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_11_hyper",
+          "node": 50,
+          "tag": 149,
+          "ring_first_index": 49,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_12_hyper",
+          "node": 51,
+          "tag": 153,
+          "ring_first_index": 53,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_15_hyper",
+          "node": 52,
+          "tag": 157,
+          "ring_first_index": 57,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_16_hyper",
+          "node": 53,
+          "tag": 161,
+          "ring_first_index": 61,
+          "vertices": 46,
+          "triangles": 44
+        },
+        {
+          "name": "sticker_r_17_hyper",
+          "node": 54,
+          "tag": 165,
+          "ring_first_index": 65,
+          "vertices": 46,
+          "triangles": 44
+        }
+      ]
+    },
+    "optimization": {
+      "tool": "meshoptimizer 0.25",
+      "source_sha256": "f234fb8b877e226d7e0fbf8ae96e6fd8f7163c2724835c5cc9f4e36d95f2258d",
+      "source_vertices": 298852,
+      "source_triangles": 282765,
+      "triangle_reduction_percent": 36.081551818647995,
+      "target_error_mm": 0.075,
+      "max_reported_error_mm": 0.07475570600945503,
+      "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+    }
+  },
+  "conversion_tools": [
+    "tools/decode_gsi_glb.cjs",
+    "tools/rasterize_gsi_icons.cjs",
+    "tools/convert_hyper_p1.py",
+    "tools/hyper_p1_lights.py",
+    "tools/optimize_gsi_mesh.cjs"
+  ],
+  "verification": [
+    "Draco decoded counts agree with GLB accessors for every primitive.",
+    "All output indices in range; all vertex data finite.",
+    "Normals unit length within 0.0001; atlas UV coordinates in [0,1].",
+    "Normalized complete mesh width equals 1 within 0.00001.",
+    "Every original wheel primitive and the default QRS1 hub is retained.",
+    "Negative determinant node transforms reverse triangle winding.",
+    "All five original embedded images extracted under textures.",
+    "Output header and exact byte count fit the native renderer bounds.",
+    "A second complete offline conversion produced identical model bytes (SHA-256 unchanged).",
+    "All 88 physical LED indices map to 17 four-LED rings and 20 individual dots; no triangle mixes tags.",
+    "All 184 GSI badge triangle centroids clear the casing by 0.1519 mm at 300 mm width.",
+    "Version 3 tags exactly twelve named 46-vertex/44-triangle button sticker surfaces with groups 121..165 step 4; each icon uses its associated four ring colors and authored grayscale ink coverage.",
+    "Before optimization: Compared with the prior version-2 asset, all positions, normals, UVs, indices and atlas pixels are byte-identical; only the version header and 552 former-zero light tags changed.",
+    "Decoded primitives preserve original node transforms and reverse winding for negative determinants.",
+    "Every protected control, sticker, LED, screen and logo triangle retains its original attributes and winding.",
+    "Optimizer selects existing vertices only; it does not reposition source geometry. Atlas bytes are unchanged by optimization.",
+    "Two complete conversion and optimization runs produced byte-identical AGM files.",
+    "Native front and angled stereo previews were reviewed before staging."
+  ]
+}

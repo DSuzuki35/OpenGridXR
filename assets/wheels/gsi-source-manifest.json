@@ -1,0 +1,229 @@
+{
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "captured_date": "2026-09-09",
+  "authorization": "The user stated they are a GSI member and explicitly authorized extracting and using these official models in oVRlay.",
+  "downloads": [
+    {
+      "path": "hypersl.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/hypersl.glb",
+      "bytes": 2435052,
+      "sha256": "33f7d6c1e9c16c71bc385bffae0eee46a5334b5f00a4c17cb8684e92b7638aad"
+    },
+    {
+      "path": "fpe.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/fpe.glb",
+      "bytes": 2218156,
+      "sha256": "d19a3836f57da9ffa959c7151631b2f9387113e0187e8587488b1b6f568f2f68"
+    },
+    {
+      "path": "gxl.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/gxl.glb",
+      "bytes": 3165340,
+      "sha256": "dfee2d629717eb424415848f8fb702c91c9fcdcc2bbb59e0c595ed00e3d9da41"
+    },
+    {
+      "path": "gtmax.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/gtmax.glb",
+      "bytes": 3040088,
+      "sha256": "60652d84bccf33a2ae64b91789261e26d9d1e761a3ce29c877f2eadc02514aec"
+    },
+    {
+      "path": "hypersl_default.json",
+      "url": "https://custom.gomezsimindustries.com/models/themes/hypersl_default.json",
+      "bytes": 10997,
+      "sha256": "44c4492ded68f43ac92fe3e7c1635fd2536208549a1c40e7870dd50defbd66bd"
+    },
+    {
+      "path": "fpe_default.json",
+      "url": "https://custom.gomezsimindustries.com/models/themes/fpe_default.json",
+      "bytes": 9609,
+      "sha256": "795df1c452be51d506383dbe8e459de314ec55941f93098ee6ef8ea66b23cb44"
+    },
+    {
+      "path": "gxl_default.json",
+      "url": "https://custom.gomezsimindustries.com/models/themes/gxl_default.json",
+      "bytes": 8909,
+      "sha256": "24e7640a5ab05ae0acc0a1f9cb692434d8f8e102fc19f1957a2336e20129fabf"
+    },
+    {
+      "path": "gtmax_default.json",
+      "url": "https://custom.gomezsimindustries.com/models/themes/gtmax_default.json",
+      "bytes": 8069,
+      "sha256": "35a05445dc08bb63245308626c24286144dd21d8661a6ee91267472312f25540"
+    },
+    {
+      "path": "hypersl-preview.png",
+      "url": "https://custom.gomezsimindustries.com/assets/images/68b11cef35f36fef.png",
+      "bytes": 291477,
+      "sha256": "f3868a8d7cb0c1648aa617043c1ea806250910171a5ceefff7448a94d6f2f617"
+    },
+    {
+      "path": "fpe-preview.png",
+      "url": "https://custom.gomezsimindustries.com/assets/images/441ef7b65f47b11b.png",
+      "bytes": 267642,
+      "sha256": "39e24799bdb172cf55d95b90097cde12f9ebab7d306dcd073aca8f20506ba383"
+    },
+    {
+      "path": "gxl-preview.webp",
+      "url": "https://custom.gomezsimindustries.com/243fcfef85546f46.webp",
+      "bytes": 84586,
+      "sha256": "70874db80f202ca11c55cd75ae43a629f2dfd823f3914f26a726d1ebcebd5622"
+    },
+    {
+      "path": "gtmax-preview.png",
+      "url": "https://custom.gomezsimindustries.com/assets/images/f3f40aae2e6cc171.png",
+      "bytes": 315942,
+      "sha256": "b7f6ca8fcfa8f3e793e69352cfe8e38fffd8d597bfc8f0ba25b424423a09f377"
+    },
+    {
+      "path": "configurator.js",
+      "url": "https://custom.gomezsimindustries.com/bundle.756c385310f4b2f8.js",
+      "bytes": 897724,
+      "sha256": "f355dbacdd7a4408dd2b5fca975bb0648b9067f4ea7be6ab913c2e21e309dc58"
+    },
+    {
+      "path": "qrs1.glb",
+      "url": "https://custom.gomezsimindustries.com/models/gltf/hubs/qrs1.glb",
+      "bytes": 176356,
+      "sha256": "7c7ec91612345f7ccdc84092adc6228bf9facfde7b6f0598b24cb1e841e8e4e2"
+    },
+    {
+      "path": "draco_decoder-1.5.7.cjs",
+      "url": "https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_decoder.js",
+      "bytes": 720148,
+      "sha256": "5656ccaf1f50300e3c318e15c3313430483f3866cd9c25f22fbf9d6f229e6728"
+    },
+    {
+      "path": "DRACO-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/google/draco/1.5.7/LICENSE",
+      "bytes": 13898,
+      "sha256": "d3709b0fb4b8a94bbb1d02b8a2e484f258b0d9c5c5a01f940391f3fe662cd1a4"
+    },
+    {
+      "path": "Poppins-Bold.ttf",
+      "url": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7V1s.ttf",
+      "bytes": 150292,
+      "sha256": "1984efdda0fbe207d7ac20feac2ba7c2768c92a90094b02a206c9d58cc30ff2e"
+    },
+    {
+      "path": "POPPINS-OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt",
+      "bytes": 4385,
+      "sha256": "6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573"
+    },
+    {
+      "path": "icons/icon_bbox_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_bbox_black.svg",
+      "bytes": 2005,
+      "sha256": "e6c140dc6eab5b24358f8331df378efd8f83d480cae2eb0a7f2a05d573b5b785"
+    },
+    {
+      "path": "icons/icon_enable_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_enable_black.svg",
+      "bytes": 350,
+      "sha256": "1fa375d39021fa937a8d3aad0c6362b37336b5dbd1cb2977975665887ad51410"
+    },
+    {
+      "path": "icons/icon_especial.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_especial.svg",
+      "bytes": 1201,
+      "sha256": "053e2f232d30aafe0ad0840074886cf030d327f2181744492f1bcc21f8c1ae1d"
+    },
+    {
+      "path": "icons/icon_flash.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_flash.svg",
+      "bytes": 1310,
+      "sha256": "3a001a24ac0a38eecf7f43082090eaf0f46e2a5dc1b0889d4062e3db4f03c778"
+    },
+    {
+      "path": "icons/icon_flash_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_flash_black.svg",
+      "bytes": 1484,
+      "sha256": "8b6e3b8810d07828f5dd382d12b44698abd85ade9e1e1a88fff494d83224b437"
+    },
+    {
+      "path": "icons/icon_fuel.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_fuel.svg",
+      "bytes": 839,
+      "sha256": "67e26587a33eb7683fd758374aab18cbdb856e707c70a5f54ef04b54a7f158e8"
+    },
+    {
+      "path": "icons/icon_fuel_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_fuel_black.svg",
+      "bytes": 742,
+      "sha256": "95fefb493d3ae9aa0c19a87a3ac12b3d5352526a5af81775be6aa6df9968d2a9"
+    },
+    {
+      "path": "icons/icon_light_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_light_black.svg",
+      "bytes": 551,
+      "sha256": "b349457b05fef841dc4cf94dfada4b94b237cf04b724930efbe39c2b7da68894"
+    },
+    {
+      "path": "icons/icon_mute_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_mute_black.svg",
+      "bytes": 767,
+      "sha256": "1f7c854fa75a06bcd0240eccf51e8e42169780827405c59c287183bfc6863309"
+    },
+    {
+      "path": "icons/icon_next_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_next_black.svg",
+      "bytes": 791,
+      "sha256": "98547f25346ec3486e82f0ac6f05029548bb30e056e0533056c1f8e50b422cfb"
+    },
+    {
+      "path": "icons/icon_pit.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_pit.svg",
+      "bytes": 668,
+      "sha256": "411f0b1538c2d171947ac179a1c3e95ac07c0dc0d92f9ff071843eb91f0ed0dd"
+    },
+    {
+      "path": "icons/icon_pit_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_pit_black.svg",
+      "bytes": 1147,
+      "sha256": "920927b95d8e74b088063b10c8bc16e4d32832d1d89325f7f8947bd0d2ef289c"
+    },
+    {
+      "path": "icons/icon_prev_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_prev_black.svg",
+      "bytes": 790,
+      "sha256": "f794f92d5b48fee05b710c12f652a209082067e1cb88b7134675db7fc2ba033f"
+    },
+    {
+      "path": "icons/icon_radio_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_radio_black.svg",
+      "bytes": 2023,
+      "sha256": "e46cc17f60896587b3a5649c9dbd13e59430729c0e0421852ca3ccd0aec1b471"
+    },
+    {
+      "path": "icons/icon_reset_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_reset_black.svg",
+      "bytes": 977,
+      "sha256": "2b4b0f14103179b12342e89349ae576eb2fe2e41192a57233d763764ec3c64f5"
+    },
+    {
+      "path": "icons/icon_tow_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_tow_black.svg",
+      "bytes": 1494,
+      "sha256": "fe49f4291f762784edbb0291eb38674db9c7edeb60086461784ca82c67dae53b"
+    },
+    {
+      "path": "icons/icon_volMinus_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_volMinus_black.svg",
+      "bytes": 261,
+      "sha256": "cab8cec0739bb2c7a3cc0f9355b038489a6b848ea2651ed16fdd31bc3754e86f"
+    },
+    {
+      "path": "icons/icon_volPlus_black.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_volPlus_black.svg",
+      "bytes": 341,
+      "sha256": "a3fa74f18871ea4b57904b81a75d5357bb3011d7f3253be05d1ee93831fc8105"
+    },
+    {
+      "path": "icons/icon_arrow_left.svg",
+      "url": "https://custom.gomezsimindustries.com/icons/icon_arrow_left.svg",
+      "bytes": 294,
+      "sha256": "6fbd3f4ef05fba70dd343cdfc784a7dfa0938bd76003401529e4d38b3b657b83"
+    }
+  ]
+}

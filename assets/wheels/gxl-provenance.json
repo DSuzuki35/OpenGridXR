@@ -1,0 +1,1262 @@
+{
+  "model": "Gomez Sim Industries GXL V2",
+  "authorization": "The user stated they are a GSI member and explicitly authorized extracting and using these official models in oVRlay.",
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "source_manifest": "gsi-source-manifest.json",
+  "identity_evidence": "Official chooser id/file=gxl; default theme model=gxl, hub=qrs1.",
+  "original_model": {
+    "copyright": "anderson_mancini",
+    "generator": "Khronos glTF Blender I/O v4.1.63",
+    "version": "2.0"
+  },
+  "credits": {
+    "configurator": "GSI / Neotix",
+    "materials": [
+      {
+        "name": "Die-cast aluminum",
+        "id": "76f47d07-e067-4870-b5b7-5bcc5777ddfa",
+        "license": "royalty_free",
+        "author": "Joachim Bornemann",
+        "url": "https://www.blenderkit.com/api/v1/assets/76f47d07-e067-4870-b5b7-5bcc5777ddfa/"
+      },
+      {
+        "name": "Black Plastic",
+        "id": "7241e7a9-cc3e-4f80-ab34-076465f5e7b7",
+        "license": "royalty_free",
+        "author": "Nobody",
+        "url": "https://www.blenderkit.com/api/v1/assets/7241e7a9-cc3e-4f80-ab34-076465f5e7b7/"
+      },
+      {
+        "name": "Carbon Fiber",
+        "id": "aade2d53-0952-4140-a04b-049737a57bae",
+        "license": "royalty_free",
+        "author": "Linka Palm",
+        "url": "https://www.blenderkit.com/api/v1/assets/aade2d53-0952-4140-a04b-049737a57bae/"
+      }
+    ],
+    "baked_font": "Poppins, SIL Open Font License 1.1; see POPPINS-OFL.txt."
+  },
+  "output": {
+    "format": "AGMESH1",
+    "version": 4,
+    "vertex_stride": 36,
+    "file": "gxl.agm",
+    "sha256": "31aeeea893d20258eaf3e87fa1101b34bf12e31cfbd6eff6c31bdfbe1eb82bb8",
+    "bytes": 23326008,
+    "vertices": 129361,
+    "triangles": 157647,
+    "indices": 472941,
+    "atlas": [
+      2048,
+      2048
+    ],
+    "source_width": 9.707005500793457,
+    "source_shaft_origin": [
+      0,
+      0.23,
+      0
+    ],
+    "source_hub_translation": [
+      0,
+      0.23,
+      -0.75
+    ],
+    "width_m": 0.3,
+    "kind": 3,
+    "screen_rectangle": null,
+    "normalized_bounds": [
+      [
+        -0.49999964237213135,
+        -0.3280363082885742,
+        -0.1793546825647354
+      ],
+      [
+        0.5000003576278687,
+        0.2747398018836975,
+        0.1836947202682495
+      ]
+    ],
+    "led_mapping": {
+      "verified_control_groups": true,
+      "angular_wiring_verified": false,
+      "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+      "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+      "telemetry_banks": [
+        3,
+        10,
+        3
+      ],
+      "telemetry_bank_sizes_verified": true,
+      "telemetry_within_bank_orientation_verified": false,
+      "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+      "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+      "tagged_vertices": 6342,
+      "groups": [
+        {
+          "node": 20,
+          "name": "sticker_16_gxl_v2",
+          "tag": 101,
+          "vertices": 512,
+          "triangles": 808,
+          "center": [
+            -1.0322052240371704,
+            0.5292103290557861,
+            1.237856149673462
+          ],
+          "bounds": [
+            [
+              -1.6306489706039429,
+              0.023548603057861328,
+              1.1901501417160034
+            ],
+            [
+              -0.4337615668773651,
+              1.034872055053711,
+              1.2855621576309204
+            ]
+          ],
+          "physical_first": 0,
+          "physical_count": 5
+        },
+        {
+          "node": 62,
+          "name": "sticker_18_gxl_v2",
+          "tag": 105,
+          "vertices": 616,
+          "triangles": 837,
+          "center": [
+            -0.0012781023979187012,
+            0.3322625756263733,
+            1.2423380613327026
+          ],
+          "bounds": [
+            [
+              -0.50483638048172,
+              -0.2389737367630005,
+              1.1946042776107788
+            ],
+            [
+              0.5022801756858826,
+              0.9034988880157471,
+              1.2900718450546265
+            ]
+          ],
+          "physical_first": 5,
+          "physical_count": 4
+        },
+        {
+          "node": 19,
+          "name": "sticker_17_gxl_v2",
+          "tag": 109,
+          "vertices": 515,
+          "triangles": 808,
+          "center": [
+            1.0290586948394775,
+            0.5292103290557861,
+            1.237856149673462
+          ],
+          "bounds": [
+            [
+              0.43061497807502747,
+              0.023548603057861328,
+              1.1901501417160034
+            ],
+            [
+              1.6275023221969604,
+              1.034872055053711,
+              1.2855621576309204
+            ]
+          ],
+          "physical_first": 9,
+          "physical_count": 5
+        },
+        {
+          "node": 18,
+          "name": "sticker_19_gxl_v2",
+          "tag": 113,
+          "vertices": 532,
+          "triangles": 828,
+          "center": [
+            -0.8879554271697998,
+            -0.5364156365394592,
+            1.2581685781478882
+          ],
+          "bounds": [
+            [
+              -1.4863991737365723,
+              -1.0420774221420288,
+              1.2104625701904297
+            ],
+            [
+              -0.28951165080070496,
+              -0.03075385093688965,
+              1.3058745861053467
+            ]
+          ],
+          "physical_first": 14,
+          "physical_count": 5
+        },
+        {
+          "node": 17,
+          "name": "sticker_20_gxl_v2",
+          "tag": 117,
+          "vertices": 531,
+          "triangles": 826,
+          "center": [
+            0.8848088383674622,
+            -0.5364156365394592,
+            1.2581685781478882
+          ],
+          "bounds": [
+            [
+              0.2863651216030121,
+              -1.0420774221420288,
+              1.2104625701904297
+            ],
+            [
+              1.4832525253295898,
+              -0.03075385093688965,
+              1.3058745861053467
+            ]
+          ],
+          "physical_first": 19,
+          "physical_count": 5
+        },
+        {
+          "node": 57,
+          "name": "custom_button_l_0_gxl_v2",
+          "tag": 21,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -3.2997639179229736,
+            2.429175853729248,
+            1.4734097719192505
+          ],
+          "bounds": [
+            [
+              -3.4740054607391357,
+              2.2550230026245117,
+              1.455733299255371
+            ],
+            [
+              -3.1255223751068115,
+              2.6033284664154053,
+              1.4910862445831299
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 2
+        },
+        {
+          "node": 15,
+          "name": "sticker_l_0_gxl_v2",
+          "tag": 121,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -3.300447940826416,
+            2.431424140930176,
+            1.4926701784133911
+          ],
+          "bounds": [
+            [
+              -3.439473867416382,
+              2.29239821434021,
+              1.4926701784133911
+            ],
+            [
+              -3.1614222526550293,
+              2.5704498291015625,
+              1.4926701784133911
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 2
+        },
+        {
+          "node": 56,
+          "name": "custom_button_l_1_gxl_v2",
+          "tag": 25,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.25227952003479,
+            1.917528510093689,
+            1.473409652709961
+          ],
+          "bounds": [
+            [
+              -2.426521062850952,
+              1.7433757781982422,
+              1.4557331800460815
+            ],
+            [
+              -2.078037977218628,
+              2.0916812419891357,
+              1.4910861253738403
+            ]
+          ],
+          "physical_first": 26,
+          "physical_count": 2
+        },
+        {
+          "node": 14,
+          "name": "sticker_l_1_gxl_v2",
+          "tag": 125,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.2510628700256348,
+            1.9198174476623535,
+            1.4926602840423584
+          ],
+          "bounds": [
+            [
+              -2.390061855316162,
+              1.7808185815811157,
+              1.4926602840423584
+            ],
+            [
+              -2.1120638847351074,
+              2.058816432952881,
+              1.4926602840423584
+            ]
+          ],
+          "physical_first": 26,
+          "physical_count": 2
+        },
+        {
+          "node": 22,
+          "name": "static_sticker_l_3_gxl_v2",
+          "tag": 129,
+          "vertices": 31,
+          "triangles": 29,
+          "center": [
+            -2.090719223022461,
+            1.141154408454895,
+            1.2649670839309692
+          ],
+          "bounds": [
+            [
+              -2.3474130630493164,
+              1.0062658786773682,
+              1.2649670839309692
+            ],
+            [
+              -1.8340251445770264,
+              1.2760429382324219,
+              1.2649670839309692
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 1
+        },
+        {
+          "node": 55,
+          "name": "custom_button_l_5_gxl_v2",
+          "tag": 33,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.3540565967559814,
+            0.17805251479148865,
+            1.4734094142913818
+          ],
+          "bounds": [
+            [
+              -2.5282981395721436,
+              0.0038997679948806763,
+              1.4557329416275024
+            ],
+            [
+              -2.1798150539398193,
+              0.3522052764892578,
+              1.4910858869552612
+            ]
+          ],
+          "physical_first": 29,
+          "physical_count": 2
+        },
+        {
+          "node": 13,
+          "name": "sticker_l_5_gxl_v2",
+          "tag": 133,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.3533949851989746,
+            0.17906419932842255,
+            1.4926351308822632
+          ],
+          "bounds": [
+            [
+              -2.4923932552337646,
+              0.040065765380859375,
+              1.4926351308822632
+            ],
+            [
+              -2.2143964767456055,
+              0.3180626332759857,
+              1.4926351308822632
+            ]
+          ],
+          "physical_first": 29,
+          "physical_count": 2
+        },
+        {
+          "node": 54,
+          "name": "custom_button_l_6_gxl_v2",
+          "tag": 37,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -2.16137957572937,
+            -0.5176366567611694,
+            1.4734092950820923
+          ],
+          "bounds": [
+            [
+              -2.3356211185455322,
+              -0.6917893886566162,
+              1.455732822418213
+            ],
+            [
+              -1.987138032913208,
+              -0.34348392486572266,
+              1.4910857677459717
+            ]
+          ],
+          "physical_first": 31,
+          "physical_count": 2
+        },
+        {
+          "node": 12,
+          "name": "sticker_l_6_gxl_v2",
+          "tag": 137,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.159914970397949,
+            -0.515720009803772,
+            1.4926167726516724
+          ],
+          "bounds": [
+            [
+              -2.2989206314086914,
+              -0.6547257900238037,
+              1.4926167726516724
+            ],
+            [
+              -2.020909070968628,
+              -0.37671419978141785,
+              1.4926167726516724
+            ]
+          ],
+          "physical_first": 31,
+          "physical_count": 2
+        },
+        {
+          "node": 53,
+          "name": "custom_button_l_7_gxl_v2",
+          "tag": 41,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            -1.8774900436401367,
+            -1.2203997373580933,
+            1.4734091758728027
+          ],
+          "bounds": [
+            [
+              -2.051731586456299,
+              -1.39455246925354,
+              1.4557327032089233
+            ],
+            [
+              -1.7032485008239746,
+              -1.0462470054626465,
+              1.4910856485366821
+            ]
+          ],
+          "physical_first": 33,
+          "physical_count": 2
+        },
+        {
+          "node": 11,
+          "name": "sticker_l_7_gxl_v2",
+          "tag": 141,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -1.8775873184204102,
+            -1.2169407606124878,
+            1.4926421642303467
+          ],
+          "bounds": [
+            [
+              -2.016566038131714,
+              -1.3559471368789673,
+              1.4926421642303467
+            ],
+            [
+              -1.738608479499817,
+              -1.0779343843460083,
+              1.4926421642303467
+            ]
+          ],
+          "physical_first": 33,
+          "physical_count": 2
+        },
+        {
+          "node": 49,
+          "name": "custom_button_r_8_gxl_v2",
+          "tag": 45,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            3.299781084060669,
+            2.429175853729248,
+            1.4734097719192505
+          ],
+          "bounds": [
+            [
+              3.125539541244507,
+              2.2550230026245117,
+              1.455733299255371
+            ],
+            [
+              3.474022626876831,
+              2.6033284664154053,
+              1.4910862445831299
+            ]
+          ],
+          "physical_first": 35,
+          "physical_count": 2
+        },
+        {
+          "node": 7,
+          "name": "sticker_r_8_gxl_v2",
+          "tag": 145,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            3.300447940826416,
+            2.431424140930176,
+            1.4926786422729492
+          ],
+          "bounds": [
+            [
+              3.16142201423645,
+              2.292398452758789,
+              1.4926786422729492
+            ],
+            [
+              3.4394736289978027,
+              2.5704500675201416,
+              1.4926786422729492
+            ]
+          ],
+          "physical_first": 35,
+          "physical_count": 2
+        },
+        {
+          "node": 48,
+          "name": "custom_button_r_9_gxl_v2",
+          "tag": 49,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.2522971630096436,
+            1.917528510093689,
+            1.473409652709961
+          ],
+          "bounds": [
+            [
+              2.0780556201934814,
+              1.7433757781982422,
+              1.4557331800460815
+            ],
+            [
+              2.4265387058258057,
+              2.0916812419891357,
+              1.4910861253738403
+            ]
+          ],
+          "physical_first": 37,
+          "physical_count": 2
+        },
+        {
+          "node": 6,
+          "name": "sticker_r_9_gxl_v2",
+          "tag": 149,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.2510628700256348,
+            1.9198174476623535,
+            1.4926602840423584
+          ],
+          "bounds": [
+            [
+              2.1120638847351074,
+              1.7808185815811157,
+              1.4926602840423584
+            ],
+            [
+              2.390061855316162,
+              2.058816432952881,
+              1.4926602840423584
+            ]
+          ],
+          "physical_first": 37,
+          "physical_count": 2
+        },
+        {
+          "node": 21,
+          "name": "static_sticker_r_11_gxl_v2",
+          "tag": 153,
+          "vertices": 31,
+          "triangles": 29,
+          "center": [
+            2.090719223022461,
+            1.141154408454895,
+            1.2649670839309692
+          ],
+          "bounds": [
+            [
+              1.8340251445770264,
+              1.0062658786773682,
+              1.2649670839309692
+            ],
+            [
+              2.3474130630493164,
+              1.2760429382324219,
+              1.2649670839309692
+            ]
+          ],
+          "physical_first": 39,
+          "physical_count": 1
+        },
+        {
+          "node": 52,
+          "name": "custom_button_r_13_gxl_v2",
+          "tag": 57,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.3540737628936768,
+            0.17805251479148865,
+            1.4734094142913818
+          ],
+          "bounds": [
+            [
+              2.1798322200775146,
+              0.0038997679948806763,
+              1.4557329416275024
+            ],
+            [
+              2.528315305709839,
+              0.3522052764892578,
+              1.4910858869552612
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 2
+        },
+        {
+          "node": 10,
+          "name": "sticker_r_13_gxl_v2",
+          "tag": 157,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.3533949851989746,
+            0.17906421422958374,
+            1.4926350116729736
+          ],
+          "bounds": [
+            [
+              2.2143964767456055,
+              0.040065765380859375,
+              1.4926350116729736
+            ],
+            [
+              2.4923932552337646,
+              0.3180626630783081,
+              1.4926350116729736
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 2
+        },
+        {
+          "node": 51,
+          "name": "custom_button_r_14_gxl_v2",
+          "tag": 61,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            2.1613969802856445,
+            -0.5176366567611694,
+            1.4734092950820923
+          ],
+          "bounds": [
+            [
+              1.987155556678772,
+              -0.6917893886566162,
+              1.455732822418213
+            ],
+            [
+              2.3356385231018066,
+              -0.34348392486572266,
+              1.4910857677459717
+            ]
+          ],
+          "physical_first": 42,
+          "physical_count": 2
+        },
+        {
+          "node": 9,
+          "name": "sticker_r_14_gxl_v2",
+          "tag": 161,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.159914970397949,
+            -0.515720009803772,
+            1.4926167726516724
+          ],
+          "bounds": [
+            [
+              2.020909070968628,
+              -0.6547257900238037,
+              1.4926167726516724
+            ],
+            [
+              2.2989206314086914,
+              -0.37671419978141785,
+              1.4926167726516724
+            ]
+          ],
+          "physical_first": 42,
+          "physical_count": 2
+        },
+        {
+          "node": 50,
+          "name": "custom_button_r_15_gxl_v2",
+          "tag": 65,
+          "vertices": 404,
+          "triangles": 493,
+          "center": [
+            1.8775074481964111,
+            -1.2203997373580933,
+            1.4734091758728027
+          ],
+          "bounds": [
+            [
+              1.703265905380249,
+              -1.39455246925354,
+              1.4557327032089233
+            ],
+            [
+              2.0517489910125732,
+              -1.0462470054626465,
+              1.4910856485366821
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 2
+        },
+        {
+          "node": 8,
+          "name": "sticker_r_15_gxl_v2",
+          "tag": 165,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            1.8776274919509888,
+            -1.2170414924621582,
+            1.4926337003707886
+          ],
+          "bounds": [
+            [
+              1.7386536598205566,
+              -1.3560154438018799,
+              1.4926337003707886
+            ],
+            [
+              2.016601324081421,
+              -1.078067660331726,
+              1.4926337003707886
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 2
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 69,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.396283507347107,
+            1.3171101808547974,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -1.4461569786071777,
+              1.266507863998413,
+              1.2246710062026978
+            ],
+            [
+              -1.3464100360870361,
+              1.3677124977111816,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 46,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 70,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.6517939567565918,
+            1.4449695348739624,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -1.7016674280166626,
+              1.3943672180175781,
+              1.2246710062026978
+            ],
+            [
+              -1.601920485496521,
+              1.4955718517303467,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 47,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 71,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.396283507347107,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -1.4461569786071777,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -1.3464100360870361,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 72,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.0300934314727783,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -1.0800710916519165,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -0.9801158905029297,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 49,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 73,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.7987388372421265,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -0.8487164378166199,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -0.7487612366676331,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 50,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 74,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.5672800540924072,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -0.617153525352478,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -0.5174065828323364,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 51,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 75,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.33769553899765015,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -0.38767313957214355,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -0.28771793842315674,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 52,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 76,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.10852742195129395,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              -0.15840089321136475,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              -0.058653950691223145,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 53,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 77,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.12282717227935791,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              0.07295370101928711,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              0.1727006435394287,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 54,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 78,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.3528282642364502,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              0.302850604057312,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              0.4028059244155884,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 55,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 79,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.5842869281768799,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              0.5344134569168091,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              0.6341603994369507,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 56,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 80,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.811581015586853,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              0.7616034746170044,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              0.8615585565567017,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 57,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 81,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.0430397987365723,
+            1.573037028312683,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              0.9931663274765015,
+              1.5224347114562988,
+              1.2246710062026978
+            ],
+            [
+              1.092913269996643,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 58,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 82,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.4042320251464844,
+            1.5729329586029053,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              1.3542543649673462,
+              1.5222265720367432,
+              1.2246710062026978
+            ],
+            [
+              1.4542096853256226,
+              1.6236393451690674,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 59,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 83,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.6599507331848145,
+            1.4448654651641846,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              1.6099730730056763,
+              1.394158959388733,
+              1.2246710062026978
+            ],
+            [
+              1.7099283933639526,
+              1.4955718517303467,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 60,
+          "physical_count": 1
+        },
+        {
+          "node": 29,
+          "name": "static_leds_gxl_v2",
+          "tag": 84,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.4042320251464844,
+            1.316693663597107,
+            1.2246710062026978
+          ],
+          "bounds": [
+            [
+              1.3542543649673462,
+              1.2660913467407227,
+              1.2246710062026978
+            ],
+            [
+              1.4542096853256226,
+              1.3672959804534912,
+              1.2246710062026978
+            ]
+          ],
+          "physical_first": 61,
+          "physical_count": 1
+        }
+      ]
+    },
+    "geometry_adjustments": [],
+    "approximations": [
+      "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+      "Default configurator canvas stickers are baked from original font and icons.",
+      "Screen pixels are opaque dark for a separately fitted live dashboard.",
+      "New controls use verified physical-group means; individual angular wiring is unknown.",
+      "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+    ],
+    "optimization": {
+      "tool": "meshoptimizer 0.25",
+      "source_sha256": "cb93e12d766f905e88341509bc9563d6746629870b2e66f00eb2230994de25d7",
+      "source_vertices": 282131,
+      "source_triangles": 248127,
+      "triangle_reduction_percent": 36.465197257855856,
+      "target_error_mm": 0.075,
+      "max_reported_error_mm": 0.07497828046325594,
+      "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+    },
+    "model": {
+      "path": "assets/models/gxl.agm",
+      "bytes": 23326008,
+      "sha256": "31aeeea893d20258eaf3e87fa1101b34bf12e31cfbd6eff6c31bdfbe1eb82bb8"
+    },
+    "preview": {
+      "path": "assets/models/gxl-preview.png",
+      "bytes": 457654,
+      "sha256": "3c26995af7cd148f50d918b4f0db944317ee0c77ec3e9e201f66c2b0f1b99c96"
+    },
+    "suggested_physical_width_m": 0.3,
+    "physical_width_source": "https://gomezsimindustries.com/products/gxl-v2"
+  },
+  "conversion_tools": [
+    "tools/download_gsi_models.py",
+    "tools/decode_gsi_glb.cjs",
+    "tools/rasterize_gsi_icons.cjs",
+    "tools/convert_gsi_models.py",
+    "tools/gsi_model_lights.py",
+    "tools/gsi_light_sources.json",
+    "tools/optimize_gsi_mesh.cjs"
+  ],
+  "verification": [
+    "Decoded primitives preserve original node transforms and reverse winding for negative determinants; explicit decal-clearance adjustments are recorded separately.",
+    "Every protected control, sticker, LED, screen and logo triangle retains its attributes and winding after the documented decal-clearance correction.",
+    "Optimizer selects existing converted vertices only; it does not reposition geometry. Atlas bytes are unchanged by optimization.",
+    "Two complete conversion and optimization runs produced byte-identical AGM files.",
+    "Native front and angled stereo previews were reviewed before staging."
+  ]
+}

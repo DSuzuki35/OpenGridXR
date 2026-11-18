@@ -1,0 +1,236 @@
+"use strict";
+const fs = require("node:fs/promises");
+const nativeFs = require("node:fs");
+const { createReadStream, constants } = require("node:fs");
+const path = require("node:path");
+const { createHash, randomUUID } = require("node:crypto");
+const { pathToFileURL } = require("node:url");
+const MAX = 32 * 1024 * 1024;
+// The editor lists the newest 100 backups; older copies are never reachable.
+const MAX_BACKUPS = 100;
+const BACKUP_NAME = /^\d{13}-[0-9a-f-]{36}\.json$/;
+// Recover incomplete lock creation after a grace period; never steal a lock
+// from a live writer, which may have been suspended or delayed by storage.
+const LOCK_STALE_MS = 30000;
+// The editor owns Electron's single-instance lock. Serialize its store objects
+// before any async lock recovery, otherwise two saves can both observe an old
+// lock and one can unlink the other's newly acquired lock. The disk lock still
+// refuses live external owners; this is not an arbitrary cross-process mutex.
+const activeTransactions = new Set();
+const digest = (value) => createHash("sha256").update(value).digest("hex");
+async function atomicWrite(file, contents, beforeReplace) {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const temp = `${file}.${randomUUID()}.tmp`;
+  try {
+    const handle = await fs.open(temp, "wx");
+    try {
+      await handle.writeFile(contents, "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    // Windows readers (including the native config watcher) can briefly omit
+    // FILE_SHARE_DELETE. Retry the atomic replacement; never unlink the target.
+    for (let attempt=0;;attempt++) {
+      // A guarded publication must not yield to editor IPC after checking state.
+      // Recheck on every retry; all preparation and retry waits remain async.
+      if(beforeReplace)beforeReplace();
+      try {
+        if(beforeReplace)nativeFs.renameSync(temp,file);
+        else await fs.rename(temp,file);
+        break;
+      }
+      catch(error) {
+        if(process.platform!=='win32'||!['EPERM','EACCES','EBUSY'].includes(error.code)||attempt>=6)throw error;
+        await new Promise(resolve=>setTimeout(resolve,25*2**attempt));
+      }
+    }
+  } finally {
+    await fs.unlink(temp).catch(() => {});
+  }
+}
+async function createStore(directory, {helmetModuleEnabled = () => true} = {}) {
+  const { createDocument, validateDocument, normalizeDocument } = await import(
+    pathToFileURL(path.join(__dirname, "../src/model.mjs")).href
+  );
+  const root = path.resolve(directory),
+    file = path.join(root, "profiles.json"),
+    backupDir = path.join(root, "backups");
+  const normalize = document => normalizeDocument(document, {helmetModuleEnabled:helmetModuleEnabled()});
+  await fs.mkdir(root, { recursive: true });
+  const canonicalRoot = await fs.realpath(root);
+  const transactionKey = process.platform === 'win32' ? canonicalRoot.toLowerCase() : canonicalRoot;
+  let initial = createDocument();
+  async function raw() {
+    try {
+      const size = (await fs.stat(file)).size;
+      if (size > MAX) {
+        const hash = createHash("sha256");
+        for await (const chunk of createReadStream(file)) hash.update(chunk);
+        return {
+          contents: null,
+          revision: hash.digest("hex"),
+          oversized: true,
+          exists: true,
+        };
+      }
+      const bytes = await fs.readFile(file);
+      return {
+        contents: bytes.toString("utf8"),
+        revision: digest(bytes),
+        exists: true,
+      };
+    } catch (e) {
+      if (e.code === "ENOENT")
+        return { contents: null, revision: digest(""), exists: false };
+      throw e;
+    }
+  }
+  async function backups() {
+    await fs.mkdir(backupDir, { recursive: true });
+    const names = (await fs.readdir(backupDir)).filter((n) =>
+      BACKUP_NAME.test(n),
+    );
+    return names
+      .sort()
+      .reverse()
+      .slice(0, MAX_BACKUPS)
+      .map((id) => ({
+        id,
+        name: "Saved configuration",
+        createdAt: new Date(Number(id.slice(0, 13))).toISOString(),
+      }));
+  }
+  async function pruneBackups() {
+    const names = (await fs.readdir(backupDir)).filter((n) => BACKUP_NAME.test(n)).sort();
+    for (const name of names.slice(0, Math.max(0, names.length - MAX_BACKUPS)))
+      await fs.unlink(path.join(backupDir, name)).catch(() => {});
+  }
+  async function lockAbandoned(lockPath) {
+    let owner = null;
+    try {
+      const text = await fs.readFile(lockPath, "utf8");
+      owner = text ? JSON.parse(text) : null;
+    } catch {}
+    if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+      try {
+        process.kill(owner.pid, 0);
+      } catch (err) {
+        if (err.code === "ESRCH") return true;
+      }
+      return false;
+    }
+    // Empty or unreadable locks may be left by a crash before writing the PID.
+    try {
+      return Date.now() - (await fs.stat(lockPath)).mtimeMs > LOCK_STALE_MS;
+    } catch {
+      return false;
+    }
+  }
+  async function load() {
+    const current = await raw();
+    let document, recoveryError;
+    if (!current.exists) document = structuredClone(initial);
+    else
+      try {
+        if (current.oversized) throw new Error("Profile data exceeds 32 MiB.");
+        document = JSON.parse(current.contents);
+        validateDocument(document);
+        document = normalize(document);
+      } catch (e) {
+        document = structuredClone(initial);
+        recoveryError = `Stored profiles could not be read: ${e.message} Restore a backup; the original file has been preserved.`;
+      }
+    return {
+      document,
+      revision: current.revision,
+      backups: await backups(),
+      ...(recoveryError ? { recoveryError } : {}),
+    };
+  }
+  async function transact(doc, revision, recover = false, {beforeReplace} = {}) {
+    if (activeTransactions.has(transactionKey))
+      throw new Error("Profiles are busy in another operation. Try again.");
+    activeTransactions.add(transactionKey);
+    try {
+      return await transactLocked(doc, revision, recover, {beforeReplace});
+    } finally {
+      activeTransactions.delete(transactionKey);
+    }
+  }
+  async function transactLocked(doc, revision, recover, {beforeReplace}) {
+    beforeReplace?.();
+    validateDocument(doc);
+    doc = normalize(doc);
+    const serialized = JSON.stringify(doc, null, 2) + "\n";
+    if (Buffer.byteLength(serialized, "utf8") > MAX)
+      throw new Error(
+        "Profile data exceeds 32 MiB. Remove unused profiles or extra imported data.",
+      );
+    if (typeof revision !== "string")
+      throw new Error("Missing revision. Reload profiles.");
+    const lockPath = path.join(root, "profiles.lock");
+    let lock;
+    try {
+      lock = await fs.open(lockPath, "wx");
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+      const abandoned = await lockAbandoned(lockPath);
+      if (!abandoned)
+        throw new Error("Profiles are busy in another operation. Try again.");
+      await fs.unlink(lockPath);
+      lock = await fs.open(lockPath, "wx");
+    }
+    try {
+      await lock.writeFile(JSON.stringify({ pid: process.pid }), "utf8");
+      const current = await raw();
+      if (current.revision !== revision)
+        throw new Error(
+          "Profiles changed in another window. Reload before saving.",
+        );
+      if (current.exists && !recover) {
+        try {
+          if (current.oversized) throw new Error("Oversize");
+          validateDocument(JSON.parse(current.contents));
+        } catch {
+          throw new Error(
+            "Current data is damaged. Restore a backup before saving.",
+          );
+        }
+      }
+      if (current.exists) {
+        await fs.mkdir(backupDir, { recursive: true });
+        await fs.copyFile(
+          file,
+          path.join(backupDir, `${Date.now()}-${randomUUID()}.json`),
+          constants.COPYFILE_EXCL,
+        );
+      }
+      await atomicWrite(file, serialized, beforeReplace);
+      // Pruning is maintenance after successful publication, never a reason to
+      // report an already-published save as failed.
+      await pruneBackups().catch(() => {});
+      return await load();
+    } finally {
+      await lock.close();
+      await fs.unlink(path.join(root, "profiles.lock")).catch(() => {});
+    }
+  }
+  async function restore(id, revision) {
+    if (typeof id !== "string" || !BACKUP_NAME.test(id))
+      throw new Error("Invalid backup ID.");
+    const target = path.join(backupDir, id);
+    if ((await fs.stat(target)).size > MAX)
+      throw new Error("Backup exceeds 32 MiB.");
+    const document = JSON.parse(await fs.readFile(target, "utf8"));
+    validateDocument(document);
+    return transact(document, revision, true);
+  }
+  return {
+    load,
+    save: (doc, rev, options) => transact(doc, rev, false, options),
+    restore,
+    directory: root,
+  };
+}
+module.exports = { createStore, atomicWrite };

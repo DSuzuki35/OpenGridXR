@@ -1,0 +1,45 @@
+const { _electron: electron } = require('playwright-core');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const {pathToFileURL} = require('node:url');
+(async () => {
+  const {createDocument} = await import(pathToFileURL(path.resolve('src/model.mjs')).href);
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-appearance-'));
+  const document = createDocument();
+  document.profiles[0].helmet.enabled = true;
+  document.profiles[0].helmet.visor.text = 'PERSISTED';
+  document.profiles[0].stream.helmet.enabled = true;
+  await fs.writeFile(path.join(dir,'profiles.json'),JSON.stringify(document));
+  const env = {...process.env,OPENGRIDXR_DATA_DIR:dir,OPENGRIDXR_TEST_MODE:'1'};
+  delete env.ELECTRON_RUN_AS_NODE;
+  const app = await electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE || require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env});
+  try {
+    const page=await app.firstWindow();
+    const nav=page.getByRole('navigation',{name:'Main navigation'});
+    await nav.waitFor();
+    await page.getByRole('img',{name:'Rectangular crop preview'}).waitFor();
+    assert.equal(await page.getByRole('group',{name:'View & crop section'}).count(),0);
+    const before=await page.evaluate(()=>window.openGrid.load());
+    await page.keyboard.press('Control+Alt+Shift+KeyH');
+    await page.getByRole('group',{name:'View & crop section'}).getByRole('button',{name:'Helmet',exact:true}).click();
+    await page.getByRole('switch',{name:'Show helmet',exact:true}).waitFor();
+    await page.keyboard.press('Control+Alt+Shift+KeyH');
+    await page.getByRole('img',{name:'Rectangular crop preview'}).waitFor();
+    assert.equal(await page.getByRole('group',{name:'View & crop section'}).count(),0);
+    await nav.getByRole('button',{name:'Setup',exact:true}).click();
+    assert.equal(await page.getByRole('switch',{name:'Helmet & visor',exact:true}).count(),0);
+    await nav.getByRole('button',{name:'Stream',exact:true}).click();
+    await page.getByRole('heading',{name:'Stream',level:1,exact:true}).waitFor();
+    assert.equal(await page.getByRole('switch',{name:'Show helmet in stream',exact:true}).count(),0);
+    await page.reload();
+    await page.getByRole('img',{name:'Rectangular crop preview'}).waitFor();
+    assert.equal(await page.getByRole('group',{name:'View & crop section'}).count(),0);
+    const after=await page.evaluate(()=>window.openGrid.load());
+    assert.deepEqual(after.document,before.document,'Hiding controls must not alter persisted rendering preferences');
+    assert.equal(after.document.profiles[0].helmet.enabled,true);
+    assert.equal(after.document.profiles[0].stream.helmet.enabled,true);
+    console.log('Hidden controls, session-only reveal, reload and persisted active overlays passed.');
+  } finally {await app.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

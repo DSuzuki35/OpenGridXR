@@ -1,0 +1,3060 @@
+{
+  "format": "AGMESH1",
+  "version": 3,
+  "vertex_stride": 36,
+  "file": "hyper-p1.agm",
+  "sha256": "9c0ffa3b247d7d30dd2f5a746c51b1054ccb92c69440e03695533d7d8969edde",
+  "bytes": 23871024,
+  "vertices": 136803,
+  "indices": 542217,
+  "triangles": 180739,
+  "atlas": [
+    2048,
+    2048
+  ],
+  "atlas_encoding": "straight RGBA8 sRGB; top-left origin",
+  "source_width": 8.842870712280273,
+  "source_shaft_origin": [
+    0,
+    0.4,
+    0
+  ],
+  "source_bounds": [
+    [
+      -4.421435356140137,
+      -2.564406394958496,
+      -1.790996789932251
+    ],
+    [
+      4.421435356140137,
+      2.8348522186279297,
+      1.757030725479126
+    ]
+  ],
+  "normalized_bounds": [
+    [
+      -0.5,
+      -0.335231214761734,
+      -0.20253567397594452
+    ],
+    [
+      0.5,
+      0.2753463685512543,
+      0.1986335664987564
+    ]
+  ],
+  "normalized_screen_bounds": [
+    [
+      -0.15806134578430533,
+      0.014435640440005856,
+      0.14728037075965697
+    ],
+    [
+      0.15819647768403983,
+      0.2058929533189926,
+      0.14745413873527327
+    ]
+  ],
+  "screen_rectangle": {
+    "source_node": "static_screen",
+    "source_node_index": 7,
+    "source_material": "Screen",
+    "source_material_index": 9,
+    "measurement": "Four decoded driver-facing surface vertices after original node transform, excluding bezel and screen-box thickness.",
+    "center": [
+      0.00006756594986725151,
+      0.11016429687949923,
+      0.14745411851401932
+    ],
+    "width": 0.3162578234683452,
+    "height": 0.191457312878991,
+    "aspect_ratio": 1.651845096500614,
+    "right": [
+      1,
+      0,
+      0
+    ],
+    "up": [
+      0,
+      0.9999999999999777,
+      2.1123511707776305e-7
+    ],
+    "normal": [
+      0,
+      -2.1123511707776305e-7,
+      0.9999999999999777
+    ],
+    "corners": {
+      "bottom_left": [
+        -0.15806134578430533,
+        0.014435640440005856,
+        0.14745409829276537
+      ],
+      "bottom_right": [
+        0.15819647768403983,
+        0.014435640440005856,
+        0.14745409829276537
+      ],
+      "top_left": [
+        -0.15806134578430533,
+        0.2058929533189926,
+        0.14745413873527327
+      ],
+      "top_right": [
+        0.15819647768403983,
+        0.2058929533189926,
+        0.14745413873527327
+      ]
+    },
+    "units": "Model coordinates normalized to complete wheel width 1; origin at shaft reference; +Z toward driver.",
+    "recommended_dashboard_surface_offset_m": 0.0005
+  },
+  "geometry_adjustments": [
+    {
+      "source_node": 18,
+      "source_name": "Curve",
+      "description": "Separate the front GSI logo from the casing to prevent depth flicker.",
+      "offset_normalized": [
+        0,
+        0,
+        0.0005
+      ],
+      "offset_mm_at_300mm": 0.15,
+      "vertex_start": 79682,
+      "vertex_count": 201,
+      "triangle_start": 106193,
+      "triangle_count": 184
+    }
+  ],
+  "led_mapping": {
+    "count": 88,
+    "ring_order": [
+      "top",
+      "right",
+      "bottom",
+      "left"
+    ],
+    "tagged_vertices": 4882,
+    "ring_groups": [
+      1,
+      5,
+      9,
+      13,
+      17,
+      21,
+      25,
+      29,
+      33,
+      37,
+      41,
+      45,
+      49,
+      53,
+      57,
+      61,
+      65
+    ],
+    "dot_groups": [
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88
+    ],
+    "icon_groups": [
+      121,
+      125,
+      129,
+      133,
+      137,
+      141,
+      145,
+      149,
+      153,
+      157,
+      161,
+      165
+    ],
+    "icon_color": "Uniform arithmetic mean of the associated four linear LED colors, using ring gain.",
+    "icon_coverage": "Authored white grayscale ink in existing opaque sticker RGB; black background retains body shading and atlas alpha is unchanged.",
+    "icon_surfaces": [
+      {
+        "name": "sticker_l_1_hyper",
+        "node": 29,
+        "tag": 121,
+        "ring_first_index": 21,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_l_2_hyper",
+        "node": 44,
+        "tag": 125,
+        "ring_first_index": 25,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_l_3_hyper",
+        "node": 45,
+        "tag": 129,
+        "ring_first_index": 29,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_l_6_hyper",
+        "node": 46,
+        "tag": 133,
+        "ring_first_index": 33,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_l_7_hyper",
+        "node": 47,
+        "tag": 137,
+        "ring_first_index": 37,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_l_8_hyper",
+        "node": 48,
+        "tag": 141,
+        "ring_first_index": 41,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_10_hyper",
+        "node": 49,
+        "tag": 145,
+        "ring_first_index": 45,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_11_hyper",
+        "node": 50,
+        "tag": 149,
+        "ring_first_index": 49,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_12_hyper",
+        "node": 51,
+        "tag": 153,
+        "ring_first_index": 53,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_15_hyper",
+        "node": 52,
+        "tag": 157,
+        "ring_first_index": 57,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_16_hyper",
+        "node": 53,
+        "tag": 161,
+        "ring_first_index": 61,
+        "vertices": 46,
+        "triangles": 44
+      },
+      {
+        "name": "sticker_r_17_hyper",
+        "node": 54,
+        "tag": 165,
+        "ring_first_index": 65,
+        "vertices": 46,
+        "triangles": 44
+      }
+    ]
+  },
+  "parts": [
+    {
+      "source": "hyper",
+      "node": 0,
+      "name": "custom_button_r_10_hyper",
+      "material": 0,
+      "material_name": "material_custom_button_r_10_hyper",
+      "atlas_key": "hyper:0",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.739271640777588,
+          1.796004295349121,
+          1.1063499450683594
+        ],
+        [
+          3.133711338043213,
+          2.190612554550171,
+          1.4190161228179932
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 0,
+      "triangle_start": 0,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 1,
+      "name": "Handlers",
+      "material": 1,
+      "material_name": "Rubber Black",
+      "atlas_key": "hyper:1",
+      "vertices": 4559,
+      "triangles": 9110,
+      "source_bounds": [
+        [
+          -4.421435356140137,
+          -2.564406394958496,
+          0.38766270875930786
+        ],
+        [
+          4.421435356140137,
+          1.4346675872802734,
+          1.757030725479126
+        ]
+      ],
+      "source_vertices": 9560,
+      "source_triangles": 17199,
+      "vertex_start": 710,
+      "triangle_start": 1169,
+      "protected": false,
+      "error_mm": 0.07323042227653787
+    },
+    {
+      "source": "hyper",
+      "node": 2,
+      "name": "static_front_face",
+      "material": 2,
+      "material_name": "Carbon Fiber",
+      "atlas_key": "hyper:2",
+      "vertices": 927,
+      "triangles": 1045,
+      "source_bounds": [
+        [
+          -4.336014270782471,
+          -2.0810351371765137,
+          1.2154992818832397
+        ],
+        [
+          4.336015224456787,
+          2.801513671875,
+          1.2594343423843384
+        ]
+      ],
+      "source_vertices": 1020,
+      "source_triangles": 1102,
+      "vertex_start": 5269,
+      "triangle_start": 10279,
+      "protected": false,
+      "error_mm": 0.06851219659438357
+    },
+    {
+      "source": "hyper",
+      "node": 2,
+      "name": "static_front_face",
+      "material": 3,
+      "material_name": "Black Plastic",
+      "atlas_key": "hyper:3",
+      "vertices": 1268,
+      "triangles": 1814,
+      "source_bounds": [
+        [
+          -4.367109775543213,
+          -2.1099491119384766,
+          1.1380795240402222
+        ],
+        [
+          4.365312099456787,
+          2.8348522186279297,
+          1.259608268737793
+        ]
+      ],
+      "source_vertices": 1850,
+      "source_triangles": 2392,
+      "vertex_start": 6196,
+      "triangle_start": 11324,
+      "protected": false,
+      "error_mm": 0.07450981065630913
+    },
+    {
+      "source": "hyper",
+      "node": 2,
+      "name": "static_front_face",
+      "material": 4,
+      "material_name": "Metal",
+      "atlas_key": "hyper:4",
+      "vertices": 66,
+      "triangles": 66,
+      "source_bounds": [
+        [
+          -2.0875296592712402,
+          -1.4742964506149292,
+          1.2594462633132935
+        ],
+        [
+          2.0875296592712402,
+          0.8330334424972534,
+          1.3626571893692017
+        ]
+      ],
+      "source_vertices": 66,
+      "source_triangles": 66,
+      "vertex_start": 7464,
+      "triangle_start": 13138,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 3,
+      "name": "custom_rotarie_l_0_hyper",
+      "material": 5,
+      "material_name": "material_rotarie_l_0_hyper",
+      "atlas_key": "hyper:5",
+      "vertices": 3670,
+      "triangles": 5892,
+      "source_bounds": [
+        [
+          -4.054329872131348,
+          1.6546655893325806,
+          0.8446613550186157
+        ],
+        [
+          -3.640678882598877,
+          2.233633041381836,
+          1.43343985080719
+        ]
+      ],
+      "source_vertices": 5874,
+      "source_triangles": 5892,
+      "vertex_start": 7530,
+      "triangle_start": 13204,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 4,
+      "name": "custom_rotarie_l_5_hyper",
+      "material": 6,
+      "material_name": "material_rotarie_l_5_hyper",
+      "atlas_key": "hyper:6",
+      "vertices": 3958,
+      "triangles": 6136,
+      "source_bounds": [
+        [
+          -2.7087743282318115,
+          -0.27142974734306335,
+          0.844620406627655
+        ],
+        [
+          -2.295123815536499,
+          0.3075372278690338,
+          1.4333986043930054
+        ]
+      ],
+      "source_vertices": 6111,
+      "source_triangles": 6136,
+      "vertex_start": 11200,
+      "triangle_start": 19096,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 5,
+      "name": "static_back_hyper",
+      "material": 3,
+      "material_name": "Black Plastic",
+      "atlas_key": "hyper:3",
+      "vertices": 4420,
+      "triangles": 4929,
+      "source_bounds": [
+        [
+          -4.365312576293945,
+          -2.110307455062866,
+          0.10949587821960449
+        ],
+        [
+          4.365312576293945,
+          2.8308117389678955,
+          1.1422715187072754
+        ]
+      ],
+      "source_vertices": 6718,
+      "source_triangles": 6564,
+      "vertex_start": 15158,
+      "triangle_start": 25232,
+      "protected": false,
+      "error_mm": 0.0743630575016141
+    },
+    {
+      "source": "hyper",
+      "node": 5,
+      "name": "static_back_hyper",
+      "material": 7,
+      "material_name": "Black Plastic Hyper",
+      "atlas_key": "hyper:7",
+      "vertices": 391,
+      "triangles": 391,
+      "source_bounds": [
+        [
+          -0.17285892367362976,
+          -1.6213650703430176,
+          0.056610725820064545
+        ],
+        [
+          0.1728491187095642,
+          -1.2798351049423218,
+          0.2997860014438629
+        ]
+      ],
+      "source_vertices": 1000,
+      "source_triangles": 1055,
+      "vertex_start": 19578,
+      "triangle_start": 30161,
+      "protected": false,
+      "error_mm": 0.073953130049631
+    },
+    {
+      "source": "hyper",
+      "node": 5,
+      "name": "static_back_hyper",
+      "material": 4,
+      "material_name": "Metal",
+      "atlas_key": "hyper:4",
+      "vertices": 612,
+      "triangles": 830,
+      "source_bounds": [
+        [
+          -0.292896568775177,
+          -1.7419112920761108,
+          0.06540025025606155
+        ],
+        [
+          0.29282063245773315,
+          -1.1561940908432007,
+          0.29978734254837036
+        ]
+      ],
+      "source_vertices": 734,
+      "source_triangles": 830,
+      "vertex_start": 19969,
+      "triangle_start": 30552,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 5,
+      "name": "static_back_hyper",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 130,
+      "triangles": 72,
+      "source_bounds": [
+        [
+          -0.46606117486953735,
+          2.826399326324463,
+          0.5966605544090271
+        ],
+        [
+          0.7277769446372986,
+          2.8328118324279785,
+          0.9856435060501099
+        ]
+      ],
+      "source_vertices": 214,
+      "source_triangles": 72,
+      "vertex_start": 20581,
+      "triangle_start": 31382,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 6,
+      "name": "HYPER_FACE",
+      "material": 7,
+      "material_name": "Black Plastic Hyper",
+      "atlas_key": "hyper:7",
+      "vertices": 7765,
+      "triangles": 12534,
+      "source_bounds": [
+        [
+          -4.299143314361572,
+          -2.0533010959625244,
+          0.43895095586776733
+        ],
+        [
+          4.299142360687256,
+          2.7646358013153076,
+          1.4933345317840576
+        ]
+      ],
+      "source_vertices": 16742,
+      "source_triangles": 19113,
+      "vertex_start": 20711,
+      "triangle_start": 31454,
+      "protected": false,
+      "error_mm": 0.07475570600945503
+    },
+    {
+      "source": "hyper",
+      "node": 7,
+      "name": "static_screen",
+      "material": 9,
+      "material_name": "Screen",
+      "atlas_key": "hyper:9",
+      "vertices": 24,
+      "triangles": 12,
+      "source_bounds": [
+        [
+          -1.3977160453796387,
+          0.5276525020599365,
+          1.3023812770843506
+        ],
+        [
+          1.3989109992980957,
+          2.220684766769409,
+          1.3039178848266602
+        ]
+      ],
+      "source_vertices": 24,
+      "source_triangles": 12,
+      "vertex_start": 28476,
+      "triangle_start": 43988,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 8,
+      "name": "custom_rotarie_l_4_hyper",
+      "material": 10,
+      "material_name": "material_rotarie_l_4_hyper",
+      "atlas_key": "hyper:10",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          -2.1272940635681152,
+          0.5648276209831238,
+          1.2813886404037476
+        ],
+        [
+          -1.822878122329712,
+          0.8692435622215271,
+          1.5995746850967407
+        ]
+      ],
+      "source_vertices": 4458,
+      "source_triangles": 6472,
+      "vertex_start": 28500,
+      "triangle_start": 44000,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 9,
+      "name": "custom_rotarie_23_hyper",
+      "material": 11,
+      "material_name": "material_rotarie_23_hyper",
+      "atlas_key": "hyper:11",
+      "vertices": 2389,
+      "triangles": 2755,
+      "source_bounds": [
+        [
+          0.3706352710723877,
+          -1.5286706686019897,
+          1.3243708610534668
+        ],
+        [
+          1.1028096675872803,
+          -0.7967644333839417,
+          1.7345459461212158
+        ]
+      ],
+      "source_vertices": 5798,
+      "source_triangles": 2755,
+      "vertex_start": 31884,
+      "triangle_start": 50472,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 10,
+      "name": "custom_rotarie_18_hyper",
+      "material": 12,
+      "material_name": "material_rotarie_18_hyper",
+      "atlas_key": "hyper:12",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          -0.15221092104911804,
+          -1.5141338109970093,
+          1.3018006086349487
+        ],
+        [
+          0.15220507979393005,
+          -1.2097177505493164,
+          1.619986653327942
+        ]
+      ],
+      "source_vertices": 4459,
+      "source_triangles": 6472,
+      "vertex_start": 34273,
+      "triangle_start": 53227,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 11,
+      "name": "HYPER P1 Assembly_V2.011",
+      "material": 3,
+      "material_name": "Black Plastic",
+      "atlas_key": "hyper:3",
+      "vertices": 31433,
+      "triangles": 33508,
+      "source_bounds": [
+        [
+          -4.096900939941406,
+          -1.7360409498214722,
+          -1.0440305471420288
+        ],
+        [
+          4.094661712646484,
+          2.3054893016815186,
+          0.2649797797203064
+        ]
+      ],
+      "source_vertices": 97664,
+      "source_triangles": 103988,
+      "vertex_start": 37657,
+      "triangle_start": 59699,
+      "protected": false,
+      "error_mm": 0.07451862038578838
+    },
+    {
+      "source": "hyper",
+      "node": 11,
+      "name": "HYPER P1 Assembly_V2.011",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 1052,
+      "triangles": 892,
+      "source_bounds": [
+        [
+          -2.820704460144043,
+          0.20173145830631256,
+          -0.36852890253067017
+        ],
+        [
+          2.818465232849121,
+          2.055983304977417,
+          -0.3193072974681854
+        ]
+      ],
+      "source_vertices": 1996,
+      "source_triangles": 1836,
+      "vertex_start": 69090,
+      "triangle_start": 93207,
+      "protected": false,
+      "error_mm": 0.07364988850895315
+    },
+    {
+      "source": "hyper",
+      "node": 12,
+      "name": "HYPER P1 Assembly_V2.015",
+      "material": 3,
+      "material_name": "Black Plastic",
+      "atlas_key": "hyper:3",
+      "vertices": 2176,
+      "triangles": 3531,
+      "source_bounds": [
+        [
+          -4.270450592041016,
+          -1.9236711263656616,
+          -1.1032195091247559
+        ],
+        [
+          4.270450592041016,
+          2.315239429473877,
+          -0.4343563914299011
+        ]
+      ],
+      "source_vertices": 3680,
+      "source_triangles": 4671,
+      "vertex_start": 70142,
+      "triangle_start": 94099,
+      "protected": false,
+      "error_mm": 0.07445738883689046
+    },
+    {
+      "source": "hyper",
+      "node": 12,
+      "name": "HYPER P1 Assembly_V2.015",
+      "material": 2,
+      "material_name": "Carbon Fiber",
+      "atlas_key": "hyper:2",
+      "vertices": 1967,
+      "triangles": 2054,
+      "source_bounds": [
+        [
+          -4.241152763366699,
+          -1.899511694908142,
+          -1.1011675596237183
+        ],
+        [
+          4.241152763366699,
+          2.2973735332489014,
+          -0.43430447578430176
+        ]
+      ],
+      "source_vertices": 2201,
+      "source_triangles": 2389,
+      "vertex_start": 72318,
+      "triangle_start": 97630,
+      "protected": false,
+      "error_mm": 0.07404562784358859
+    },
+    {
+      "source": "hyper",
+      "node": 13,
+      "name": "HYPER P1 Assembly_V2.016",
+      "material": 13,
+      "material_name": "White_metalic",
+      "atlas_key": "hyper:13",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -0.10846471041440964,
+          -1.4695662260055542,
+          1.5965800285339355
+        ],
+        [
+          0.10779741406440735,
+          -1.2534493207931519,
+          1.597174048423767
+        ]
+      ],
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "vertex_start": 74285,
+      "triangle_start": 99684,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 14,
+      "name": "HYPER P1 Assembly_V2.017",
+      "material": 13,
+      "material_name": "White_metalic",
+      "atlas_key": "hyper:13",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -2.0826704502105713,
+          0.6086997389793396,
+          1.5777720212936401
+        ],
+        [
+          -1.866408348083496,
+          0.8248167037963867,
+          1.5783660411834717
+        ]
+      ],
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "vertex_start": 74340,
+      "triangle_start": 99737,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 15,
+      "name": "HYPER P1 Assembly_V2.018",
+      "material": 13,
+      "material_name": "White_metalic",
+      "atlas_key": "hyper:13",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          1.8705743551254272,
+          0.6013550162315369,
+          1.5467349290847778
+        ],
+        [
+          2.086836576461792,
+          0.817471981048584,
+          1.5473289489746094
+        ]
+      ],
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "vertex_start": 74395,
+      "triangle_start": 99790,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 16,
+      "name": "static_led",
+      "material": 14,
+      "material_name": "whiteButtonsTransparent_leds",
+      "atlas_key": "hyper:14",
+      "vertices": 1924,
+      "triangles": 2744,
+      "source_bounds": [
+        [
+          -1.4531959295272827,
+          -1.5746023654937744,
+          1.171552062034607
+        ],
+        [
+          1.4553860425949097,
+          0.24621297419071198,
+          1.318019986152649
+        ]
+      ],
+      "source_vertices": 2264,
+      "source_triangles": 2744,
+      "vertex_start": 74450,
+      "triangle_start": 99843,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 17,
+      "name": "static_static_GXL_Screws.002",
+      "material": 15,
+      "material_name": "Metal Black",
+      "atlas_key": "hyper:15",
+      "vertices": 3308,
+      "triangles": 3606,
+      "source_bounds": [
+        [
+          -3.483698844909668,
+          -1.9934802055358887,
+          1.2126705646514893
+        ],
+        [
+          3.483698844909668,
+          2.386500835418701,
+          1.3768295049667358
+        ]
+      ],
+      "source_vertices": 28314,
+      "source_triangles": 12022,
+      "vertex_start": 76374,
+      "triangle_start": 102587,
+      "protected": false,
+      "error_mm": 0.04326314519857988
+    },
+    {
+      "source": "hyper",
+      "node": 18,
+      "name": "Curve",
+      "material": 13,
+      "material_name": "White_metalic",
+      "atlas_key": "hyper:13",
+      "vertices": 201,
+      "triangles": 184,
+      "source_bounds": [
+        [
+          -0.21092483401298523,
+          0.26795318722724915,
+          1.3768781423568726
+        ],
+        [
+          0.2116769403219223,
+          0.40131404995918274,
+          1.3768781423568726
+        ]
+      ],
+      "source_vertices": 282,
+      "source_triangles": 184,
+      "vertex_start": 79682,
+      "triangle_start": 106193,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 19,
+      "name": "leds_hyper",
+      "material": 16,
+      "material_name": "leds_hyper",
+      "atlas_key": "hyper:16",
+      "vertices": 180,
+      "triangles": 140,
+      "source_bounds": [
+        [
+          -1.7405868768692017,
+          1.524871826171875,
+          1.3392835855484009
+        ],
+        [
+          1.7405861616134644,
+          2.530359983444214,
+          1.33928382396698
+        ]
+      ],
+      "source_vertices": 180,
+      "source_triangles": 140,
+      "vertex_start": 79883,
+      "triangle_start": 106377,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 20,
+      "name": "sticker_r_13_hyper",
+      "material": 17,
+      "material_name": "sticker_r_13_hyper",
+      "atlas_key": "sticker:13",
+      "vertices": 88,
+      "triangles": 88,
+      "source_bounds": [
+        [
+          1.770942211151123,
+          0.43672069907188416,
+          1.2607091665267944
+        ],
+        [
+          2.339944839477539,
+          1.0097455978393555,
+          1.2607091665267944
+        ]
+      ],
+      "source_vertices": 88,
+      "source_triangles": 88,
+      "vertex_start": 80063,
+      "triangle_start": 106517,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 21,
+      "name": "Curve.003",
+      "material": 18,
+      "material_name": "black_base_hyper_sticker",
+      "atlas_key": "hyper:18",
+      "vertices": 344,
+      "triangles": 346,
+      "source_bounds": [
+        [
+          -1.5939816236495972,
+          -1.86833918094635,
+          1.2611801624298096
+        ],
+        [
+          1.5979448556900024,
+          0.35546889901161194,
+          1.262738823890686
+        ]
+      ],
+      "source_vertices": 348,
+      "source_triangles": 346,
+      "vertex_start": 80151,
+      "triangle_start": 106605,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 21,
+      "name": "Curve.003",
+      "material": 19,
+      "material_name": "sticker_gsi",
+      "atlas_key": "hyper:19",
+      "vertices": 161,
+      "triangles": 145,
+      "source_bounds": [
+        [
+          -0.32083824276924133,
+          -1.7670024633407593,
+          1.2626982927322388
+        ],
+        [
+          0.15201176702976227,
+          -1.685091495513916,
+          1.2626982927322388
+        ]
+      ],
+      "source_vertices": 357,
+      "source_triangles": 145,
+      "vertex_start": 80495,
+      "triangle_start": 106951,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 22,
+      "name": "Plane",
+      "material": 20,
+      "material_name": "Black Plastic Stencil",
+      "atlas_key": "hyper:20",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          -0.5797309875488281,
+          1.6902152299880981,
+          0.1896912306547165
+        ],
+        [
+          0.6287030577659607,
+          2.481382131576538,
+          0.18969132006168365
+        ]
+      ],
+      "source_vertices": 4,
+      "source_triangles": 2,
+      "vertex_start": 80656,
+      "triangle_start": 107096,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 23,
+      "name": "sticker_l_4_hyper",
+      "material": 21,
+      "material_name": "sticker_l_4_hyper",
+      "atlas_key": "sticker:4",
+      "vertices": 88,
+      "triangles": 88,
+      "source_bounds": [
+        [
+          -2.3399503231048584,
+          0.43672069907188416,
+          1.2607091665267944
+        ],
+        [
+          -1.7709475755691528,
+          1.0097455978393555,
+          1.2607091665267944
+        ]
+      ],
+      "source_vertices": 88,
+      "source_triangles": 88,
+      "vertex_start": 80660,
+      "triangle_start": 107098,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 24,
+      "name": "custom_rotarie_r_9_hyper",
+      "material": 22,
+      "material_name": "material_rotarie_r_9_hyper",
+      "atlas_key": "hyper:22",
+      "vertices": 3670,
+      "triangles": 5892,
+      "source_bounds": [
+        [
+          3.6406707763671875,
+          1.6546655893325806,
+          0.8446613550186157
+        ],
+        [
+          4.0543212890625,
+          2.233633041381836,
+          1.43343985080719
+        ]
+      ],
+      "source_vertices": 5874,
+      "source_triangles": 5892,
+      "vertex_start": 80748,
+      "triangle_start": 107186,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 25,
+      "name": "custom_rotarie_r_14_hyper",
+      "material": 23,
+      "material_name": "material_rotarie_r_14_hyper",
+      "atlas_key": "hyper:23",
+      "vertices": 3838,
+      "triangles": 6100,
+      "source_bounds": [
+        [
+          2.295114517211914,
+          -0.27142977714538574,
+          0.8446203470230103
+        ],
+        [
+          2.7087650299072266,
+          0.3075372278690338,
+          1.4333984851837158
+        ]
+      ],
+      "source_vertices": 6068,
+      "source_triangles": 6100,
+      "vertex_start": 84418,
+      "triangle_start": 113078,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 26,
+      "name": "custom_rotarie_r_13_hyper",
+      "material": 24,
+      "material_name": "material_rotarie_r_13_hyper",
+      "atlas_key": "hyper:24",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          1.8202753067016602,
+          0.5514108538627625,
+          1.2504616975784302
+        ],
+        [
+          2.1370046138763428,
+          0.8681402206420898,
+          1.5686477422714233
+        ]
+      ],
+      "source_vertices": 4458,
+      "source_triangles": 6472,
+      "vertex_start": 88256,
+      "triangle_start": 119178,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 27,
+      "name": "sticker_18_hyper",
+      "material": 25,
+      "material_name": "sticker_18_hyper",
+      "atlas_key": "sticker:18",
+      "vertices": 429,
+      "triangles": 411,
+      "source_bounds": [
+        [
+          -0.2590840756893158,
+          -1.7659647464752197,
+          1.2628012895584106
+        ],
+        [
+          0.32476475834846497,
+          -0.9074262380599976,
+          1.2716374397277832
+        ]
+      ],
+      "source_vertices": 1017,
+      "source_triangles": 411,
+      "vertex_start": 91640,
+      "triangle_start": 125650,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 28,
+      "name": "custom_button_l_1_hyper",
+      "material": 26,
+      "material_name": "material_custom_button_l_1_hyper",
+      "atlas_key": "hyper:26",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -3.1333975791931152,
+          1.796004295349121,
+          1.1063499450683594
+        ],
+        [
+          -2.7389578819274902,
+          2.190612554550171,
+          1.4190161228179932
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 92069,
+      "triangle_start": 126061,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 29,
+      "name": "sticker_l_1_hyper",
+      "material": 27,
+      "material_name": "sticker_l_1_hyper",
+      "atlas_key": "sticker:1",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -3.0752925872802734,
+          1.8546712398529053,
+          1.4195107221603394
+        ],
+        [
+          -2.797377109527588,
+          2.1319420337677,
+          1.4195107221603394
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 92779,
+      "triangle_start": 127230,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 30,
+      "name": "map",
+      "material": 28,
+      "material_name": "SVGMat",
+      "atlas_key": "hyper:28",
+      "vertices": 729,
+      "triangles": 419,
+      "source_bounds": [
+        [
+          -3.5827982425689697,
+          1.8483388423919678,
+          1.4163504838943481
+        ],
+        [
+          -3.420590400695801,
+          2.0538806915283203,
+          1.436072826385498
+        ]
+      ],
+      "source_vertices": 1257,
+      "source_triangles": 419,
+      "vertex_start": 92825,
+      "triangle_start": 127274,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 31,
+      "name": "set",
+      "material": 28,
+      "material_name": "SVGMat",
+      "atlas_key": "hyper:28",
+      "vertices": 322,
+      "triangles": 206,
+      "source_bounds": [
+        [
+          -2.2160043716430664,
+          -0.103505939245224,
+          1.4107236862182617
+        ],
+        [
+          -2.0737624168395996,
+          0.1393400877714157,
+          1.434470295906067
+        ]
+      ],
+      "source_vertices": 618,
+      "source_triangles": 206,
+      "vertex_start": 93554,
+      "triangle_start": 127693,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 32,
+      "name": "page",
+      "material": 28,
+      "material_name": "SVGMat",
+      "atlas_key": "hyper:28",
+      "vertices": 211,
+      "triangles": 154,
+      "source_bounds": [
+        [
+          2.041016101837158,
+          -0.10044236481189728,
+          1.4114426374435425
+        ],
+        [
+          2.2385056018829346,
+          0.14113688468933105,
+          1.4351390600204468
+        ]
+      ],
+      "source_vertices": 212,
+      "source_triangles": 154,
+      "vertex_start": 93876,
+      "triangle_start": 127899,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 33,
+      "name": "ctrl",
+      "material": 28,
+      "material_name": "SVGMat",
+      "atlas_key": "hyper:28",
+      "vertices": 825,
+      "triangles": 461,
+      "source_bounds": [
+        [
+          3.3810765743255615,
+          1.8400946855545044,
+          1.414669156074524
+        ],
+        [
+          3.592355489730835,
+          2.0525014400482178,
+          1.4340648651123047
+        ]
+      ],
+      "source_vertices": 1383,
+      "source_triangles": 461,
+      "vertex_start": 94087,
+      "triangle_start": 128053,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 34,
+      "name": "custom_button_l_2_hyper",
+      "material": 29,
+      "material_name": "material_custom_button_l_2_hyper",
+      "atlas_key": "hyper:29",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.5475101470947266,
+          1.649269461631775,
+          1.1063499450683594
+        ],
+        [
+          -2.1529839038848877,
+          2.043868064880371,
+          1.4190083742141724
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 94912,
+      "triangle_start": 128514,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 35,
+      "name": "custom_button_l_3_hyper",
+      "material": 30,
+      "material_name": "material_custom_button_l_3_hyper",
+      "atlas_key": "hyper:30",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.2545127868652344,
+          1.1301815509796143,
+          1.1063498258590698
+        ],
+        [
+          -1.86000657081604,
+          1.5247840881347656,
+          1.4190114736557007
+        ]
+      ],
+      "source_vertices": 1010,
+      "source_triangles": 1169,
+      "vertex_start": 95622,
+      "triangle_start": 129683,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 36,
+      "name": "custom_button_l_6_hyper",
+      "material": 31,
+      "material_name": "material_custom_button_l_6_hyper",
+      "atlas_key": "hyper:31",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.2138590812683105,
+          -0.7394359111785889,
+          1.1063495874404907
+        ],
+        [
+          -1.8194193840026855,
+          -0.3448276221752167,
+          1.4190157651901245
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 96332,
+      "triangle_start": 130852,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 37,
+      "name": "custom_button_l_7_hyper",
+      "material": 32,
+      "material_name": "material_custom_button_l_7_hyper",
+      "atlas_key": "hyper:32",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.087618589401245,
+          -1.3700593709945679,
+          1.1063494682312012
+        ],
+        [
+          -1.6931788921356201,
+          -0.9754509925842285,
+          1.4190157651901245
+        ]
+      ],
+      "source_vertices": 1010,
+      "source_triangles": 1169,
+      "vertex_start": 97042,
+      "triangle_start": 132021,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 38,
+      "name": "custom_button_l_8_hyper",
+      "material": 33,
+      "material_name": "material_custom_button_l_8_hyper",
+      "atlas_key": "hyper:33",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -1.6966922283172607,
+          -1.8706474304199219,
+          1.1063493490219116
+        ],
+        [
+          -1.3022525310516357,
+          -1.476039171218872,
+          1.4190155267715454
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 97752,
+      "triangle_start": 133190,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 39,
+      "name": "custom_button_r_16_hyper",
+      "material": 34,
+      "material_name": "material_custom_button_r_16_hyper",
+      "atlas_key": "hyper:34",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.6934924125671387,
+          -1.3700593709945679,
+          1.1063494682312012
+        ],
+        [
+          2.0879321098327637,
+          -0.9754509925842285,
+          1.4190157651901245
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 98462,
+      "triangle_start": 134359,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 40,
+      "name": "custom_button_r_15_hyper",
+      "material": 35,
+      "material_name": "material_custom_button_r_15_hyper",
+      "atlas_key": "hyper:35",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.819732904434204,
+          -0.7394359111785889,
+          1.1063495874404907
+        ],
+        [
+          2.214172601699829,
+          -0.3448276221752167,
+          1.4190157651901245
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 99172,
+      "triangle_start": 135528,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 41,
+      "name": "custom_button_r_12_hyper",
+      "material": 36,
+      "material_name": "material_custom_button_r_12_hyper",
+      "atlas_key": "hyper:36",
+      "vertices": 527,
+      "triangles": 799,
+      "source_bounds": [
+        [
+          1.8794835805892944,
+          1.1498461961746216,
+          1.1083124876022339
+        ],
+        [
+          2.2352991104125977,
+          1.504249930381775,
+          1.4190185070037842
+        ]
+      ],
+      "source_vertices": 689,
+      "source_triangles": 799,
+      "vertex_start": 99882,
+      "triangle_start": 136697,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 42,
+      "name": "custom_button_r_11_hyper",
+      "material": 37,
+      "material_name": "material_custom_button_r_11_hyper",
+      "atlas_key": "hyper:37",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.153109550476074,
+          1.6492301225662231,
+          1.1063499450683594
+        ],
+        [
+          2.547549247741699,
+          2.0438385009765625,
+          1.4190161228179932
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 100409,
+      "triangle_start": 137496,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 43,
+      "name": "custom_button_r_17_hyper",
+      "material": 38,
+      "material_name": "material_custom_button_r_17_hyper",
+      "atlas_key": "hyper:38",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.3025660514831543,
+          -1.8706474304199219,
+          1.1063493490219116
+        ],
+        [
+          1.6970057487487793,
+          -1.476039171218872,
+          1.4190155267715454
+        ]
+      ],
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "vertex_start": 101119,
+      "triangle_start": 138665,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 44,
+      "name": "sticker_l_2_hyper",
+      "material": 39,
+      "material_name": "sticker_l_2_hyper",
+      "atlas_key": "sticker:2",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -2.4893274307250977,
+          1.7078262567520142,
+          1.420806646347046
+        ],
+        [
+          -2.211418628692627,
+          1.9852261543273926,
+          1.420806646347046
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 101829,
+      "triangle_start": 139834,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 45,
+      "name": "sticker_l_3_hyper",
+      "material": 40,
+      "material_name": "sticker_l_3_hyper",
+      "atlas_key": "sticker:3",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -2.196347713470459,
+          1.1888275146484375,
+          1.4216481447219849
+        ],
+        [
+          -1.9184361696243286,
+          1.4661961793899536,
+          1.4216481447219849
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 101875,
+      "triangle_start": 139878,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 46,
+      "name": "sticker_l_6_hyper",
+      "material": 41,
+      "material_name": "sticker_l_6_hyper",
+      "atlas_key": "sticker:6",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -2.1557538509368896,
+          -0.6807688474655151,
+          1.4226006269454956
+        ],
+        [
+          -1.877838373184204,
+          -0.4034980237483978,
+          1.4226006269454956
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 101921,
+      "triangle_start": 139922,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 47,
+      "name": "sticker_l_7_hyper",
+      "material": 42,
+      "material_name": "sticker_l_7_hyper",
+      "atlas_key": "sticker:7",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -2.029513359069824,
+          -1.3113921880722046,
+          1.4218734502792358
+        ],
+        [
+          -1.7515980005264282,
+          -1.0341213941574097,
+          1.4218734502792358
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 101967,
+      "triangle_start": 139966,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 48,
+      "name": "sticker_l_8_hyper",
+      "material": 43,
+      "material_name": "sticker_l_8_hyper",
+      "atlas_key": "sticker:8",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -1.638587236404419,
+          -1.8119804859161377,
+          1.421138048171997
+        ],
+        [
+          -1.3606716394424438,
+          -1.5347094535827637,
+          1.421138048171997
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102013,
+      "triangle_start": 140010,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 49,
+      "name": "sticker_r_10_hyper",
+      "material": 44,
+      "material_name": "sticker_r_10_hyper",
+      "atlas_key": "sticker:10",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          2.797376871109009,
+          1.8546712398529053,
+          1.4222044944763184
+        ],
+        [
+          3.0752923488616943,
+          2.1319420337677,
+          1.4222044944763184
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102059,
+      "triangle_start": 140054,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 50,
+      "name": "sticker_r_11_hyper",
+      "material": 45,
+      "material_name": "sticker_r_11_hyper",
+      "atlas_key": "sticker:11",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          2.211214542388916,
+          1.7078970670700073,
+          1.42380690574646
+        ],
+        [
+          2.4891300201416016,
+          1.9851679801940918,
+          1.42380690574646
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102105,
+      "triangle_start": 140098,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 51,
+      "name": "sticker_r_12_hyper",
+      "material": 46,
+      "material_name": "sticker_r_12_hyper",
+      "atlas_key": "sticker:12",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          1.9184335470199585,
+          1.1888760328292847,
+          1.4254661798477173
+        ],
+        [
+          2.1963491439819336,
+          1.4661470651626587,
+          1.4254661798477173
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102151,
+      "triangle_start": 140142,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 52,
+      "name": "sticker_r_15_hyper",
+      "material": 47,
+      "material_name": "sticker_r_15_hyper",
+      "atlas_key": "sticker:15",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          1.8778377771377563,
+          -0.6807689666748047,
+          1.422420620918274
+        ],
+        [
+          2.1557533740997314,
+          -0.4034980237483978,
+          1.422420620918274
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102197,
+      "triangle_start": 140186,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 53,
+      "name": "sticker_r_16_hyper",
+      "material": 48,
+      "material_name": "sticker_r_16_hyper",
+      "atlas_key": "sticker:16",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          1.751597285270691,
+          -1.3113924264907837,
+          1.4223250150680542
+        ],
+        [
+          2.029512882232666,
+          -1.0341213941574097,
+          1.4223250150680542
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102243,
+      "triangle_start": 140230,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 54,
+      "name": "sticker_r_17_hyper",
+      "material": 49,
+      "material_name": "sticker_r_17_hyper",
+      "atlas_key": "sticker:17",
+      "vertices": 46,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          1.360671043395996,
+          -1.8119804859161377,
+          1.422347068786621
+        ],
+        [
+          1.6385866403579712,
+          -1.5347094535827637,
+          1.422347068786621
+        ]
+      ],
+      "source_vertices": 46,
+      "source_triangles": 44,
+      "vertex_start": 102289,
+      "triangle_start": 140274,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 55,
+      "name": "custom_rotarie_22_hyper",
+      "material": 50,
+      "material_name": "material_rotarie_22_hyper",
+      "atlas_key": "hyper:50",
+      "vertices": 2390,
+      "triangles": 2755,
+      "source_bounds": [
+        [
+          -1.106353521347046,
+          -1.5262807607650757,
+          1.3243708610534668
+        ],
+        [
+          -0.3741791248321533,
+          -0.7943744659423828,
+          1.7345459461212158
+        ]
+      ],
+      "source_vertices": 5796,
+      "source_triangles": 2755,
+      "vertex_start": 102335,
+      "triangle_start": 140318,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 56,
+      "name": "custom_rotarie_20_hyper",
+      "material": 51,
+      "material_name": "material_rotarie_20_hyper",
+      "atlas_key": "hyper:51",
+      "vertices": 2354,
+      "triangles": 2755,
+      "source_bounds": [
+        [
+          0.668423056602478,
+          -0.5425239205360413,
+          1.324371099472046
+        ],
+        [
+          1.4005974531173706,
+          0.18938234448432922,
+          1.734546184539795
+        ]
+      ],
+      "source_vertices": 2731,
+      "source_triangles": 2755,
+      "vertex_start": 104725,
+      "triangle_start": 143073,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 57,
+      "name": "custom_rotarie_19_hyper",
+      "material": 52,
+      "material_name": "material_rotarie_19_hyper",
+      "atlas_key": "hyper:52",
+      "vertices": 2390,
+      "triangles": 2755,
+      "source_bounds": [
+        [
+          -1.4027072191238403,
+          -0.5368419289588928,
+          1.324371099472046
+        ],
+        [
+          -0.6705328226089478,
+          0.19506433606147766,
+          1.734546184539795
+        ]
+      ],
+      "source_vertices": 5796,
+      "source_triangles": 2755,
+      "vertex_start": 107079,
+      "triangle_start": 145828,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 58,
+      "name": "custom_rotarie_21_hyper",
+      "material": 53,
+      "material_name": "material_rotarie_21_hyper",
+      "atlas_key": "hyper:53",
+      "vertices": 2457,
+      "triangles": 2755,
+      "source_bounds": [
+        [
+          -0.36424198746681213,
+          -0.7760306000709534,
+          1.3243709802627563
+        ],
+        [
+          0.36793240904808044,
+          -0.04412433132529259,
+          1.7345460653305054
+        ]
+      ],
+      "source_vertices": 5802,
+      "source_triangles": 2755,
+      "vertex_start": 109469,
+      "triangle_start": 148583,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 59,
+      "name": "sticker_20_hyper",
+      "material": 54,
+      "material_name": "sticker_20_hyper",
+      "atlas_key": "sticker:20",
+      "vertices": 153,
+      "triangles": 154,
+      "source_bounds": [
+        [
+          0.3045818507671356,
+          -0.6199096441268921,
+          1.2836302518844604
+        ],
+        [
+          1.4822332859039307,
+          0.31413185596466064,
+          1.2836302518844604
+        ]
+      ],
+      "source_vertices": 154,
+      "source_triangles": 154,
+      "vertex_start": 111926,
+      "triangle_start": 151338,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 60,
+      "name": "sticker_23_hyper",
+      "material": 55,
+      "material_name": "sticker_23_hyper",
+      "atlas_key": "sticker:23",
+      "vertices": 147,
+      "triangles": 147,
+      "source_bounds": [
+        [
+          0.20307597517967224,
+          -1.637856364250183,
+          1.283630132675171
+        ],
+        [
+          1.2191269397735596,
+          -0.41073042154312134,
+          1.283630132675171
+        ]
+      ],
+      "source_vertices": 151,
+      "source_triangles": 147,
+      "vertex_start": 112079,
+      "triangle_start": 151492,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 61,
+      "name": "sticker_22_hyper",
+      "material": 56,
+      "material_name": "sticker_22_hyper",
+      "atlas_key": "sticker:22",
+      "vertices": 144,
+      "triangles": 144,
+      "source_bounds": [
+        [
+          -1.2272965908050537,
+          -1.636816143989563,
+          1.283630132675171
+        ],
+        [
+          -0.21124161779880524,
+          -0.42213234305381775,
+          1.283630132675171
+        ]
+      ],
+      "source_vertices": 144,
+      "source_triangles": 144,
+      "vertex_start": 112226,
+      "triangle_start": 151639,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 62,
+      "name": "sticker_21_hyper",
+      "material": 57,
+      "material_name": "sticker_21_hyper",
+      "atlas_key": "sticker:21",
+      "vertices": 326,
+      "triangles": 322,
+      "source_bounds": [
+        [
+          -0.5929274559020996,
+          -0.8978481888771057,
+          1.262557029724121
+        ],
+        [
+          0.5978505611419678,
+          0.14908869564533234,
+          1.2836352586746216
+        ]
+      ],
+      "source_vertices": 334,
+      "source_triangles": 322,
+      "vertex_start": 112370,
+      "triangle_start": 151783,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 63,
+      "name": "sticker_19_hyper",
+      "material": 58,
+      "material_name": "sticker_19_hyper",
+      "atlas_key": "sticker:19",
+      "vertices": 145,
+      "triangles": 145,
+      "source_bounds": [
+        [
+          -1.4862337112426758,
+          -0.6199512481689453,
+          1.2836302518844604
+        ],
+        [
+          -0.31376323103904724,
+          0.31413185596466064,
+          1.2836302518844604
+        ]
+      ],
+      "source_vertices": 145,
+      "source_triangles": 145,
+      "vertex_start": 112696,
+      "triangle_start": 152105,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 64,
+      "name": "oldLogoFlippers",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 50,
+      "triangles": 48,
+      "source_bounds": [
+        [
+          1.2546981573104858,
+          1.6787645816802979,
+          -0.3418921232223511
+        ],
+        [
+          1.434372901916504,
+          1.8941140174865723,
+          -0.22344531118869781
+        ]
+      ],
+      "source_vertices": 136,
+      "source_triangles": 48,
+      "vertex_start": 112841,
+      "triangle_start": 152250,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 65,
+      "name": "oldLogoFlippers.001",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 50,
+      "triangles": 48,
+      "source_bounds": [
+        [
+          -1.4369721412658691,
+          1.6784662008285522,
+          -0.34243613481521606
+        ],
+        [
+          -1.2567189931869507,
+          1.8938156366348267,
+          -0.224856898188591
+        ]
+      ],
+      "source_vertices": 136,
+      "source_triangles": 48,
+      "vertex_start": 112891,
+      "triangle_start": 152298,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 66,
+      "name": "oldLogoFlippers.002",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 50,
+      "triangles": 48,
+      "source_bounds": [
+        [
+          1.4430785179138184,
+          0.3691807985305786,
+          -0.34189194440841675
+        ],
+        [
+          1.6227532625198364,
+          0.584530234336853,
+          -0.22344514727592468
+        ]
+      ],
+      "source_vertices": 136,
+      "source_triangles": 48,
+      "vertex_start": 112941,
+      "triangle_start": 152346,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 67,
+      "name": "oldLogoFlippers.003",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 50,
+      "triangles": 48,
+      "source_bounds": [
+        [
+          -1.6252624988555908,
+          0.3687272071838379,
+          -0.34243595600128174
+        ],
+        [
+          -1.4450093507766724,
+          0.5840766429901123,
+          -0.22485673427581787
+        ]
+      ],
+      "source_vertices": 136,
+      "source_triangles": 48,
+      "vertex_start": 112991,
+      "triangle_start": 152394,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 68,
+      "name": "flipper_logo_back",
+      "material": 3,
+      "material_name": "Black Plastic",
+      "atlas_key": "hyper:3",
+      "vertices": 21,
+      "triangles": 15,
+      "source_bounds": [
+        [
+          1.636016607284546,
+          -0.9679698348045349,
+          -0.5909151434898376
+        ],
+        [
+          1.8244054317474365,
+          -0.8140895962715149,
+          -0.5304301977157593
+        ]
+      ],
+      "source_vertices": 37,
+      "source_triangles": 15,
+      "vertex_start": 113041,
+      "triangle_start": 152442,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 68,
+      "name": "flipper_logo_back",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          1.636016607284546,
+          -0.997054398059845,
+          -0.6092113852500916
+        ],
+        [
+          1.8388185501098633,
+          -0.7834435105323792,
+          -0.5269901752471924
+        ]
+      ],
+      "source_vertices": 151,
+      "source_triangles": 53,
+      "vertex_start": 113062,
+      "triangle_start": 152457,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 69,
+      "name": "oldLogoFlippers.004",
+      "material": 8,
+      "material_name": "White Plastic",
+      "atlas_key": "hyper:8",
+      "vertices": 50,
+      "triangles": 48,
+      "source_bounds": [
+        [
+          -1.840535283088684,
+          -0.9953288435935974,
+          -0.6110071539878845
+        ],
+        [
+          -1.638479232788086,
+          -0.7836874127388,
+          -0.5286138653755188
+        ]
+      ],
+      "source_vertices": 136,
+      "source_triangles": 48,
+      "vertex_start": 113117,
+      "triangle_start": 152510,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 70,
+      "name": "Text",
+      "material": -1,
+      "material_name": "sticker_19_hyper",
+      "atlas_key": "hyper:-1",
+      "vertices": 326,
+      "triangles": 292,
+      "source_bounds": [
+        [
+          -3.752448797225952,
+          1.9076485633850098,
+          1.3834222555160522
+        ],
+        [
+          -3.7070724964141846,
+          1.9755637645721436,
+          1.3863986730575562
+        ]
+      ],
+      "source_vertices": 876,
+      "source_triangles": 292,
+      "vertex_start": 113167,
+      "triangle_start": 152558,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 71,
+      "name": "Text.001",
+      "material": -1,
+      "material_name": "sticker_19_hyper",
+      "atlas_key": "hyper:-1",
+      "vertices": 332,
+      "triangles": 292,
+      "source_bounds": [
+        [
+          3.7035906314849854,
+          1.9076485633850098,
+          1.3834223747253418
+        ],
+        [
+          3.748966693878174,
+          1.975563645362854,
+          1.3863987922668457
+        ]
+      ],
+      "source_vertices": 876,
+      "source_triangles": 292,
+      "vertex_start": 113493,
+      "triangle_start": 152850,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 72,
+      "name": "Text.002",
+      "material": -1,
+      "material_name": "sticker_19_hyper",
+      "atlas_key": "hyper:-1",
+      "vertices": 186,
+      "triangles": 159,
+      "source_bounds": [
+        [
+          2.370143175125122,
+          -0.013121365569531918,
+          1.384576678276062
+        ],
+        [
+          2.415611743927002,
+          0.05314585193991661,
+          1.3873474597930908
+        ]
+      ],
+      "source_vertices": 477,
+      "source_triangles": 159,
+      "vertex_start": 113825,
+      "triangle_start": 153142,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 73,
+      "name": "Text.003",
+      "material": -1,
+      "material_name": "sticker_19_hyper",
+      "atlas_key": "hyper:-1",
+      "vertices": 185,
+      "triangles": 159,
+      "source_bounds": [
+        [
+          -2.4098596572875977,
+          -0.013121443800628185,
+          1.3845748901367188
+        ],
+        [
+          -2.364391326904297,
+          0.05314561724662781,
+          1.3873456716537476
+        ]
+      ],
+      "source_vertices": 477,
+      "source_triangles": 159,
+      "vertex_start": 114011,
+      "triangle_start": 153301,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hyper",
+      "node": 74,
+      "name": "FPE_Assembly_V1.002",
+      "material": 15,
+      "material_name": "Metal Black",
+      "atlas_key": "hyper:15",
+      "vertices": 1394,
+      "triangles": 1331,
+      "source_bounds": [
+        [
+          -3.0836336612701416,
+          -1.21027672290802,
+          -0.7259339094161987
+        ],
+        [
+          3.0836336612701416,
+          2.02148699760437,
+          -0.5429823398590088
+        ]
+      ],
+      "source_vertices": 13320,
+      "source_triangles": 4440,
+      "vertex_start": 114196,
+      "triangle_start": 153460,
+      "protected": false,
+      "error_mm": 0.07441451889462769
+    },
+    {
+      "source": "qrs1",
+      "node": 0,
+      "name": "custom_qrs1",
+      "material": 0,
+      "material_name": "Black Plastic",
+      "atlas_key": "qrs1:0",
+      "vertices": 21213,
+      "triangles": 25948,
+      "source_bounds": [
+        [
+          -1.356419324874878,
+          -1.095776915550232,
+          -1.790996789932251
+        ],
+        [
+          1.3563666343688965,
+          1.8980642557144165,
+          0.19996361434459686
+        ]
+      ],
+      "source_vertices": 25426,
+      "source_triangles": 25948,
+      "vertex_start": 115590,
+      "triangle_start": 154791,
+      "protected": true,
+      "error_mm": 0
+    }
+  ],
+  "atlas_tiles": {
+    "hyper:2": [
+      4,
+      4,
+      1024,
+      1024
+    ],
+    "hyper:20": [
+      1036,
+      4,
+      512,
+      512
+    ],
+    "sticker:13": [
+      1556,
+      4,
+      256,
+      256
+    ],
+    "sticker:4": [
+      1036,
+      524,
+      256,
+      256
+    ],
+    "sticker:18": [
+      1300,
+      524,
+      256,
+      256
+    ],
+    "sticker:1": [
+      1564,
+      524,
+      256,
+      256
+    ],
+    "sticker:2": [
+      4,
+      1036,
+      256,
+      256
+    ],
+    "sticker:3": [
+      268,
+      1036,
+      256,
+      256
+    ],
+    "sticker:6": [
+      532,
+      1036,
+      256,
+      256
+    ],
+    "sticker:7": [
+      796,
+      1036,
+      256,
+      256
+    ],
+    "sticker:8": [
+      1060,
+      1036,
+      256,
+      256
+    ],
+    "sticker:10": [
+      1324,
+      1036,
+      256,
+      256
+    ],
+    "sticker:11": [
+      1588,
+      1036,
+      256,
+      256
+    ],
+    "sticker:12": [
+      4,
+      1300,
+      256,
+      256
+    ],
+    "sticker:15": [
+      268,
+      1300,
+      256,
+      256
+    ],
+    "sticker:16": [
+      532,
+      1300,
+      256,
+      256
+    ],
+    "sticker:17": [
+      796,
+      1300,
+      256,
+      256
+    ],
+    "sticker:20": [
+      1060,
+      1300,
+      256,
+      256
+    ],
+    "sticker:23": [
+      1324,
+      1300,
+      256,
+      256
+    ],
+    "sticker:22": [
+      1588,
+      1300,
+      256,
+      256
+    ],
+    "sticker:21": [
+      4,
+      1564,
+      256,
+      256
+    ],
+    "sticker:19": [
+      268,
+      1564,
+      256,
+      256
+    ],
+    "hyper:0": [
+      1852,
+      1036,
+      8,
+      8
+    ],
+    "hyper:1": [
+      1868,
+      1036,
+      8,
+      8
+    ],
+    "hyper:3": [
+      1884,
+      1036,
+      8,
+      8
+    ],
+    "hyper:4": [
+      1900,
+      1036,
+      8,
+      8
+    ],
+    "hyper:5": [
+      1916,
+      1036,
+      8,
+      8
+    ],
+    "hyper:6": [
+      1932,
+      1036,
+      8,
+      8
+    ],
+    "hyper:7": [
+      1948,
+      1036,
+      8,
+      8
+    ],
+    "hyper:8": [
+      1964,
+      1036,
+      8,
+      8
+    ],
+    "hyper:9": [
+      1980,
+      1036,
+      8,
+      8
+    ],
+    "hyper:10": [
+      1996,
+      1036,
+      8,
+      8
+    ],
+    "hyper:11": [
+      2012,
+      1036,
+      8,
+      8
+    ],
+    "hyper:12": [
+      2028,
+      1036,
+      8,
+      8
+    ],
+    "hyper:13": [
+      1852,
+      1052,
+      8,
+      8
+    ],
+    "hyper:14": [
+      1868,
+      1052,
+      8,
+      8
+    ],
+    "hyper:15": [
+      1884,
+      1052,
+      8,
+      8
+    ],
+    "hyper:16": [
+      1900,
+      1052,
+      8,
+      8
+    ],
+    "hyper:18": [
+      1916,
+      1052,
+      8,
+      8
+    ],
+    "hyper:19": [
+      1932,
+      1052,
+      8,
+      8
+    ],
+    "hyper:22": [
+      1948,
+      1052,
+      8,
+      8
+    ],
+    "hyper:23": [
+      1964,
+      1052,
+      8,
+      8
+    ],
+    "hyper:24": [
+      1980,
+      1052,
+      8,
+      8
+    ],
+    "hyper:26": [
+      1996,
+      1052,
+      8,
+      8
+    ],
+    "hyper:28": [
+      2012,
+      1052,
+      8,
+      8
+    ],
+    "hyper:29": [
+      2028,
+      1052,
+      8,
+      8
+    ],
+    "hyper:30": [
+      1852,
+      1068,
+      8,
+      8
+    ],
+    "hyper:31": [
+      1868,
+      1068,
+      8,
+      8
+    ],
+    "hyper:32": [
+      1884,
+      1068,
+      8,
+      8
+    ],
+    "hyper:33": [
+      1900,
+      1068,
+      8,
+      8
+    ],
+    "hyper:34": [
+      1916,
+      1068,
+      8,
+      8
+    ],
+    "hyper:35": [
+      1932,
+      1068,
+      8,
+      8
+    ],
+    "hyper:36": [
+      1948,
+      1068,
+      8,
+      8
+    ],
+    "hyper:37": [
+      1964,
+      1068,
+      8,
+      8
+    ],
+    "hyper:38": [
+      1980,
+      1068,
+      8,
+      8
+    ],
+    "hyper:50": [
+      1996,
+      1068,
+      8,
+      8
+    ],
+    "hyper:51": [
+      2012,
+      1068,
+      8,
+      8
+    ],
+    "hyper:52": [
+      2028,
+      1068,
+      8,
+      8
+    ],
+    "hyper:53": [
+      1852,
+      1084,
+      8,
+      8
+    ],
+    "hyper:-1": [
+      1868,
+      1084,
+      8,
+      8
+    ],
+    "qrs1:0": [
+      1884,
+      1084,
+      8,
+      8
+    ]
+  },
+  "approximations": [
+    "PBR metallic/roughness, normal maps and clearcoat are not included in AGMESH1; tagged diffusers support live LED emission.",
+    "Pure-black diffuse colors receive a 1% linear floor for native simple lighting.",
+    "The stock display is replaced with opaque dark pixels for a separate live dashboard.",
+    "Default canvas stickers are baked with the original Poppins font and source icons."
+  ],
+  "optimization": {
+    "tool": "meshoptimizer 0.25",
+    "source_sha256": "f234fb8b877e226d7e0fbf8ae96e6fd8f7163c2724835c5cc9f4e36d95f2258d",
+    "source_vertices": 298852,
+    "source_triangles": 282765,
+    "triangle_reduction_percent": 36.081551818647995,
+    "target_error_mm": 0.075,
+    "max_reported_error_mm": 0.07475570600945503,
+    "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+  }
+}

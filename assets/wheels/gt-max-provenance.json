@@ -1,0 +1,1370 @@
+{
+  "model": "Gomez Sim Industries GT-MAX 32",
+  "authorization": "The user stated they are a GSI member and explicitly authorized extracting and using these official models in oVRlay.",
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "source_manifest": "gsi-source-manifest.json",
+  "identity_evidence": "Official chooser id/file=gtmax; default theme model=gtmax, hub=qrs1.",
+  "original_model": {
+    "copyright": "anderson_mancini",
+    "generator": "Khronos glTF Blender I/O v1.8.19",
+    "version": "2.0"
+  },
+  "credits": {
+    "configurator": "GSI / Neotix",
+    "materials": [
+      {
+        "name": "Black Plastic",
+        "id": "7241e7a9-cc3e-4f80-ab34-076465f5e7b7",
+        "license": "royalty_free",
+        "author": "Nobody",
+        "url": "https://www.blenderkit.com/api/v1/assets/7241e7a9-cc3e-4f80-ab34-076465f5e7b7/"
+      },
+      {
+        "name": "Carbon Fiber",
+        "id": "aade2d53-0952-4140-a04b-049737a57bae",
+        "license": "royalty_free",
+        "author": "Linka Palm",
+        "url": "https://www.blenderkit.com/api/v1/assets/aade2d53-0952-4140-a04b-049737a57bae/"
+      },
+      {
+        "name": "Rubber Black",
+        "id": "13ad6c74-f4ff-4f2a-a3e4-d313b491c39a",
+        "license": "royalty_free",
+        "author": "Arfat Ikhte Rohman",
+        "url": "https://www.blenderkit.com/api/v1/assets/13ad6c74-f4ff-4f2a-a3e4-d313b491c39a/"
+      },
+      {
+        "name": "Die-cast aluminum",
+        "id": "76f47d07-e067-4870-b5b7-5bcc5777ddfa",
+        "license": "royalty_free",
+        "author": "Joachim Bornemann",
+        "url": "https://www.blenderkit.com/api/v1/assets/76f47d07-e067-4870-b5b7-5bcc5777ddfa/"
+      }
+    ],
+    "baked_font": "Poppins, SIL Open Font License 1.1; see POPPINS-OFL.txt."
+  },
+  "output": {
+    "format": "AGMESH1",
+    "version": 4,
+    "vertex_stride": 36,
+    "file": "gt-max.agm",
+    "sha256": "5b9bd2de3e65bd676cba59627ed57545891141281d48f39f38aa1bf1b24097f0",
+    "bytes": 22112136,
+    "vertices": 102764,
+    "triangles": 136282,
+    "indices": 408846,
+    "atlas": [
+      2048,
+      2048
+    ],
+    "source_width": 9.471210479736328,
+    "source_shaft_origin": [
+      0.125,
+      0.55,
+      0
+    ],
+    "source_hub_translation": [
+      0.125,
+      0.55,
+      -0.75
+    ],
+    "width_m": 0.32,
+    "kind": 4,
+    "screen_rectangle": {
+      "source_node": "static_GTMAX_V17B.007",
+      "source_material": "GTMAX_Screen",
+      "center": [
+        0.0008723884545039695,
+        0.10100076624029682,
+        0.13489926126369964
+      ],
+      "width": 0.3555129301508244,
+      "height": 0.1998146274439438,
+      "aspect_ratio": 1.7792137377458033,
+      "right": [
+        1,
+        0,
+        0
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "corners": [
+        [
+          -0.17688407662090824,
+          0.0010934525183249168,
+          0.13489926126369964
+        ],
+        [
+          -0.17688407662090824,
+          0.20090807996226873,
+          0.13489926126369964
+        ],
+        [
+          0.17862885352991617,
+          0.0010934525183249168,
+          0.13489926126369964
+        ],
+        [
+          0.17862885352991617,
+          0.20090807996226873,
+          0.13489926126369964
+        ]
+      ],
+      "recommended_dashboard_surface_offset_m": 0.0005
+    },
+    "normalized_bounds": [
+      [
+        -0.5004655122756958,
+        -0.44302669167518616,
+        -0.18381989002227783
+      ],
+      [
+        0.4995344579219818,
+        0.4442325532436371,
+        0.1971406638622284
+      ]
+    ],
+    "led_mapping": {
+      "verified_control_groups": true,
+      "angular_wiring_verified": false,
+      "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+      "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+      "telemetry_banks": [
+        4,
+        16,
+        4
+      ],
+      "telemetry_bank_sizes_verified": true,
+      "telemetry_within_bank_orientation_verified": false,
+      "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+      "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+      "tagged_vertices": 3048,
+      "groups": [
+        {
+          "node": 25,
+          "name": "static_GTMAX_V17B.011",
+          "tag": 1,
+          "vertices": 256,
+          "triangles": 128,
+          "center": [
+            -0.913051962852478,
+            -0.2696762681007385,
+            1.2652215957641602
+          ],
+          "bounds": [
+            [
+              -1.310920238494873,
+              -0.6675445437431335,
+              1.2652215957641602
+            ],
+            [
+              -0.515183687210083,
+              0.1281920075416565,
+              1.2652215957641602
+            ]
+          ],
+          "physical_first": 0,
+          "physical_count": 4
+        },
+        {
+          "node": 25,
+          "name": "static_GTMAX_V17B.011",
+          "tag": 5,
+          "vertices": 256,
+          "triangles": 128,
+          "center": [
+            0.12301596999168396,
+            -0.5035311579704285,
+            1.2652215957641602
+          ],
+          "bounds": [
+            [
+              -0.2748523950576782,
+              -0.9013994336128235,
+              1.2652215957641602
+            ],
+            [
+              0.5208843350410461,
+              -0.10566285997629166,
+              1.2652215957641602
+            ]
+          ],
+          "physical_first": 4,
+          "physical_count": 4
+        },
+        {
+          "node": 25,
+          "name": "static_GTMAX_V17B.011",
+          "tag": 9,
+          "vertices": 256,
+          "triangles": 128,
+          "center": [
+            1.1589088439941406,
+            -0.26880115270614624,
+            1.2652215957641602
+          ],
+          "bounds": [
+            [
+              0.7610406279563904,
+              -0.6666694283485413,
+              1.2652215957641602
+            ],
+            [
+              1.5567771196365356,
+              0.12906715273857117,
+              1.2652215957641602
+            ]
+          ],
+          "physical_first": 8,
+          "physical_count": 4
+        },
+        {
+          "node": 25,
+          "name": "static_GTMAX_V17B.011",
+          "tag": 13,
+          "vertices": 256,
+          "triangles": 128,
+          "center": [
+            -0.6142568588256836,
+            -1.2499061822891235,
+            1.2652215957641602
+          ],
+          "bounds": [
+            [
+              -1.0121251344680786,
+              -1.6477744579315186,
+              1.2652215957641602
+            ],
+            [
+              -0.21638858318328857,
+              -0.8520378470420837,
+              1.2652215957641602
+            ]
+          ],
+          "physical_first": 12,
+          "physical_count": 4
+        },
+        {
+          "node": 25,
+          "name": "static_GTMAX_V17B.011",
+          "tag": 17,
+          "vertices": 256,
+          "triangles": 128,
+          "center": [
+            0.8601138591766357,
+            -1.2492059469223022,
+            1.2652215957641602
+          ],
+          "bounds": [
+            [
+              0.46224552392959595,
+              -1.6470742225646973,
+              1.2652215957641602
+            ],
+            [
+              1.2579821348190308,
+              -0.8513376712799072,
+              1.2652215957641602
+            ]
+          ],
+          "physical_first": 16,
+          "physical_count": 4
+        },
+        {
+          "node": 7,
+          "name": "custom_button_l_0_gtmax",
+          "tag": 21,
+          "vertices": 211,
+          "triangles": 333,
+          "center": [
+            -2.2923154830932617,
+            1.9061434268951416,
+            1.320867896080017
+          ],
+          "bounds": [
+            [
+              -2.4662251472473145,
+              1.7323187589645386,
+              1.3065054416656494
+            ],
+            [
+              -2.118406057357788,
+              2.079967975616455,
+              1.3352303504943848
+            ]
+          ],
+          "physical_first": 20,
+          "physical_count": 4
+        },
+        {
+          "node": 40,
+          "name": "sticker_l_0_gtmax",
+          "tag": 121,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            -2.292315721511841,
+            1.9063124656677246,
+            1.3384813070297241
+          ],
+          "bounds": [
+            [
+              -2.4315109252929688,
+              1.7674401998519897,
+              1.3384813070297241
+            ],
+            [
+              -2.153120517730713,
+              2.045184850692749,
+              1.3384813070297241
+            ]
+          ],
+          "physical_first": 20,
+          "physical_count": 4
+        },
+        {
+          "node": 12,
+          "name": "custom_button_l_2_gtmax",
+          "tag": 25,
+          "vertices": 308,
+          "triangles": 436,
+          "center": [
+            -2.1416842937469482,
+            0.05349614843726158,
+            1.3227829933166504
+          ],
+          "bounds": [
+            [
+              -2.318857431411743,
+              -0.12367693334817886,
+              1.3060423135757446
+            ],
+            [
+              -1.9645112752914429,
+              0.23066923022270203,
+              1.3395237922668457
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 4
+        },
+        {
+          "node": 34,
+          "name": "sticker_l_2_gtmax",
+          "tag": 125,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            -2.1416726112365723,
+            0.05348704755306244,
+            1.3424724340438843
+          ],
+          "bounds": [
+            [
+              -2.28085994720459,
+              -0.0854029655456543,
+              1.3424724340438843
+            ],
+            [
+              -2.002485513687134,
+              0.19237706065177917,
+              1.3424724340438843
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 4
+        },
+        {
+          "node": 13,
+          "name": "custom_button_l_3_gtmax",
+          "tag": 29,
+          "vertices": 308,
+          "triangles": 436,
+          "center": [
+            -2.0225226879119873,
+            -0.7548537254333496,
+            1.3227829933166504
+          ],
+          "bounds": [
+            [
+              -2.1996958255767822,
+              -0.9320268034934998,
+              1.306042194366455
+            ],
+            [
+              -1.845349669456482,
+              -0.5776806473731995,
+              1.3395236730575562
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 4
+        },
+        {
+          "node": 35,
+          "name": "sticker_l_3_gtmax",
+          "tag": 129,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            -2.0225043296813965,
+            -0.7548222541809082,
+            1.352198600769043
+          ],
+          "bounds": [
+            [
+              -2.161687135696411,
+              -0.8936948776245117,
+              1.352198600769043
+            ],
+            [
+              -1.8833214044570923,
+              -0.6159496307373047,
+              1.352198600769043
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 4
+        },
+        {
+          "node": 14,
+          "name": "custom_button_l_4_gtmax",
+          "tag": 33,
+          "vertices": 308,
+          "triangles": 436,
+          "center": [
+            -1.5236921310424805,
+            -1.3989777565002441,
+            1.327080488204956
+          ],
+          "bounds": [
+            [
+              -1.7008651494979858,
+              -1.5761507749557495,
+              1.3103398084640503
+            ],
+            [
+              -1.346519112586975,
+              -1.2218046188354492,
+              1.3438212871551514
+            ]
+          ],
+          "physical_first": 32,
+          "physical_count": 4
+        },
+        {
+          "node": 36,
+          "name": "sticker_l_4_gtmax",
+          "tag": 133,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            -1.523698091506958,
+            -1.3989686965942383,
+            1.355715036392212
+          ],
+          "bounds": [
+            [
+              -1.6628886461257935,
+              -1.5378526449203491,
+              1.355715036392212
+            ],
+            [
+              -1.384507417678833,
+              -1.260084867477417,
+              1.355715036392212
+            ]
+          ],
+          "physical_first": 32,
+          "physical_count": 4
+        },
+        {
+          "node": 23,
+          "name": "custom_button_r_5_gtmax",
+          "tag": 37,
+          "vertices": 211,
+          "triangles": 333,
+          "center": [
+            2.5371146202087402,
+            1.9056484699249268,
+            1.3208677768707275
+          ],
+          "bounds": [
+            [
+              2.3632049560546875,
+              1.7318238019943237,
+              1.3065053224563599
+            ],
+            [
+              2.711024045944214,
+              2.0794730186462402,
+              1.3352302312850952
+            ]
+          ],
+          "physical_first": 36,
+          "physical_count": 4
+        },
+        {
+          "node": 41,
+          "name": "sticker_r_5_gtmax",
+          "tag": 137,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            2.537114381790161,
+            1.9058175086975098,
+            1.3473122119903564
+          ],
+          "bounds": [
+            [
+              2.397919178009033,
+              1.766945242881775,
+              1.3473122119903564
+            ],
+            [
+              2.676309585571289,
+              2.044689893722534,
+              1.3473122119903564
+            ]
+          ],
+          "physical_first": 36,
+          "physical_count": 4
+        },
+        {
+          "node": 20,
+          "name": "custom_button_r_7_gtmax",
+          "tag": 41,
+          "vertices": 308,
+          "triangles": 436,
+          "center": [
+            2.387788772583008,
+            0.05361109972000122,
+            1.3221960067749023
+          ],
+          "bounds": [
+            [
+              2.210615634918213,
+              -0.1235620379447937,
+              1.305455207824707
+            ],
+            [
+              2.5649619102478027,
+              0.23078423738479614,
+              1.338936686515808
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 4
+        },
+        {
+          "node": 37,
+          "name": "sticker_r_7_gtmax",
+          "tag": 141,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            2.3878173828125,
+            0.05361133813858032,
+            1.3582267761230469
+          ],
+          "bounds": [
+            [
+              2.2486300468444824,
+              -0.08524157106876373,
+              1.3582266569137573
+            ],
+            [
+              2.5270047187805176,
+              0.19246424734592438,
+              1.3582267761230469
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 4
+        },
+        {
+          "node": 21,
+          "name": "custom_button_r_8_gtmax",
+          "tag": 45,
+          "vertices": 308,
+          "triangles": 436,
+          "center": [
+            2.268627643585205,
+            -0.7547386288642883,
+            1.3221958875656128
+          ],
+          "bounds": [
+            [
+              2.091454267501831,
+              -0.9319118857383728,
+              1.3054550886154175
+            ],
+            [
+              2.44580078125,
+              -0.5775653719902039,
+              1.338936686515808
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 4
+        },
+        {
+          "node": 38,
+          "name": "sticker_r_8_gtmax",
+          "tag": 145,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            2.268617630004883,
+            -0.7547258734703064,
+            1.3449610471725464
+          ],
+          "bounds": [
+            [
+              2.1294333934783936,
+              -0.893599808216095,
+              1.3449610471725464
+            ],
+            [
+              2.407801628112793,
+              -0.6158519387245178,
+              1.3449610471725464
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 4
+        },
+        {
+          "node": 22,
+          "name": "custom_button_r_9_gtmax",
+          "tag": 49,
+          "vertices": 211,
+          "triangles": 333,
+          "center": [
+            1.7717170715332031,
+            -1.3990302085876465,
+            1.3245781660079956
+          ],
+          "bounds": [
+            [
+              1.59780752658844,
+              -1.572854995727539,
+              1.310215711593628
+            ],
+            [
+              1.9456267356872559,
+              -1.2252055406570435,
+              1.3389406204223633
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 4
+        },
+        {
+          "node": 39,
+          "name": "sticker_r_9_gtmax",
+          "tag": 149,
+          "vertices": 46,
+          "triangles": 44,
+          "center": [
+            1.7717103958129883,
+            -1.398857831954956,
+            1.341234564781189
+          ],
+          "bounds": [
+            [
+              1.6325197219848633,
+              -1.5377110242843628,
+              1.341234564781189
+            ],
+            [
+              1.9109010696411133,
+              -1.2600047588348389,
+              1.341234564781189
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 4
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 69,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.7562623023986816,
+            1.5523371696472168,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.7989003658294678,
+              1.5089962482452393,
+              1.3391058444976807
+            ],
+            [
+              -1.713624358177185,
+              1.5956779718399048,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 52,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 70,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.7562623023986816,
+            1.757796049118042,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.7989003658294678,
+              1.7144551277160645,
+              1.3391058444976807
+            ],
+            [
+              -1.713624358177185,
+              1.80113685131073,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 53,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 71,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.7562623023986816,
+            1.9632549285888672,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.7989003658294678,
+              1.9199141263961792,
+              1.3391058444976807
+            ],
+            [
+              -1.713624358177185,
+              2.0065958499908447,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 54,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 72,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.7562623023986816,
+            2.1687138080596924,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.7989003658294678,
+              2.125372886657715,
+              1.3391058444976807
+            ],
+            [
+              -1.713624358177185,
+              2.21205472946167,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 55,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 73,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.4196096658706665,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.462247610092163,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -1.37697172164917,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 56,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 74,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.2141506671905518,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.2567886114120483,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -1.1715127229690552,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 57,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 75,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -1.0086917877197266,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -1.0513297319412231,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -0.9660537838935852,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 58,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 76,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.8032329082489014,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -0.8458709120750427,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -0.7605948448181152,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 59,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 77,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.597891092300415,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -0.6406462788581848,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -0.55513596534729,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 60,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 78,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.39243218302726746,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -0.43518728017807007,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -0.34967708587646484,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 61,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 79,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            -0.18697324395179749,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -0.22972838580608368,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              -0.1442181020975113,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 62,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 80,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.018485626205801964,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              -0.024269521236419678,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              0.061240773648023605,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 63,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 81,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.22394460439682007,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              0.18118946254253387,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              0.26669976115226746,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 64,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 82,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.4292863607406616,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              0.3866483271121979,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              0.47192442417144775,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 65,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 83,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.6347452402114868,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              0.5921072363853455,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              0.677383303642273,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 66,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 84,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            0.840204119682312,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              0.7975660562515259,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              0.8828421831130981,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 67,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 85,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.0456631183624268,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.0030251741409302,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              1.0883010625839233,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 68,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 86,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.251121997833252,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.2084840536117554,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              1.2937599420547485,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 69,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 87,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.4564638137817383,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.4137086868286133,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              1.4992190599441528,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 70,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 88,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.6619226932525635,
+            2.692552089691162,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.6191675662994385,
+              2.6492111682891846,
+              1.3391058444976807
+            ],
+            [
+              1.704677939414978,
+              2.7358930110931396,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 71,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 89,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.996584177017212,
+            2.1687138080596924,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.9539461135864258,
+              2.125372886657715,
+              1.3391058444976807
+            ],
+            [
+              2.039222240447998,
+              2.21205472946167,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 72,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 90,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.996584177017212,
+            1.9632549285888672,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.9539461135864258,
+              1.9199141263961792,
+              1.3391058444976807
+            ],
+            [
+              2.039222240447998,
+              2.0065958499908447,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 73,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 91,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.996584177017212,
+            1.757796049118042,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.9539461135864258,
+              1.7144551277160645,
+              1.3391058444976807
+            ],
+            [
+              2.039222240447998,
+              1.80113685131073,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 74,
+          "physical_count": 1
+        },
+        {
+          "node": 24,
+          "name": "leds",
+          "tag": 92,
+          "vertices": 9,
+          "triangles": 7,
+          "center": [
+            1.996584177017212,
+            1.5523371696472168,
+            1.3391058444976807
+          ],
+          "bounds": [
+            [
+              1.9539461135864258,
+              1.5089962482452393,
+              1.3391058444976807
+            ],
+            [
+              2.039222240447998,
+              1.5956779718399048,
+              1.3391058444976807
+            ]
+          ],
+          "physical_first": 75,
+          "physical_count": 1
+        }
+      ]
+    },
+    "geometry_adjustments": [],
+    "approximations": [
+      "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+      "Default configurator canvas stickers are baked from original font and icons.",
+      "Screen pixels are opaque dark for a separately fitted live dashboard.",
+      "New controls use verified physical-group means; individual angular wiring is unknown.",
+      "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+    ],
+    "optimization": {
+      "tool": "meshoptimizer 0.25",
+      "source_sha256": "bfd0c0f926191e1c25662855950eafc1878ee6fd3a67b5b6488e9829defb4bfa",
+      "source_vertices": 226090,
+      "source_triangles": 254037,
+      "triangle_reduction_percent": 46.35348394131563,
+      "target_error_mm": 0.075,
+      "max_reported_error_mm": 0.07478655315935612,
+      "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+    },
+    "model": {
+      "path": "assets/models/gt-max.agm",
+      "bytes": 22112136,
+      "sha256": "5b9bd2de3e65bd676cba59627ed57545891141281d48f39f38aa1bf1b24097f0"
+    },
+    "preview": {
+      "path": "assets/models/gt-max-preview.png",
+      "bytes": 315942,
+      "sha256": "b7f6ca8fcfa8f3e793e69352cfe8e38fffd8d597bfc8f0ba25b424423a09f377"
+    },
+    "suggested_physical_width_m": 0.32,
+    "physical_width_source": "https://gomezsimindustries.com/products/gt-max32-simucube-bundle"
+  },
+  "conversion_tools": [
+    "tools/download_gsi_models.py",
+    "tools/decode_gsi_glb.cjs",
+    "tools/rasterize_gsi_icons.cjs",
+    "tools/convert_gsi_models.py",
+    "tools/gsi_model_lights.py",
+    "tools/gsi_light_sources.json",
+    "tools/optimize_gsi_mesh.cjs"
+  ],
+  "verification": [
+    "Decoded primitives preserve original node transforms and reverse winding for negative determinants; explicit decal-clearance adjustments are recorded separately.",
+    "Every protected control, sticker, LED, screen and logo triangle retains its attributes and winding after the documented decal-clearance correction.",
+    "Optimizer selects existing converted vertices only; it does not reposition geometry. Atlas bytes are unchanged by optimization.",
+    "Two complete conversion and optimization runs produced byte-identical AGM files.",
+    "Native front and angled stereo previews were reviewed before staging."
+  ]
+}

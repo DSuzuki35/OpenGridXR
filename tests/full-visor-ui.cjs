@@ -1,0 +1,72 @@
+const {revealAppearance} = require('./appearance-access.cjs');
+const {_electron}=require('playwright-core');const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+(async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-full-visor-ui-'));const env={...process.env,OPENGRIDXR_DATA_DIR:dir,OPENGRIDXR_TEST_MODE:'1'};delete env.ELECTRON_RUN_AS_NODE;let app;
+ try{
+  app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});
+  await app.evaluate(({ipcMain})=>{global.templateCalls=[];ipcMain.removeHandler('opengrid:downloadVisorTemplate');ipcMain.handle('opengrid:downloadVisorTemplate',(_,request)=>{global.templateCalls.push(request);return {saved:true,fileName:'Fixture template.'+request.format};});ipcMain.removeHandler('opengrid:listSystemFonts');ipcMain.handle('opengrid:listSystemFonts',()=>({available:true,families:['Arial','Comic Sans MS','Segoe UI'],error:''}));});
+  const page=await app.firstWindow(); await revealAppearance(page);page.setDefaultTimeout(5000);
+  await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
+  await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Graphic',exact:true}).click();
+  const area=page.getByRole('group',{name:'Graphic layout',exact:true});await area.getByRole('button',{name:'Custom',exact:true}).click();
+  await page.getByRole('button',{name:'PNG template',exact:true}).click();await page.getByRole('button',{name:'PSD template',exact:true}).click();await page.getByRole('button',{name:'PNG guide',exact:true}).click();
+  assert.deepEqual(await app.evaluate(()=>global.templateCalls),['png','psd','guide'].map(format=>({style:'formula',format})));
+  // Fine-grained artwork also exercises large base64 validation and save/reload.
+  const png=await page.evaluate(async()=>{
+    const image=new Image();image.src='./templates/visor/generic-example.png';await image.decode();
+    const canvas=Object.assign(document.createElement('canvas'),{width:image.naturalWidth,height:image.naturalHeight});
+    const paint=canvas.getContext('2d');paint.drawImage(image,0,0);
+    const patch=paint.createImageData(1024,640);
+    for(let i=0;i<patch.data.length;i+=65536) crypto.getRandomValues(patch.data.subarray(i,i+65536));
+    for(let i=3;i<patch.data.length;i+=4)patch.data[i]=255;
+    paint.putImageData(patch,0,0);return canvas.toDataURL().split(',')[1];
+  });
+  assert.ok(png.length>2*1024*1024,'Exercise profiles that exceed the previous store size limit');
+  await page.getByLabel('Upload visor graphic',{exact:true}).setInputFiles({name:'visor.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+  await page.getByRole('img',{name:'Your visor graphic',exact:true}).waitFor();
+  const graphicSize=await page.getByRole('img',{name:'Your visor graphic',exact:true}).evaluate(async image=>{await image.decode();return [image.naturalWidth,image.naturalHeight];});
+  assert.deepEqual(graphicSize,[4096,2304],'Custom import preserves the entire 4K authoring canvas');
+  await page.getByRole('spinbutton',{name:'Artwork horizontal offset value'}).fill('2.5');
+  await page.getByRole('spinbutton',{name:'Artwork vertical offset value'}).fill('-3.5');
+  await page.getByRole('switch',{name:'Mirror graphic',exact:true}).click();
+  await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Sunstrip',exact:true}).click();
+  await page.getByRole('switch',{name:'Upper sunstrip',exact:true}).click();
+  await page.getByLabel('Letter font',{exact:true}).selectOption('custom');await page.getByLabel('System font',{exact:true}).selectOption('Comic Sans MS');
+  await page.getByRole('button',{name:'Save profile',exact:true}).click();await page.getByRole('button',{name:'Profile saved',exact:true}).waitFor();
+  const state=await page.evaluate(()=>window.openGrid.load()),p=state.document.profiles.find(p=>p.id===state.document.selectedProfileId);
+  assert.equal(p.helmet.visor.graphicPlacement,'full');assert.ok(p.helmet.visor.graphic.startsWith('data:image/png;base64,'));assert.equal(p.helmet.visor.graphicMirror,false);assert.equal(p.helmet.visor.mirror,true);assert.equal(p.helmet.visor.enabled,false);assert.equal(p.helmet.visor.font,'custom');assert.equal(p.helmet.visor.customFont,'Comic Sans MS');
+  assert.equal(p.helmet.detail,'detail');assert.equal(p.helmet.visor.graphicSoftness,0);
+  assert.equal(p.helmet.visor.artworkOffsetX,2.5);assert.equal(p.helmet.visor.artworkOffsetY,-3.5);
+  const {parseProfile}=await import('../src/model.mjs');
+  assert.deepEqual(parseProfile(JSON.stringify({version:1,profile:p})),p,'4K artwork survives profile exchange');
+  await page.reload(); await revealAppearance(page);await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Sunstrip',exact:true}).click();
+  assert.equal(await page.getByLabel('Letter font',{exact:true}).inputValue(),'custom');assert.equal(await page.getByLabel('System font',{exact:true}).inputValue(),'Comic Sans MS');
+  await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Graphic',exact:true}).click();assert.equal(await area.getByRole('button',{name:'Custom',exact:true}).getAttribute('aria-pressed'),'true');
+  page.setDefaultTimeout(30000);
+  assert.equal(await page.getByRole('spinbutton',{name:'Artwork horizontal offset value'}).inputValue(),'2.5');
+  assert.equal(await page.getByRole('spinbutton',{name:'Artwork vertical offset value'}).inputValue(),'-3.5');
+  const smaller=await page.getByRole('img',{name:'Your visor graphic',exact:true}).evaluate(async image=>{
+    await image.decode();
+    const canvas=Object.assign(document.createElement('canvas'),{width:3200,height:1800});
+    canvas.getContext('2d').drawImage(image,0,0,3200,1800);return canvas.toDataURL().split(',')[1];
+  });
+  await page.getByLabel('Upload visor graphic',{exact:true}).setInputFiles({name:'3200.png',mimeType:'image/png',buffer:Buffer.from(smaller,'base64')});
+  await page.getByText(/Graphic added at 3200 × 1800/).waitFor();
+  await page.getByRole('group',{name:'Helmet texture detail'}).getByRole('button',{name:'3200 × 1800'}).click();
+  await page.getByRole('button',{name:'Save profile',exact:true}).click();await page.getByRole('button',{name:'Profile saved',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Stream',exact:true}).click();
+  await page.getByRole('switch',{name:'Show helmet in stream',exact:true}).click();
+  const streamPreview=page.getByAltText('Stream helmet preview');
+  await streamPreview.waitFor();
+  assert.deepEqual(await streamPreview.evaluate(async image=>{await image.decode();return [image.naturalWidth,image.naturalHeight];}),[3200,1800]);
+  await page.getByRole('button',{name:'Save profile',exact:true}).click();await page.getByRole('button',{name:'Profile saved',exact:true}).waitFor();
+  const saved=(await page.evaluate(()=>window.openGrid.load())).document.profiles.find(item=>item.id===p.id);
+  const stored=Buffer.from(saved.helmet.visor.graphic.split(',')[1],'base64');
+  assert.deepEqual(stored,Buffer.from(smaller,'base64'),'Preserve every pixel and the original lossless PNG encoding');
+  const overlay=await fs.readFile(path.join(dir,'runtime',`OpenGridXR-stream-helmet-${p.game}-left.png`));
+  assert.deepEqual([overlay.readUInt32BE(16),overlay.readUInt32BE(20)],[3200,1800],'Saved Clean Output overlay matches selected dimensions');
+  const previewPng=await streamPreview.evaluate(image=>image.src.split(',')[1]);
+  assert.deepEqual(overlay,Buffer.from(previewPng,'base64'),'Clean Output bake matches the aligned artwork in the stream preview');
+  console.log('PASS: Custom full visor mode, current-style PNG/PSD/guide downloads, independent strip switch, custom system font and saved reload.');
+ }finally{if(app){await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().forEach(w=>w.destroy())).catch(()=>{});await app.close();}await fs.rm(dir,{recursive:true,force:true});}
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,0 +1,3666 @@
+{
+  "format": "AGMESH1",
+  "version": 4,
+  "vertex_stride": 36,
+  "file": "gxl.agm",
+  "sha256": "31aeeea893d20258eaf3e87fa1101b34bf12e31cfbd6eff6c31bdfbe1eb82bb8",
+  "bytes": 23326008,
+  "vertices": 129361,
+  "triangles": 157647,
+  "indices": 472941,
+  "atlas": [
+    2048,
+    2048
+  ],
+  "source_width": 9.707005500793457,
+  "source_shaft_origin": [
+    0,
+    0.23,
+    0
+  ],
+  "source_hub_translation": [
+    0,
+    0.23,
+    -0.75
+  ],
+  "width_m": 0.3,
+  "kind": 3,
+  "screen_rectangle": null,
+  "normalized_bounds": [
+    [
+      -0.49999964237213135,
+      -0.3280363082885742,
+      -0.1793546825647354
+    ],
+    [
+      0.5000003576278687,
+      0.2747398018836975,
+      0.1836947202682495
+    ]
+  ],
+  "led_mapping": {
+    "verified_control_groups": true,
+    "angular_wiring_verified": false,
+    "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+    "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+    "telemetry_banks": [
+      3,
+      10,
+      3
+    ],
+    "telemetry_bank_sizes_verified": true,
+    "telemetry_within_bank_orientation_verified": false,
+    "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+    "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+    "tagged_vertices": 6342,
+    "groups": [
+      {
+        "node": 20,
+        "name": "sticker_16_gxl_v2",
+        "tag": 101,
+        "vertices": 512,
+        "triangles": 808,
+        "center": [
+          -1.0322052240371704,
+          0.5292103290557861,
+          1.237856149673462
+        ],
+        "bounds": [
+          [
+            -1.6306489706039429,
+            0.023548603057861328,
+            1.1901501417160034
+          ],
+          [
+            -0.4337615668773651,
+            1.034872055053711,
+            1.2855621576309204
+          ]
+        ],
+        "physical_first": 0,
+        "physical_count": 5
+      },
+      {
+        "node": 62,
+        "name": "sticker_18_gxl_v2",
+        "tag": 105,
+        "vertices": 616,
+        "triangles": 837,
+        "center": [
+          -0.0012781023979187012,
+          0.3322625756263733,
+          1.2423380613327026
+        ],
+        "bounds": [
+          [
+            -0.50483638048172,
+            -0.2389737367630005,
+            1.1946042776107788
+          ],
+          [
+            0.5022801756858826,
+            0.9034988880157471,
+            1.2900718450546265
+          ]
+        ],
+        "physical_first": 5,
+        "physical_count": 4
+      },
+      {
+        "node": 19,
+        "name": "sticker_17_gxl_v2",
+        "tag": 109,
+        "vertices": 515,
+        "triangles": 808,
+        "center": [
+          1.0290586948394775,
+          0.5292103290557861,
+          1.237856149673462
+        ],
+        "bounds": [
+          [
+            0.43061497807502747,
+            0.023548603057861328,
+            1.1901501417160034
+          ],
+          [
+            1.6275023221969604,
+            1.034872055053711,
+            1.2855621576309204
+          ]
+        ],
+        "physical_first": 9,
+        "physical_count": 5
+      },
+      {
+        "node": 18,
+        "name": "sticker_19_gxl_v2",
+        "tag": 113,
+        "vertices": 532,
+        "triangles": 828,
+        "center": [
+          -0.8879554271697998,
+          -0.5364156365394592,
+          1.2581685781478882
+        ],
+        "bounds": [
+          [
+            -1.4863991737365723,
+            -1.0420774221420288,
+            1.2104625701904297
+          ],
+          [
+            -0.28951165080070496,
+            -0.03075385093688965,
+            1.3058745861053467
+          ]
+        ],
+        "physical_first": 14,
+        "physical_count": 5
+      },
+      {
+        "node": 17,
+        "name": "sticker_20_gxl_v2",
+        "tag": 117,
+        "vertices": 531,
+        "triangles": 826,
+        "center": [
+          0.8848088383674622,
+          -0.5364156365394592,
+          1.2581685781478882
+        ],
+        "bounds": [
+          [
+            0.2863651216030121,
+            -1.0420774221420288,
+            1.2104625701904297
+          ],
+          [
+            1.4832525253295898,
+            -0.03075385093688965,
+            1.3058745861053467
+          ]
+        ],
+        "physical_first": 19,
+        "physical_count": 5
+      },
+      {
+        "node": 57,
+        "name": "custom_button_l_0_gxl_v2",
+        "tag": 21,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -3.2997639179229736,
+          2.429175853729248,
+          1.4734097719192505
+        ],
+        "bounds": [
+          [
+            -3.4740054607391357,
+            2.2550230026245117,
+            1.455733299255371
+          ],
+          [
+            -3.1255223751068115,
+            2.6033284664154053,
+            1.4910862445831299
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 2
+      },
+      {
+        "node": 15,
+        "name": "sticker_l_0_gxl_v2",
+        "tag": 121,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -3.300447940826416,
+          2.431424140930176,
+          1.4926701784133911
+        ],
+        "bounds": [
+          [
+            -3.439473867416382,
+            2.29239821434021,
+            1.4926701784133911
+          ],
+          [
+            -3.1614222526550293,
+            2.5704498291015625,
+            1.4926701784133911
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 2
+      },
+      {
+        "node": 56,
+        "name": "custom_button_l_1_gxl_v2",
+        "tag": 25,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.25227952003479,
+          1.917528510093689,
+          1.473409652709961
+        ],
+        "bounds": [
+          [
+            -2.426521062850952,
+            1.7433757781982422,
+            1.4557331800460815
+          ],
+          [
+            -2.078037977218628,
+            2.0916812419891357,
+            1.4910861253738403
+          ]
+        ],
+        "physical_first": 26,
+        "physical_count": 2
+      },
+      {
+        "node": 14,
+        "name": "sticker_l_1_gxl_v2",
+        "tag": 125,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.2510628700256348,
+          1.9198174476623535,
+          1.4926602840423584
+        ],
+        "bounds": [
+          [
+            -2.390061855316162,
+            1.7808185815811157,
+            1.4926602840423584
+          ],
+          [
+            -2.1120638847351074,
+            2.058816432952881,
+            1.4926602840423584
+          ]
+        ],
+        "physical_first": 26,
+        "physical_count": 2
+      },
+      {
+        "node": 22,
+        "name": "static_sticker_l_3_gxl_v2",
+        "tag": 129,
+        "vertices": 31,
+        "triangles": 29,
+        "center": [
+          -2.090719223022461,
+          1.141154408454895,
+          1.2649670839309692
+        ],
+        "bounds": [
+          [
+            -2.3474130630493164,
+            1.0062658786773682,
+            1.2649670839309692
+          ],
+          [
+            -1.8340251445770264,
+            1.2760429382324219,
+            1.2649670839309692
+          ]
+        ],
+        "physical_first": 28,
+        "physical_count": 1
+      },
+      {
+        "node": 55,
+        "name": "custom_button_l_5_gxl_v2",
+        "tag": 33,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.3540565967559814,
+          0.17805251479148865,
+          1.4734094142913818
+        ],
+        "bounds": [
+          [
+            -2.5282981395721436,
+            0.0038997679948806763,
+            1.4557329416275024
+          ],
+          [
+            -2.1798150539398193,
+            0.3522052764892578,
+            1.4910858869552612
+          ]
+        ],
+        "physical_first": 29,
+        "physical_count": 2
+      },
+      {
+        "node": 13,
+        "name": "sticker_l_5_gxl_v2",
+        "tag": 133,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.3533949851989746,
+          0.17906419932842255,
+          1.4926351308822632
+        ],
+        "bounds": [
+          [
+            -2.4923932552337646,
+            0.040065765380859375,
+            1.4926351308822632
+          ],
+          [
+            -2.2143964767456055,
+            0.3180626332759857,
+            1.4926351308822632
+          ]
+        ],
+        "physical_first": 29,
+        "physical_count": 2
+      },
+      {
+        "node": 54,
+        "name": "custom_button_l_6_gxl_v2",
+        "tag": 37,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.16137957572937,
+          -0.5176366567611694,
+          1.4734092950820923
+        ],
+        "bounds": [
+          [
+            -2.3356211185455322,
+            -0.6917893886566162,
+            1.455732822418213
+          ],
+          [
+            -1.987138032913208,
+            -0.34348392486572266,
+            1.4910857677459717
+          ]
+        ],
+        "physical_first": 31,
+        "physical_count": 2
+      },
+      {
+        "node": 12,
+        "name": "sticker_l_6_gxl_v2",
+        "tag": 137,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.159914970397949,
+          -0.515720009803772,
+          1.4926167726516724
+        ],
+        "bounds": [
+          [
+            -2.2989206314086914,
+            -0.6547257900238037,
+            1.4926167726516724
+          ],
+          [
+            -2.020909070968628,
+            -0.37671419978141785,
+            1.4926167726516724
+          ]
+        ],
+        "physical_first": 31,
+        "physical_count": 2
+      },
+      {
+        "node": 53,
+        "name": "custom_button_l_7_gxl_v2",
+        "tag": 41,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -1.8774900436401367,
+          -1.2203997373580933,
+          1.4734091758728027
+        ],
+        "bounds": [
+          [
+            -2.051731586456299,
+            -1.39455246925354,
+            1.4557327032089233
+          ],
+          [
+            -1.7032485008239746,
+            -1.0462470054626465,
+            1.4910856485366821
+          ]
+        ],
+        "physical_first": 33,
+        "physical_count": 2
+      },
+      {
+        "node": 11,
+        "name": "sticker_l_7_gxl_v2",
+        "tag": 141,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -1.8775873184204102,
+          -1.2169407606124878,
+          1.4926421642303467
+        ],
+        "bounds": [
+          [
+            -2.016566038131714,
+            -1.3559471368789673,
+            1.4926421642303467
+          ],
+          [
+            -1.738608479499817,
+            -1.0779343843460083,
+            1.4926421642303467
+          ]
+        ],
+        "physical_first": 33,
+        "physical_count": 2
+      },
+      {
+        "node": 49,
+        "name": "custom_button_r_8_gxl_v2",
+        "tag": 45,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          3.299781084060669,
+          2.429175853729248,
+          1.4734097719192505
+        ],
+        "bounds": [
+          [
+            3.125539541244507,
+            2.2550230026245117,
+            1.455733299255371
+          ],
+          [
+            3.474022626876831,
+            2.6033284664154053,
+            1.4910862445831299
+          ]
+        ],
+        "physical_first": 35,
+        "physical_count": 2
+      },
+      {
+        "node": 7,
+        "name": "sticker_r_8_gxl_v2",
+        "tag": 145,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          3.300447940826416,
+          2.431424140930176,
+          1.4926786422729492
+        ],
+        "bounds": [
+          [
+            3.16142201423645,
+            2.292398452758789,
+            1.4926786422729492
+          ],
+          [
+            3.4394736289978027,
+            2.5704500675201416,
+            1.4926786422729492
+          ]
+        ],
+        "physical_first": 35,
+        "physical_count": 2
+      },
+      {
+        "node": 48,
+        "name": "custom_button_r_9_gxl_v2",
+        "tag": 49,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.2522971630096436,
+          1.917528510093689,
+          1.473409652709961
+        ],
+        "bounds": [
+          [
+            2.0780556201934814,
+            1.7433757781982422,
+            1.4557331800460815
+          ],
+          [
+            2.4265387058258057,
+            2.0916812419891357,
+            1.4910861253738403
+          ]
+        ],
+        "physical_first": 37,
+        "physical_count": 2
+      },
+      {
+        "node": 6,
+        "name": "sticker_r_9_gxl_v2",
+        "tag": 149,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.2510628700256348,
+          1.9198174476623535,
+          1.4926602840423584
+        ],
+        "bounds": [
+          [
+            2.1120638847351074,
+            1.7808185815811157,
+            1.4926602840423584
+          ],
+          [
+            2.390061855316162,
+            2.058816432952881,
+            1.4926602840423584
+          ]
+        ],
+        "physical_first": 37,
+        "physical_count": 2
+      },
+      {
+        "node": 21,
+        "name": "static_sticker_r_11_gxl_v2",
+        "tag": 153,
+        "vertices": 31,
+        "triangles": 29,
+        "center": [
+          2.090719223022461,
+          1.141154408454895,
+          1.2649670839309692
+        ],
+        "bounds": [
+          [
+            1.8340251445770264,
+            1.0062658786773682,
+            1.2649670839309692
+          ],
+          [
+            2.3474130630493164,
+            1.2760429382324219,
+            1.2649670839309692
+          ]
+        ],
+        "physical_first": 39,
+        "physical_count": 1
+      },
+      {
+        "node": 52,
+        "name": "custom_button_r_13_gxl_v2",
+        "tag": 57,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.3540737628936768,
+          0.17805251479148865,
+          1.4734094142913818
+        ],
+        "bounds": [
+          [
+            2.1798322200775146,
+            0.0038997679948806763,
+            1.4557329416275024
+          ],
+          [
+            2.528315305709839,
+            0.3522052764892578,
+            1.4910858869552612
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 2
+      },
+      {
+        "node": 10,
+        "name": "sticker_r_13_gxl_v2",
+        "tag": 157,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.3533949851989746,
+          0.17906421422958374,
+          1.4926350116729736
+        ],
+        "bounds": [
+          [
+            2.2143964767456055,
+            0.040065765380859375,
+            1.4926350116729736
+          ],
+          [
+            2.4923932552337646,
+            0.3180626630783081,
+            1.4926350116729736
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 2
+      },
+      {
+        "node": 51,
+        "name": "custom_button_r_14_gxl_v2",
+        "tag": 61,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.1613969802856445,
+          -0.5176366567611694,
+          1.4734092950820923
+        ],
+        "bounds": [
+          [
+            1.987155556678772,
+            -0.6917893886566162,
+            1.455732822418213
+          ],
+          [
+            2.3356385231018066,
+            -0.34348392486572266,
+            1.4910857677459717
+          ]
+        ],
+        "physical_first": 42,
+        "physical_count": 2
+      },
+      {
+        "node": 9,
+        "name": "sticker_r_14_gxl_v2",
+        "tag": 161,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.159914970397949,
+          -0.515720009803772,
+          1.4926167726516724
+        ],
+        "bounds": [
+          [
+            2.020909070968628,
+            -0.6547257900238037,
+            1.4926167726516724
+          ],
+          [
+            2.2989206314086914,
+            -0.37671419978141785,
+            1.4926167726516724
+          ]
+        ],
+        "physical_first": 42,
+        "physical_count": 2
+      },
+      {
+        "node": 50,
+        "name": "custom_button_r_15_gxl_v2",
+        "tag": 65,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          1.8775074481964111,
+          -1.2203997373580933,
+          1.4734091758728027
+        ],
+        "bounds": [
+          [
+            1.703265905380249,
+            -1.39455246925354,
+            1.4557327032089233
+          ],
+          [
+            2.0517489910125732,
+            -1.0462470054626465,
+            1.4910856485366821
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 2
+      },
+      {
+        "node": 8,
+        "name": "sticker_r_15_gxl_v2",
+        "tag": 165,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          1.8776274919509888,
+          -1.2170414924621582,
+          1.4926337003707886
+        ],
+        "bounds": [
+          [
+            1.7386536598205566,
+            -1.3560154438018799,
+            1.4926337003707886
+          ],
+          [
+            2.016601324081421,
+            -1.078067660331726,
+            1.4926337003707886
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 2
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 69,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -1.396283507347107,
+          1.3171101808547974,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -1.4461569786071777,
+            1.266507863998413,
+            1.2246710062026978
+          ],
+          [
+            -1.3464100360870361,
+            1.3677124977111816,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 46,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 70,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -1.6517939567565918,
+          1.4449695348739624,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -1.7016674280166626,
+            1.3943672180175781,
+            1.2246710062026978
+          ],
+          [
+            -1.601920485496521,
+            1.4955718517303467,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 47,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 71,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -1.396283507347107,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -1.4461569786071777,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -1.3464100360870361,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 48,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 72,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -1.0300934314727783,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -1.0800710916519165,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -0.9801158905029297,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 49,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 73,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -0.7987388372421265,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -0.8487164378166199,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -0.7487612366676331,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 50,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 74,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -0.5672800540924072,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -0.617153525352478,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -0.5174065828323364,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 51,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 75,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -0.33769553899765015,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -0.38767313957214355,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -0.28771793842315674,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 52,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 76,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          -0.10852742195129395,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            -0.15840089321136475,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            -0.058653950691223145,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 53,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 77,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          0.12282717227935791,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            0.07295370101928711,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            0.1727006435394287,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 54,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 78,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          0.3528282642364502,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            0.302850604057312,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            0.4028059244155884,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 55,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 79,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          0.5842869281768799,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            0.5344134569168091,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            0.6341603994369507,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 56,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 80,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          0.811581015586853,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            0.7616034746170044,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            0.8615585565567017,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 57,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 81,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          1.0430397987365723,
+          1.573037028312683,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            0.9931663274765015,
+            1.5224347114562988,
+            1.2246710062026978
+          ],
+          [
+            1.092913269996643,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 58,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 82,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          1.4042320251464844,
+          1.5729329586029053,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            1.3542543649673462,
+            1.5222265720367432,
+            1.2246710062026978
+          ],
+          [
+            1.4542096853256226,
+            1.6236393451690674,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 59,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 83,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          1.6599507331848145,
+          1.4448654651641846,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            1.6099730730056763,
+            1.394158959388733,
+            1.2246710062026978
+          ],
+          [
+            1.7099283933639526,
+            1.4955718517303467,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 60,
+        "physical_count": 1
+      },
+      {
+        "node": 29,
+        "name": "static_leds_gxl_v2",
+        "tag": 84,
+        "vertices": 9,
+        "triangles": 7,
+        "center": [
+          1.4042320251464844,
+          1.316693663597107,
+          1.2246710062026978
+        ],
+        "bounds": [
+          [
+            1.3542543649673462,
+            1.2660913467407227,
+            1.2246710062026978
+          ],
+          [
+            1.4542096853256226,
+            1.3672959804534912,
+            1.2246710062026978
+          ]
+        ],
+        "physical_first": 61,
+        "physical_count": 1
+      }
+    ]
+  },
+  "geometry_adjustments": [],
+  "parts": [
+    {
+      "source": "gxl",
+      "node": 0,
+      "name": "GSI_GXL V2 logo",
+      "material": 0,
+      "material_name": "GSI_GXL V2 logo",
+      "atlas_key": "gxl:0",
+      "kind": "texture",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          2.821855306625366,
+          2.194025993347168,
+          0.6449786424636841
+        ],
+        [
+          3.6228950023651123,
+          2.6700148582458496,
+          0.6449786424636841
+        ]
+      ],
+      "vertex_start": 0,
+      "triangle_start": 0,
+      "source_vertices": 4,
+      "source_triangles": 2,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 1,
+      "name": "CE_MARK",
+      "material": 1,
+      "material_name": "CE_MARK",
+      "atlas_key": "gxl:1",
+      "kind": "texture",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          -3.701162338256836,
+          2.2391457557678223,
+          0.6449475288391113
+        ],
+        [
+          -2.6787595748901367,
+          2.5998542308807373,
+          0.6449475288391113
+        ]
+      ],
+      "vertex_start": 4,
+      "triangle_start": 2,
+      "source_vertices": 4,
+      "source_triangles": 2,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 2,
+      "name": "GXL_serial_number-1",
+      "material": 2,
+      "material_name": "GXL_serial_number-1",
+      "atlas_key": "gxl:2",
+      "kind": "texture",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          -0.3909616470336914,
+          1.6692042350769043,
+          0.20672154426574707
+        ],
+        [
+          0.3909616470336914,
+          1.7442574501037598,
+          0.2531416416168213
+        ]
+      ],
+      "vertex_start": 8,
+      "triangle_start": 4,
+      "source_vertices": 4,
+      "source_triangles": 2,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 3,
+      "name": "static_text_brand_gsi_gxl_v2",
+      "material": 3,
+      "material_name": "static_text_brand_gsi_gxl_v2",
+      "atlas_key": "gxl:3",
+      "kind": "solid",
+      "vertices": 249,
+      "triangles": 216,
+      "source_bounds": [
+        [
+          -0.3371554911136627,
+          -1.7410227060317993,
+          1.2754429578781128
+        ],
+        [
+          0.3421311676502228,
+          -1.6403921842575073,
+          1.2931060791015625
+        ]
+      ],
+      "vertex_start": 12,
+      "triangle_start": 6,
+      "source_vertices": 430,
+      "source_triangles": 216,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 4,
+      "name": "sticker_rotarie_r_12_gxl_v2",
+      "material": 4,
+      "material_name": "sticker_rotarie_r_12_gxl_v2",
+      "atlas_key": "gxl:4",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          2.0366439819335938,
+          0.6491082906723022,
+          1.6139755249023438
+        ],
+        [
+          2.2734262943267822,
+          0.8857316374778748,
+          1.6146259307861328
+        ]
+      ],
+      "vertex_start": 261,
+      "triangle_start": 222,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 5,
+      "name": "sticker_rotarie_l_4_gxl_v2",
+      "material": 4,
+      "material_name": "sticker_rotarie_r_12_gxl_v2",
+      "atlas_key": "gxl:4",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -2.2724361419677734,
+          0.6491082906723022,
+          1.6139755249023438
+        ],
+        [
+          -2.035653829574585,
+          0.8857316374778748,
+          1.6146259307861328
+        ]
+      ],
+      "vertex_start": 316,
+      "triangle_start": 275,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 6,
+      "name": "sticker_r_9_gxl_v2",
+      "material": 5,
+      "material_name": "sticker_r_9_gxl_v2.001",
+      "atlas_key": "sticker:9",
+      "kind": "sticker",
+      "vertices": 133,
+      "triangles": 129,
+      "source_bounds": [
+        [
+          1.5178980827331543,
+          1.5945461988449097,
+          1.2520339488983154
+        ],
+        [
+          2.390061855316162,
+          2.058816432952881,
+          1.4926602840423584
+        ]
+      ],
+      "vertex_start": 371,
+      "triangle_start": 328,
+      "source_vertices": 133,
+      "source_triangles": 129,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 7,
+      "name": "sticker_r_8_gxl_v2",
+      "material": 6,
+      "material_name": "sticker_r_8_gxl_v2",
+      "atlas_key": "sticker:8",
+      "kind": "sticker",
+      "vertices": 152,
+      "triangles": 200,
+      "source_bounds": [
+        [
+          2.520338535308838,
+          2.0648036003112793,
+          1.2509444952011108
+        ],
+        [
+          3.6962084770202637,
+          2.8614208698272705,
+          1.4926786422729492
+        ]
+      ],
+      "vertex_start": 504,
+      "triangle_start": 457,
+      "source_vertices": 152,
+      "source_triangles": 200,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 8,
+      "name": "sticker_r_15_gxl_v2",
+      "material": 7,
+      "material_name": "sticker_r_15_gxl_v2",
+      "atlas_key": "sticker:15",
+      "kind": "sticker",
+      "vertices": 174,
+      "triangles": 170,
+      "source_bounds": [
+        [
+          -1.5979535579681396,
+          -1.57033371925354,
+          1.250939965248108
+        ],
+        [
+          2.4425251483917236,
+          -0.8802733421325684,
+          1.4926337003707886
+        ]
+      ],
+      "vertex_start": 656,
+      "triangle_start": 657,
+      "source_vertices": 174,
+      "source_triangles": 170,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 9,
+      "name": "sticker_r_14_gxl_v2",
+      "material": 8,
+      "material_name": "sticker_r_14_gxl_v2",
+      "atlas_key": "sticker:14",
+      "kind": "sticker",
+      "vertices": 483,
+      "triangles": 461,
+      "source_bounds": [
+        [
+          1.6752221584320068,
+          -0.8710696697235107,
+          1.250939965248108
+        ],
+        [
+          2.8610239028930664,
+          0.16077971458435059,
+          1.4926167726516724
+        ]
+      ],
+      "vertex_start": 830,
+      "triangle_start": 827,
+      "source_vertices": 605,
+      "source_triangles": 461,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 10,
+      "name": "sticker_r_13_gxl_v2",
+      "material": 9,
+      "material_name": "sticker_r_13_gxl_v2",
+      "atlas_key": "sticker:13",
+      "kind": "sticker",
+      "vertices": 227,
+      "triangles": 189,
+      "source_bounds": [
+        [
+          2.2143964767456055,
+          0.040065765380859375,
+          1.2509396076202393
+        ],
+        [
+          2.915724277496338,
+          0.3699890375137329,
+          1.4926350116729736
+        ]
+      ],
+      "vertex_start": 1313,
+      "triangle_start": 1288,
+      "source_vertices": 255,
+      "source_triangles": 189,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 11,
+      "name": "sticker_l_7_gxl_v2",
+      "material": 10,
+      "material_name": "sticker_l_7_gxl_v2",
+      "atlas_key": "sticker:7",
+      "kind": "sticker",
+      "vertices": 170,
+      "triangles": 166,
+      "source_bounds": [
+        [
+          -2.4425249099731445,
+          -1.57033371925354,
+          1.250939965248108
+        ],
+        [
+          -1.5384591817855835,
+          -0.8803234696388245,
+          1.4926421642303467
+        ]
+      ],
+      "vertex_start": 1540,
+      "triangle_start": 1477,
+      "source_vertices": 170,
+      "source_triangles": 166,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 12,
+      "name": "sticker_l_6_gxl_v2",
+      "material": 11,
+      "material_name": "sticker_l_6_gxl_v2",
+      "atlas_key": "sticker:6",
+      "kind": "sticker",
+      "vertices": 483,
+      "triangles": 461,
+      "source_bounds": [
+        [
+          -2.8610239028930664,
+          -0.8710696697235107,
+          1.250939965248108
+        ],
+        [
+          -1.6752221584320068,
+          0.16077971458435059,
+          1.4926167726516724
+        ]
+      ],
+      "vertex_start": 1710,
+      "triangle_start": 1643,
+      "source_vertices": 605,
+      "source_triangles": 461,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 13,
+      "name": "sticker_l_5_gxl_v2",
+      "material": 12,
+      "material_name": "sticker_l_5_gxl_v2",
+      "atlas_key": "sticker:5",
+      "kind": "sticker",
+      "vertices": 218,
+      "triangles": 189,
+      "source_bounds": [
+        [
+          -2.915724277496338,
+          0.040065765380859375,
+          1.2509396076202393
+        ],
+        [
+          -2.2143964767456055,
+          0.3699890673160553,
+          1.4926351308822632
+        ]
+      ],
+      "vertex_start": 2193,
+      "triangle_start": 2104,
+      "source_vertices": 251,
+      "source_triangles": 189,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 14,
+      "name": "sticker_l_1_gxl_v2",
+      "material": 13,
+      "material_name": "sticker_l_1_gxl_v2",
+      "atlas_key": "sticker:1",
+      "kind": "sticker",
+      "vertices": 133,
+      "triangles": 129,
+      "source_bounds": [
+        [
+          -2.390061855316162,
+          1.5945461988449097,
+          1.2520339488983154
+        ],
+        [
+          -1.5178980827331543,
+          2.058816432952881,
+          1.4926602840423584
+        ]
+      ],
+      "vertex_start": 2411,
+      "triangle_start": 2293,
+      "source_vertices": 133,
+      "source_triangles": 129,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 15,
+      "name": "sticker_l_0_gxl_v2",
+      "material": 14,
+      "material_name": "sticker_l_0_gxl_v2",
+      "atlas_key": "sticker:0",
+      "kind": "sticker",
+      "vertices": 152,
+      "triangles": 200,
+      "source_bounds": [
+        [
+          -3.6962087154388428,
+          2.0648036003112793,
+          1.250720739364624
+        ],
+        [
+          -2.520338773727417,
+          2.8614206314086914,
+          1.4926701784133911
+        ]
+      ],
+      "vertex_start": 2544,
+      "triangle_start": 2422,
+      "source_vertices": 152,
+      "source_triangles": 200,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 16,
+      "name": "static_l_0_gxl_v2",
+      "material": 15,
+      "material_name": "static_l_0_gxl_v2",
+      "atlas_key": "gxl:15",
+      "kind": "solid",
+      "vertices": 103,
+      "triangles": 101,
+      "source_bounds": [
+        [
+          -1.6518574953079224,
+          -1.0562657117843628,
+          1.2509695291519165
+        ],
+        [
+          1.6518577337265015,
+          1.168796420097351,
+          1.2509695291519165
+        ]
+      ],
+      "vertex_start": 2696,
+      "triangle_start": 2622,
+      "source_vertices": 103,
+      "source_triangles": 101,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 17,
+      "name": "sticker_20_gxl_v2",
+      "material": 16,
+      "material_name": "sticker_20_gxl_v2",
+      "atlas_key": "sticker:20",
+      "kind": "sticker",
+      "vertices": 531,
+      "triangles": 826,
+      "source_bounds": [
+        [
+          0.2863651216030121,
+          -1.0420774221420288,
+          1.2104625701904297
+        ],
+        [
+          1.4832525253295898,
+          -0.03075385093688965,
+          1.3058745861053467
+        ]
+      ],
+      "vertex_start": 2799,
+      "triangle_start": 2723,
+      "source_vertices": 531,
+      "source_triangles": 826,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 18,
+      "name": "sticker_19_gxl_v2",
+      "material": 17,
+      "material_name": "sticker_19_gxl_v2",
+      "atlas_key": "sticker:19",
+      "kind": "sticker",
+      "vertices": 532,
+      "triangles": 828,
+      "source_bounds": [
+        [
+          -1.4863991737365723,
+          -1.0420774221420288,
+          1.2104625701904297
+        ],
+        [
+          -0.28951165080070496,
+          -0.03075385093688965,
+          1.3058745861053467
+        ]
+      ],
+      "vertex_start": 3330,
+      "triangle_start": 3549,
+      "source_vertices": 532,
+      "source_triangles": 828,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 19,
+      "name": "sticker_17_gxl_v2",
+      "material": 18,
+      "material_name": "sticker_17_gxl_v2",
+      "atlas_key": "sticker:17",
+      "kind": "sticker",
+      "vertices": 515,
+      "triangles": 808,
+      "source_bounds": [
+        [
+          0.43061497807502747,
+          0.023548603057861328,
+          1.1901501417160034
+        ],
+        [
+          1.6275023221969604,
+          1.034872055053711,
+          1.2855621576309204
+        ]
+      ],
+      "vertex_start": 3862,
+      "triangle_start": 4377,
+      "source_vertices": 515,
+      "source_triangles": 808,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 20,
+      "name": "sticker_16_gxl_v2",
+      "material": 19,
+      "material_name": "sticker_16_gxl_v2",
+      "atlas_key": "sticker:16",
+      "kind": "sticker",
+      "vertices": 512,
+      "triangles": 808,
+      "source_bounds": [
+        [
+          -1.6306489706039429,
+          0.023548603057861328,
+          1.1901501417160034
+        ],
+        [
+          -0.4337615668773651,
+          1.034872055053711,
+          1.2855621576309204
+        ]
+      ],
+      "vertex_start": 4377,
+      "triangle_start": 5185,
+      "source_vertices": 512,
+      "source_triangles": 808,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 21,
+      "name": "static_sticker_r_11_gxl_v2",
+      "material": 20,
+      "material_name": "static_sticker_r_11_gxl_v2",
+      "atlas_key": "gxl:20",
+      "kind": "texture",
+      "vertices": 31,
+      "triangles": 29,
+      "source_bounds": [
+        [
+          1.8340251445770264,
+          1.0062658786773682,
+          1.2649670839309692
+        ],
+        [
+          2.3474130630493164,
+          1.2760429382324219,
+          1.2649670839309692
+        ]
+      ],
+      "vertex_start": 4889,
+      "triangle_start": 5993,
+      "source_vertices": 31,
+      "source_triangles": 29,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 22,
+      "name": "static_sticker_l_3_gxl_v2",
+      "material": 21,
+      "material_name": "static_sticker_l_3_gxl_v2",
+      "atlas_key": "gxl:21",
+      "kind": "texture",
+      "vertices": 31,
+      "triangles": 29,
+      "source_bounds": [
+        [
+          -2.3474130630493164,
+          1.0062658786773682,
+          1.2649670839309692
+        ],
+        [
+          -1.8340251445770264,
+          1.2760429382324219,
+          1.2649670839309692
+        ]
+      ],
+      "vertex_start": 4920,
+      "triangle_start": 6022,
+      "source_vertices": 31,
+      "source_triangles": 29,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 23,
+      "name": "static_button_r_11_gxl_v2",
+      "material": 22,
+      "material_name": "static_button_r_11_gxl_v2",
+      "atlas_key": "gxl:22",
+      "kind": "solid",
+      "vertices": 391,
+      "triangles": 318,
+      "source_bounds": [
+        [
+          1.8024369478225708,
+          0.9747103452682495,
+          1.167043685913086
+        ],
+        [
+          2.379765510559082,
+          1.3080406188964844,
+          1.262578010559082
+        ]
+      ],
+      "vertex_start": 4951,
+      "triangle_start": 6051,
+      "source_vertices": 574,
+      "source_triangles": 318,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 24,
+      "name": "static_button_l_3_gxl_v2",
+      "material": 23,
+      "material_name": "static_button_l_3_gxl_v2",
+      "atlas_key": "gxl:23",
+      "kind": "solid",
+      "vertices": 390,
+      "triangles": 318,
+      "source_bounds": [
+        [
+          -2.379765510559082,
+          0.9747103452682495,
+          1.167043685913086
+        ],
+        [
+          -1.8024369478225708,
+          1.3080406188964844,
+          1.262578010559082
+        ]
+      ],
+      "vertex_start": 5342,
+      "triangle_start": 6369,
+      "source_vertices": 560,
+      "source_triangles": 318,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 25,
+      "name": "static_screws_gxl_v2",
+      "material": 24,
+      "material_name": "static_screws_gxl_v2",
+      "atlas_key": "gxl:24",
+      "kind": "solid",
+      "vertices": 1720,
+      "triangles": 2037,
+      "source_bounds": [
+        [
+          -3.979520082473755,
+          -1.9343258142471313,
+          1.186596393585205
+        ],
+        [
+          3.979520082473755,
+          2.356842041015625,
+          1.2536382675170898
+        ]
+      ],
+      "vertex_start": 5732,
+      "triangle_start": 6687,
+      "source_vertices": 16126,
+      "source_triangles": 6796,
+      "protected": false,
+      "error_mm": 0.061804443248547614
+    },
+    {
+      "source": "gxl",
+      "node": 26,
+      "name": "static_assembly_side_gxl_v2",
+      "material": 25,
+      "material_name": "static_assembly_side_gxl_v2",
+      "atlas_key": "gxl:25",
+      "kind": "solid",
+      "vertices": 3786,
+      "triangles": 7564,
+      "source_bounds": [
+        [
+          -4.853499412536621,
+          -2.9542503356933594,
+          0.3729643225669861
+        ],
+        [
+          4.853506088256836,
+          2.3308920860290527,
+          1.783125638961792
+        ]
+      ],
+      "vertex_start": 7452,
+      "triangle_start": 8724,
+      "source_vertices": 5304,
+      "source_triangles": 7956,
+      "protected": false,
+      "error_mm": 0.07497828046325594
+    },
+    {
+      "source": "gxl",
+      "node": 27,
+      "name": "static_rear_socket_base_gxl_v2",
+      "material": 26,
+      "material_name": "static_rear_socket_base_gxl_v2",
+      "atlas_key": "gxl:26",
+      "kind": "solid",
+      "vertices": 754,
+      "triangles": 939,
+      "source_bounds": [
+        [
+          -0.3199074864387512,
+          -1.8748788833618164,
+          0.07769638299942017
+        ],
+        [
+          0.3199074864387512,
+          -1.276343584060669,
+          0.6118713617324829
+        ]
+      ],
+      "vertex_start": 11238,
+      "triangle_start": 16288,
+      "source_vertices": 1631,
+      "source_triangles": 939,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 28,
+      "name": "static_rear_socket_gxl_v2",
+      "material": 27,
+      "material_name": "static_rear_socket_gxl_v2",
+      "atlas_key": "gxl:27",
+      "kind": "solid",
+      "vertices": 417,
+      "triangles": 396,
+      "source_bounds": [
+        [
+          -0.1888023316860199,
+          -1.781204342842102,
+          0.14383861422538757
+        ],
+        [
+          0.1888280212879181,
+          -1.3235052824020386,
+          0.5988277196884155
+        ]
+      ],
+      "vertex_start": 11992,
+      "triangle_start": 17227,
+      "source_vertices": 2356,
+      "source_triangles": 1050,
+      "protected": false,
+      "error_mm": 0.07284242747118697
+    },
+    {
+      "source": "gxl",
+      "node": 29,
+      "name": "static_leds_gxl_v2",
+      "material": 28,
+      "material_name": "static_leds_gxl_v2",
+      "atlas_key": "gxl:28",
+      "kind": "solid",
+      "vertices": 144,
+      "triangles": 112,
+      "source_bounds": [
+        [
+          -1.7016674280166626,
+          1.2660913467407227,
+          1.2246710062026978
+        ],
+        [
+          1.7099283933639526,
+          1.6236393451690674,
+          1.2246710062026978
+        ]
+      ],
+      "vertex_start": 12409,
+      "triangle_start": 17623,
+      "source_vertices": 144,
+      "source_triangles": 112,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 30,
+      "name": "static_controls_side_gxl_v2",
+      "material": 29,
+      "material_name": "202,209,238_1.002",
+      "atlas_key": "gxl:29",
+      "kind": "solid",
+      "vertices": 222,
+      "triangles": 76,
+      "source_bounds": [
+        [
+          -2.194077968597412,
+          0.7276446223258972,
+          1.2821131944656372
+        ],
+        [
+          2.194077968597412,
+          0.8071955442428589,
+          1.2901486158370972
+        ]
+      ],
+      "vertex_start": 12553,
+      "triangle_start": 17735,
+      "source_vertices": 228,
+      "source_triangles": 76,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 30,
+      "name": "static_controls_side_gxl_v2",
+      "material": 30,
+      "material_name": "64,64,64_2.001",
+      "atlas_key": "gxl:30",
+      "kind": "solid",
+      "vertices": 468,
+      "triangles": 428,
+      "source_bounds": [
+        [
+          -2.268904447555542,
+          0.6533074378967285,
+          1.1913665533065796
+        ],
+        [
+          2.268904447555542,
+          0.8815412521362305,
+          1.25174880027771
+        ]
+      ],
+      "vertex_start": 12775,
+      "triangle_start": 17811,
+      "source_vertices": 1262,
+      "source_triangles": 428,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 30,
+      "name": "static_controls_side_gxl_v2",
+      "material": 31,
+      "material_name": "255,255,0.002",
+      "atlas_key": "gxl:31",
+      "kind": "solid",
+      "vertices": 584,
+      "triangles": 248,
+      "source_bounds": [
+        [
+          -2.194077968597412,
+          0.7276446223258972,
+          1.2518643140792847
+        ],
+        [
+          2.194077968597412,
+          0.8071955442428589,
+          1.4714998006820679
+        ]
+      ],
+      "vertex_start": 13243,
+      "triangle_start": 18239,
+      "source_vertices": 744,
+      "source_triangles": 248,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 31,
+      "name": "static_base_front_gxl_v2",
+      "material": 32,
+      "material_name": "static_base_front_gxl_v2",
+      "atlas_key": "gxl:32",
+      "kind": "solid",
+      "vertices": 7024,
+      "triangles": 7010,
+      "source_bounds": [
+        [
+          -4.124072074890137,
+          -2.1911587715148926,
+          1.090051531791687
+        ],
+        [
+          4.134076118469238,
+          2.8888401985168457,
+          1.249337077140808
+        ]
+      ],
+      "vertex_start": 13827,
+      "triangle_start": 18487,
+      "source_vertices": 14005,
+      "source_triangles": 8938,
+      "protected": false,
+      "error_mm": 0.0745497818570584
+    },
+    {
+      "source": "gxl",
+      "node": 32,
+      "name": "static_base_gxl_v2",
+      "material": 33,
+      "material_name": "static_base_gxl_v2",
+      "atlas_key": "gxl:33",
+      "kind": "solid",
+      "vertices": 1899,
+      "triangles": 942,
+      "source_bounds": [
+        [
+          -0.6145199537277222,
+          -1.8746380805969238,
+          0.8377147912979126
+        ],
+        [
+          0.6168292760848999,
+          -1.5745986700057983,
+          1.2999498844146729
+        ]
+      ],
+      "vertex_start": 20851,
+      "triangle_start": 25497,
+      "source_vertices": 2294,
+      "source_triangles": 942,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 33,
+      "name": "static_base_back_gxl_v2",
+      "material": 34,
+      "material_name": "static_base_back_gxl_v2",
+      "atlas_key": "gxl:34",
+      "kind": "solid",
+      "vertices": 3797,
+      "triangles": 4780,
+      "source_bounds": [
+        [
+          -4.050519943237305,
+          -1.9659969806671143,
+          0.09101951122283936
+        ],
+        [
+          4.052495956420898,
+          2.8969008922576904,
+          1.1267099380493164
+        ]
+      ],
+      "vertex_start": 22750,
+      "triangle_start": 26439,
+      "source_vertices": 6461,
+      "source_triangles": 5934,
+      "protected": false,
+      "error_mm": 0.07474936719518155
+    },
+    {
+      "source": "gxl",
+      "node": 34,
+      "name": "static_assembly_rear_screw_2_gxl_v2",
+      "material": 35,
+      "material_name": "static_assembly_rear_screw_2_gxl_v2",
+      "atlas_key": "gxl:35",
+      "kind": "solid",
+      "vertices": 467,
+      "triangles": 444,
+      "source_bounds": [
+        [
+          -2.4342055320739746,
+          -0.9011106491088867,
+          -0.8916752338409424
+        ],
+        [
+          2.4342055320739746,
+          -0.5468931198120117,
+          -0.8040122985839844
+        ]
+      ],
+      "vertex_start": 26547,
+      "triangle_start": 31219,
+      "source_vertices": 4440,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.05347784754121676
+    },
+    {
+      "source": "gxl",
+      "node": 35,
+      "name": "static_assembly_rear_screw_gxl_v2",
+      "material": 36,
+      "material_name": "static_assembly_rear_screw_gxl_v2",
+      "atlas_key": "gxl:36",
+      "kind": "solid",
+      "vertices": 467,
+      "triangles": 443,
+      "source_bounds": [
+        [
+          -3.271141767501831,
+          0.7957006692886353,
+          -0.7662919759750366
+        ],
+        [
+          3.271141767501831,
+          1.2509410381317139,
+          -0.7207679748535156
+        ]
+      ],
+      "vertex_start": 27014,
+      "triangle_start": 31663,
+      "source_vertices": 4440,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.057771577849052846
+    },
+    {
+      "source": "gxl",
+      "node": 36,
+      "name": "static_assembly_rear_base_2_gxl_v2",
+      "material": 37,
+      "material_name": "Black Plastic.019",
+      "atlas_key": "gxl:37",
+      "kind": "solid",
+      "vertices": 20969,
+      "triangles": 26264,
+      "source_bounds": [
+        [
+          -2.5917983055114746,
+          -1.0861458778381348,
+          -0.7881555557250977
+        ],
+        [
+          2.5917983055114746,
+          0.1702822595834732,
+          0.1724376678466797
+        ]
+      ],
+      "vertex_start": 27481,
+      "triangle_start": 32106,
+      "source_vertices": 72278,
+      "source_triangles": 87566,
+      "protected": false,
+      "error_mm": 0.040307838935405016
+    },
+    {
+      "source": "gxl",
+      "node": 36,
+      "name": "static_assembly_rear_base_2_gxl_v2",
+      "material": 38,
+      "material_name": "White Plastic.008",
+      "atlas_key": "gxl:38",
+      "kind": "solid",
+      "vertices": 100,
+      "triangles": 96,
+      "source_bounds": [
+        [
+          -2.1426029205322266,
+          -0.7327576279640198,
+          -0.7940512895584106
+        ],
+        [
+          2.1426029205322266,
+          -0.4520993232727051,
+          -0.6855021715164185
+        ]
+      ],
+      "vertex_start": 48450,
+      "triangle_start": 58370,
+      "source_vertices": 272,
+      "source_triangles": 96,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 37,
+      "name": "static_assembly_rear_base_gxl_v2",
+      "material": 39,
+      "material_name": "Black Plastic.021",
+      "atlas_key": "gxl:39",
+      "kind": "solid",
+      "vertices": 9549,
+      "triangles": 9898,
+      "source_bounds": [
+        [
+          -3.3344547748565674,
+          0.4507099688053131,
+          -0.8410147428512573
+        ],
+        [
+          3.3344547748565674,
+          1.5851939916610718,
+          0.1689079999923706
+        ]
+      ],
+      "vertex_start": 48550,
+      "triangle_start": 58466,
+      "source_vertices": 21070,
+      "source_triangles": 20710,
+      "protected": false,
+      "error_mm": 0.07416603912133723
+    },
+    {
+      "source": "gxl",
+      "node": 37,
+      "name": "static_assembly_rear_base_gxl_v2",
+      "material": 40,
+      "material_name": "White Plastic.009",
+      "atlas_key": "gxl:40",
+      "kind": "solid",
+      "vertices": 596,
+      "triangles": 552,
+      "source_bounds": [
+        [
+          -3.0092782974243164,
+          0.8995568752288818,
+          -0.5211743116378784
+        ],
+        [
+          3.0092782974243164,
+          1.3154151439666748,
+          -0.35475754737854004
+        ]
+      ],
+      "vertex_start": 58099,
+      "triangle_start": 68364,
+      "source_vertices": 596,
+      "source_triangles": 552,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 38,
+      "name": "static_assembly_rear_2_gxl_v2",
+      "material": 41,
+      "material_name": "static_assembly_rear_2_gxl_v2",
+      "atlas_key": "gxl:41",
+      "kind": "texture",
+      "vertices": 1987,
+      "triangles": 2090,
+      "source_bounds": [
+        [
+          -3.6817002296447754,
+          -1.7311960458755493,
+          -1.3486618995666504
+        ],
+        [
+          3.6817002296447754,
+          -0.45025280117988586,
+          -0.6857175827026367
+        ]
+      ],
+      "vertex_start": 58695,
+      "triangle_start": 68916,
+      "source_vertices": 3376,
+      "source_triangles": 3416,
+      "protected": false,
+      "error_mm": 0.07467346731573343
+    },
+    {
+      "source": "gxl",
+      "node": 39,
+      "name": "static_assembly_rear_gxl_v2",
+      "material": 41,
+      "material_name": "static_assembly_rear_2_gxl_v2",
+      "atlas_key": "gxl:41",
+      "kind": "texture",
+      "vertices": 3703,
+      "triangles": 1628,
+      "source_bounds": [
+        [
+          -4.00889253616333,
+          -0.2589755654335022,
+          -0.7148016691207886
+        ],
+        [
+          4.00889253616333,
+          2.024059772491455,
+          -0.5880479216575623
+        ]
+      ],
+      "vertex_start": 60682,
+      "triangle_start": 71006,
+      "source_vertices": 4848,
+      "source_triangles": 1644,
+      "protected": false,
+      "error_mm": 0.0724419776815921
+    },
+    {
+      "source": "gxl",
+      "node": 40,
+      "name": "custom_rotarie_r_12_gxl_v2",
+      "material": 42,
+      "material_name": "custom_rotarie_r_12_gxl_v2",
+      "atlas_key": "gxl:42",
+      "kind": "solid",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          1.9897346496582031,
+          0.6033223271369934,
+          1.2949990034103394
+        ],
+        [
+          2.318751335144043,
+          0.9323388934135437,
+          1.6388983726501465
+        ]
+      ],
+      "vertex_start": 64385,
+      "triangle_start": 72634,
+      "source_vertices": 14260,
+      "source_triangles": 6472,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 41,
+      "name": "custom_rotarie_r_10_gxl_v2",
+      "material": 43,
+      "material_name": "custom_rotarie_r_10_gxl_v2",
+      "atlas_key": "gxl:43",
+      "kind": "solid",
+      "vertices": 4464,
+      "triangles": 5620,
+      "source_bounds": [
+        [
+          2.627678871154785,
+          0.9655818939208984,
+          0.45396339893341064
+        ],
+        [
+          2.838669538497925,
+          1.796439528465271,
+          1.3127609491348267
+        ]
+      ],
+      "vertex_start": 67769,
+      "triangle_start": 79106,
+      "source_vertices": 11741,
+      "source_triangles": 5620,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 42,
+      "name": "custom_rotarie_l_4_gxl_v2",
+      "material": 44,
+      "material_name": "custom_rotarie_l_4_gxl_v2",
+      "atlas_key": "gxl:44",
+      "kind": "solid",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          -2.3187549114227295,
+          0.6033223271369934,
+          1.2949990034103394
+        ],
+        [
+          -1.9897383451461792,
+          0.9323388934135437,
+          1.6388983726501465
+        ]
+      ],
+      "vertex_start": 72233,
+      "triangle_start": 84726,
+      "source_vertices": 14260,
+      "source_triangles": 6472,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 43,
+      "name": "custom_rotarie_20_gxl_v2",
+      "material": 45,
+      "material_name": "custom_rotarie_20_gxl_v2",
+      "atlas_key": "gxl:45",
+      "kind": "solid",
+      "vertices": 2523,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          0.3977864384651184,
+          -0.9404212236404419,
+          1.301116704940796
+        ],
+        [
+          1.19264817237854,
+          -0.16103658080101013,
+          1.7465070486068726
+        ]
+      ],
+      "vertex_start": 75617,
+      "triangle_start": 91198,
+      "source_vertices": 2524,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 44,
+      "name": "custom_rotarie_19_gxl_v2",
+      "material": 46,
+      "material_name": "custom_rotarie_19_gxl_v2",
+      "atlas_key": "gxl:46",
+      "kind": "solid",
+      "vertices": 2523,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -1.1912630796432495,
+          -0.9404212236404419,
+          1.301116704940796
+        ],
+        [
+          -0.39640140533447266,
+          -0.16103658080101013,
+          1.7465070486068726
+        ]
+      ],
+      "vertex_start": 78140,
+      "triangle_start": 94092,
+      "source_vertices": 2524,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 45,
+      "name": "custom_rotarie_18_gxl_v2",
+      "material": 47,
+      "material_name": "custom_rotarie_18_gxl_v2",
+      "atlas_key": "gxl:47",
+      "kind": "solid",
+      "vertices": 2523,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -0.39673852920532227,
+          -0.12307247519493103,
+          1.301116704940796
+        ],
+        [
+          0.3981231451034546,
+          0.656312108039856,
+          1.7465070486068726
+        ]
+      ],
+      "vertex_start": 80663,
+      "triangle_start": 96986,
+      "source_vertices": 2524,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 46,
+      "name": "custom_rotarie_17_gxl_v2",
+      "material": 48,
+      "material_name": "custom_rotarie_17_gxl_v2",
+      "atlas_key": "gxl:48",
+      "kind": "solid",
+      "vertices": 2523,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          0.7270814180374146,
+          0.11967834830284119,
+          1.301116704940796
+        ],
+        [
+          1.5219430923461914,
+          0.899062991142273,
+          1.7465070486068726
+        ]
+      ],
+      "vertex_start": 83186,
+      "triangle_start": 99880,
+      "source_vertices": 2524,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 47,
+      "name": "custom_rotarie_16_gxl_v2",
+      "material": 49,
+      "material_name": "custom_rotarie_16_gxl_v2",
+      "atlas_key": "gxl:49",
+      "kind": "solid",
+      "vertices": 2523,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -1.5205599069595337,
+          0.11967834830284119,
+          1.301116704940796
+        ],
+        [
+          -0.7256982326507568,
+          0.899062991142273,
+          1.7465070486068726
+        ]
+      ],
+      "vertex_start": 85709,
+      "triangle_start": 102774,
+      "source_vertices": 2524,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 48,
+      "name": "custom_button_r_9_gxl_v2",
+      "material": 50,
+      "material_name": "custom_button_r_9_gxl_v2",
+      "atlas_key": "gxl:50",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.043539524078369,
+          1.709620475769043,
+          1.2646393775939941
+        ],
+        [
+          2.458848237991333,
+          2.1251068115234375,
+          1.4910861253738403
+        ]
+      ],
+      "vertex_start": 88232,
+      "triangle_start": 105668,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 49,
+      "name": "custom_button_r_8_gxl_v2",
+      "material": 51,
+      "material_name": "custom_button_r_8_gxl_v2",
+      "atlas_key": "gxl:51",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          3.0910234451293945,
+          2.2212677001953125,
+          1.2646394968032837
+        ],
+        [
+          3.5063321590423584,
+          2.636754035949707,
+          1.4910862445831299
+        ]
+      ],
+      "vertex_start": 88942,
+      "triangle_start": 106837,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 50,
+      "name": "custom_button_r_15_gxl_v2",
+      "material": 52,
+      "material_name": "custom_button_r_15_gxl_v2",
+      "atlas_key": "gxl:52",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.6687498092651367,
+          -1.4283077716827393,
+          1.264638900756836
+        ],
+        [
+          2.0840585231781006,
+          -1.0128214359283447,
+          1.4910856485366821
+        ]
+      ],
+      "vertex_start": 89652,
+      "triangle_start": 108006,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 51,
+      "name": "custom_button_r_14_gxl_v2",
+      "material": 53,
+      "material_name": "custom_button_r_14_gxl_v2",
+      "atlas_key": "gxl:53",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.9526394605636597,
+          -0.7255446910858154,
+          1.2646390199661255
+        ],
+        [
+          2.367948293685913,
+          -0.3100583553314209,
+          1.4910857677459717
+        ]
+      ],
+      "vertex_start": 90362,
+      "triangle_start": 109175,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 52,
+      "name": "custom_button_r_13_gxl_v2",
+      "material": 54,
+      "material_name": "custom_button_r_13_gxl_v2",
+      "atlas_key": "gxl:54",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.1453161239624023,
+          -0.02985548973083496,
+          1.264639139175415
+        ],
+        [
+          2.560624837875366,
+          0.38563084602355957,
+          1.4910858869552612
+        ]
+      ],
+      "vertex_start": 91072,
+      "triangle_start": 110344,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 53,
+      "name": "custom_button_l_7_gxl_v2",
+      "material": 55,
+      "material_name": "custom_button_l_7_gxl_v2",
+      "atlas_key": "gxl:55",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.08406662940979,
+          -1.4283077716827393,
+          1.264638900756836
+        ],
+        [
+          -1.6687577962875366,
+          -1.0128214359283447,
+          1.4910856485366821
+        ]
+      ],
+      "vertex_start": 91782,
+      "triangle_start": 111513,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 54,
+      "name": "custom_button_l_6_gxl_v2",
+      "material": 56,
+      "material_name": "custom_button_l_6_gxl_v2",
+      "atlas_key": "gxl:56",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.3679561614990234,
+          -0.7255446910858154,
+          1.2646390199661255
+        ],
+        [
+          -1.95264732837677,
+          -0.3100583553314209,
+          1.4910857677459717
+        ]
+      ],
+      "vertex_start": 92492,
+      "triangle_start": 112682,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 55,
+      "name": "custom_button_l_5_gxl_v2",
+      "material": 57,
+      "material_name": "custom_button_l_5_gxl_v2",
+      "atlas_key": "gxl:57",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.5606331825256348,
+          -0.02985548973083496,
+          1.264639139175415
+        ],
+        [
+          -2.145324468612671,
+          0.38563084602355957,
+          1.4910858869552612
+        ]
+      ],
+      "vertex_start": 93202,
+      "triangle_start": 113851,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 56,
+      "name": "custom_button_l_1_gxl_v2",
+      "material": 58,
+      "material_name": "custom_button_l_1_gxl_v2",
+      "atlas_key": "gxl:58",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.4588561058044434,
+          1.709620475769043,
+          1.2646393775939941
+        ],
+        [
+          -2.0435473918914795,
+          2.1251068115234375,
+          1.4910861253738403
+        ]
+      ],
+      "vertex_start": 93912,
+      "triangle_start": 115020,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 57,
+      "name": "custom_button_l_0_gxl_v2",
+      "material": 59,
+      "material_name": "custom_button_l_0_gxl_v2",
+      "atlas_key": "gxl:59",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -3.506340503692627,
+          2.2212677001953125,
+          1.2646394968032837
+        ],
+        [
+          -3.091031789779663,
+          2.636754035949707,
+          1.4910862445831299
+        ]
+      ],
+      "vertex_start": 94622,
+      "triangle_start": 116189,
+      "source_vertices": 1842,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 58,
+      "name": "static_text_curve_gxl_v2",
+      "material": 60,
+      "material_name": "static_text_curve_gxl_v2",
+      "atlas_key": "gxl:60",
+      "kind": "solid",
+      "vertices": 590,
+      "triangles": 519,
+      "source_bounds": [
+        [
+          -0.2224569022655487,
+          -0.440742552280426,
+          1.2516850233078003
+        ],
+        [
+          0.21633177995681763,
+          -0.32273590564727783,
+          1.2516850233078003
+        ]
+      ],
+      "vertex_start": 95332,
+      "triangle_start": 117358,
+      "source_vertices": 1851,
+      "source_triangles": 1731,
+      "protected": false,
+      "error_mm": 0.007088675920385867
+    },
+    {
+      "source": "gxl",
+      "node": 59,
+      "name": "static_curve_rotaries_gxl_v2",
+      "material": 61,
+      "material_name": "static_curve_rotaries_gxl_v2",
+      "atlas_key": "gxl:61",
+      "kind": "solid",
+      "vertices": 185,
+      "triangles": 181,
+      "source_bounds": [
+        [
+          -0.6193310618400574,
+          0.0730963945388794,
+          1.2519785165786743
+        ],
+        [
+          0.62527996301651,
+          0.6598101258277893,
+          1.2519785165786743
+        ]
+      ],
+      "vertex_start": 95922,
+      "triangle_start": 117877,
+      "source_vertices": 185,
+      "source_triangles": 181,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 60,
+      "name": "static_controls_gxl_v2",
+      "material": 62,
+      "material_name": "static_controls_gxl_v2",
+      "atlas_key": "gxl:62",
+      "kind": "solid",
+      "vertices": 5468,
+      "triangles": 10276,
+      "source_bounds": [
+        [
+          -3.601428747177124,
+          -1.5240871906280518,
+          0.9849270582199097
+        ],
+        [
+          3.601428747177124,
+          2.733085870742798,
+          1.4289779663085938
+        ]
+      ],
+      "vertex_start": 96107,
+      "triangle_start": 118058,
+      "source_vertices": 7894,
+      "source_triangles": 15128,
+      "protected": false,
+      "error_mm": 0.07487262482754886
+    },
+    {
+      "source": "gxl",
+      "node": 61,
+      "name": "arrow.002",
+      "material": 63,
+      "material_name": "white.002",
+      "atlas_key": "gxl:63",
+      "kind": "solid",
+      "vertices": 65,
+      "triangles": 55,
+      "source_bounds": [
+        [
+          -1.1407380104064941,
+          -0.38562503457069397,
+          1.7070189714431763
+        ],
+        [
+          1.1421211957931519,
+          0.733718752861023,
+          1.7077157497406006
+        ]
+      ],
+      "vertex_start": 101575,
+      "triangle_start": 128334,
+      "source_vertices": 65,
+      "source_triangles": 55,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 62,
+      "name": "sticker_18_gxl_v2",
+      "material": 64,
+      "material_name": "sticker_18_gxl_v2",
+      "atlas_key": "sticker:18",
+      "kind": "sticker",
+      "vertices": 616,
+      "triangles": 837,
+      "source_bounds": [
+        [
+          -0.50483638048172,
+          -0.2389737367630005,
+          1.1946042776107788
+        ],
+        [
+          0.5022801756858826,
+          0.9034988880157471,
+          1.2900718450546265
+        ]
+      ],
+      "vertex_start": 101640,
+      "triangle_start": 128389,
+      "source_vertices": 616,
+      "source_triangles": 837,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 63,
+      "name": "Logo",
+      "material": 65,
+      "material_name": "static_logo_gsi_gxl_v2",
+      "atlas_key": "gxl:65",
+      "kind": "solid",
+      "vertices": 147,
+      "triangles": 131,
+      "source_bounds": [
+        [
+          -0.17193260788917542,
+          0.993643581867218,
+          1.2516212463378906
+        ],
+        [
+          0.17958872020244598,
+          1.1052815914154053,
+          1.2516212463378906
+        ]
+      ],
+      "vertex_start": 102256,
+      "triangle_start": 129226,
+      "source_vertices": 149,
+      "source_triangles": 131,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 64,
+      "name": "Logo.001",
+      "material": 65,
+      "material_name": "static_logo_gsi_gxl_v2",
+      "atlas_key": "gxl:65",
+      "kind": "solid",
+      "vertices": 147,
+      "triangles": 131,
+      "source_bounds": [
+        [
+          -0.7111711502075195,
+          1.8321975469589233,
+          0.5117546319961548
+        ],
+        [
+          0.7109797596931458,
+          1.8321975469589233,
+          0.963408887386322
+        ]
+      ],
+      "vertex_start": 102403,
+      "triangle_start": 129357,
+      "source_vertices": 149,
+      "source_triangles": 131,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "gxl",
+      "node": 65,
+      "name": "custom_rotarie_l_2_gxl_v2",
+      "material": 66,
+      "material_name": "custom_rotarie_l_2_gxl_v2",
+      "atlas_key": "gxl:66",
+      "kind": "solid",
+      "vertices": 5598,
+      "triangles": 2211,
+      "source_bounds": [
+        [
+          -2.8388876914978027,
+          0.9655464887619019,
+          0.46258458495140076
+        ],
+        [
+          -2.6277003288269043,
+          1.7963987588882446,
+          1.3217560052871704
+        ]
+      ],
+      "vertex_start": 102550,
+      "triangle_start": 129488,
+      "source_vertices": 6049,
+      "source_triangles": 2211,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "qrs1",
+      "node": 0,
+      "name": "custom_qrs1",
+      "material": 0,
+      "material_name": "Black Plastic",
+      "atlas_key": "qrs1:0",
+      "kind": "solid",
+      "vertices": 21213,
+      "triangles": 25948,
+      "source_bounds": [
+        [
+          -1.356419324874878,
+          -1.2657768726348877,
+          -1.7409968376159668
+        ],
+        [
+          1.3563666343688965,
+          1.7280642986297607,
+          0.24996361136436462
+        ]
+      ],
+      "vertex_start": 108148,
+      "triangle_start": 131699,
+      "source_vertices": 25426,
+      "source_triangles": 25948,
+      "protected": true,
+      "error_mm": 0
+    }
+  ],
+  "atlas_tiles": {
+    "gxl:0": [
+      4,
+      4,
+      512,
+      512
+    ],
+    "gxl:1": [
+      524,
+      4,
+      512,
+      512
+    ],
+    "gxl:2": [
+      1044,
+      4,
+      512,
+      512
+    ],
+    "gxl:20": [
+      4,
+      524,
+      512,
+      512
+    ],
+    "gxl:21": [
+      524,
+      524,
+      512,
+      512
+    ],
+    "gxl:41": [
+      1044,
+      524,
+      512,
+      512
+    ],
+    "sticker:9": [
+      1564,
+      4,
+      256,
+      256
+    ],
+    "sticker:8": [
+      1564,
+      524,
+      256,
+      256
+    ],
+    "sticker:15": [
+      4,
+      1044,
+      256,
+      256
+    ],
+    "sticker:14": [
+      268,
+      1044,
+      256,
+      256
+    ],
+    "sticker:13": [
+      532,
+      1044,
+      256,
+      256
+    ],
+    "sticker:7": [
+      796,
+      1044,
+      256,
+      256
+    ],
+    "sticker:6": [
+      1060,
+      1044,
+      256,
+      256
+    ],
+    "sticker:5": [
+      1324,
+      1044,
+      256,
+      256
+    ],
+    "sticker:1": [
+      1588,
+      1044,
+      256,
+      256
+    ],
+    "sticker:0": [
+      4,
+      1308,
+      256,
+      256
+    ],
+    "sticker:20": [
+      268,
+      1308,
+      256,
+      256
+    ],
+    "sticker:19": [
+      532,
+      1308,
+      256,
+      256
+    ],
+    "sticker:17": [
+      796,
+      1308,
+      256,
+      256
+    ],
+    "sticker:16": [
+      1060,
+      1308,
+      256,
+      256
+    ],
+    "sticker:18": [
+      1324,
+      1308,
+      256,
+      256
+    ],
+    "gxl:3": [
+      1852,
+      1044,
+      8,
+      8
+    ],
+    "gxl:4": [
+      1868,
+      1044,
+      8,
+      8
+    ],
+    "gxl:15": [
+      1884,
+      1044,
+      8,
+      8
+    ],
+    "gxl:22": [
+      1900,
+      1044,
+      8,
+      8
+    ],
+    "gxl:23": [
+      1916,
+      1044,
+      8,
+      8
+    ],
+    "gxl:24": [
+      1932,
+      1044,
+      8,
+      8
+    ],
+    "gxl:25": [
+      1948,
+      1044,
+      8,
+      8
+    ],
+    "gxl:26": [
+      1964,
+      1044,
+      8,
+      8
+    ],
+    "gxl:27": [
+      1980,
+      1044,
+      8,
+      8
+    ],
+    "gxl:28": [
+      1996,
+      1044,
+      8,
+      8
+    ],
+    "gxl:29": [
+      2012,
+      1044,
+      8,
+      8
+    ],
+    "gxl:30": [
+      2028,
+      1044,
+      8,
+      8
+    ],
+    "gxl:31": [
+      1852,
+      1060,
+      8,
+      8
+    ],
+    "gxl:32": [
+      1868,
+      1060,
+      8,
+      8
+    ],
+    "gxl:33": [
+      1884,
+      1060,
+      8,
+      8
+    ],
+    "gxl:34": [
+      1900,
+      1060,
+      8,
+      8
+    ],
+    "gxl:35": [
+      1916,
+      1060,
+      8,
+      8
+    ],
+    "gxl:36": [
+      1932,
+      1060,
+      8,
+      8
+    ],
+    "gxl:37": [
+      1948,
+      1060,
+      8,
+      8
+    ],
+    "gxl:38": [
+      1964,
+      1060,
+      8,
+      8
+    ],
+    "gxl:39": [
+      1980,
+      1060,
+      8,
+      8
+    ],
+    "gxl:40": [
+      1996,
+      1060,
+      8,
+      8
+    ],
+    "gxl:42": [
+      2012,
+      1060,
+      8,
+      8
+    ],
+    "gxl:43": [
+      2028,
+      1060,
+      8,
+      8
+    ],
+    "gxl:44": [
+      1852,
+      1076,
+      8,
+      8
+    ],
+    "gxl:45": [
+      1868,
+      1076,
+      8,
+      8
+    ],
+    "gxl:46": [
+      1884,
+      1076,
+      8,
+      8
+    ],
+    "gxl:47": [
+      1900,
+      1076,
+      8,
+      8
+    ],
+    "gxl:48": [
+      1916,
+      1076,
+      8,
+      8
+    ],
+    "gxl:49": [
+      1932,
+      1076,
+      8,
+      8
+    ],
+    "gxl:50": [
+      1948,
+      1076,
+      8,
+      8
+    ],
+    "gxl:51": [
+      1964,
+      1076,
+      8,
+      8
+    ],
+    "gxl:52": [
+      1980,
+      1076,
+      8,
+      8
+    ],
+    "gxl:53": [
+      1996,
+      1076,
+      8,
+      8
+    ],
+    "gxl:54": [
+      2012,
+      1076,
+      8,
+      8
+    ],
+    "gxl:55": [
+      2028,
+      1076,
+      8,
+      8
+    ],
+    "gxl:56": [
+      1852,
+      1092,
+      8,
+      8
+    ],
+    "gxl:57": [
+      1868,
+      1092,
+      8,
+      8
+    ],
+    "gxl:58": [
+      1884,
+      1092,
+      8,
+      8
+    ],
+    "gxl:59": [
+      1900,
+      1092,
+      8,
+      8
+    ],
+    "gxl:60": [
+      1916,
+      1092,
+      8,
+      8
+    ],
+    "gxl:61": [
+      1932,
+      1092,
+      8,
+      8
+    ],
+    "gxl:62": [
+      1948,
+      1092,
+      8,
+      8
+    ],
+    "gxl:63": [
+      1964,
+      1092,
+      8,
+      8
+    ],
+    "gxl:65": [
+      1980,
+      1092,
+      8,
+      8
+    ],
+    "gxl:66": [
+      1996,
+      1092,
+      8,
+      8
+    ],
+    "qrs1:0": [
+      2012,
+      1092,
+      8,
+      8
+    ]
+  },
+  "approximations": [
+    "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+    "Default configurator canvas stickers are baked from original font and icons.",
+    "Screen pixels are opaque dark for a separately fitted live dashboard.",
+    "New controls use verified physical-group means; individual angular wiring is unknown.",
+    "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+  ],
+  "optimization": {
+    "tool": "meshoptimizer 0.25",
+    "source_sha256": "cb93e12d766f905e88341509bc9563d6746629870b2e66f00eb2230994de25d7",
+    "source_vertices": 282131,
+    "source_triangles": 248127,
+    "triangle_reduction_percent": 36.465197257855856,
+    "target_error_mm": 0.075,
+    "max_reported_error_mm": 0.07497828046325594,
+    "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+  }
+}

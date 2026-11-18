@@ -1,0 +1,14 @@
+.spatial-map-interactive > svg { touch-action: none; user-select: none; }
+.spatial-map-interactive .spatial-map-item { cursor: grab; outline: none; }
+.spatial-map-interactive .spatial-map-item:active { cursor: grabbing; }
+.spatial-map-interactive .spatial-map-item[aria-disabled="true"] { cursor: default; }
+.spatial-map-interactive .spatial-map-item:focus-visible .spatial-map-item-shape { stroke: #fff; stroke-width: 3; }
+.spatial-map-interactive .panel-heading { flex-wrap: wrap; gap: 12px; }
+.spatial-map-interactive .segmented button { padding: 7px 10px; font-size: 10px; }
+.spatial-map-interactive > p { font-size: 10px; }
+.dashboard-keyboard-help { margin-top: 10px; color: #d2c1dd; font-size: 11px; }
+.dashboard-keyboard-help summary { cursor: pointer; }
+.dashboard-keyboard-help dl { display: grid; gap: 5px; margin: 10px 0; }
+.dashboard-keyboard-help dl > div { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.dashboard-keyboard-help dt { min-width: 145px; font-family: var(--mono); }
+.dashboard-keyboard-help dd { margin: 0; color: #b7a7c4; }

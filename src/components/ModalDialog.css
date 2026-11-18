@@ -1,0 +1,37 @@
+/* Native modal dialog shell. The <dialog> itself is a transparent, viewport-
+   sized scroll container; the existing .modal panel inside keeps its look.
+   Pointer presses on the transparent area count as outside clicks. */
+dialog.app-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 30px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+dialog.app-dialog[open] {
+  display: grid;
+  justify-items: center;
+}
+dialog.app-dialog::backdrop {
+  background: #08050dd1;
+  backdrop-filter: blur(7px);
+}
+/* Auto margins center the panel but collapse to zero when it is taller than
+   the viewport, so its top stays reachable and the dialog scrolls. */
+dialog.app-dialog > .modal {
+  margin: auto 0;
+  max-height: none;
+}
+dialog.app-dialog[aria-busy="true"] > .modal {
+  opacity: 0.6;
+  cursor: progress;
+}

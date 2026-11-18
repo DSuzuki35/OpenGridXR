@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import { createSocket } from 'node:dgram';
+import { once } from 'node:events';
+import test from 'node:test';
+import receiver from '../desktop/wheel-lights.cjs';
+
+test('SimHub loopback receiver isolates models, validates frames, handles sequence wrap and expires colors', async t => {
+  let clock = 0, socket;
+  const lights = receiver.createWheelLights({ port: 0, now: () => clock, openSocket() {
+    socket = createSocket('udp4');
+    return socket;
+  } });
+  const sender = createSocket('udp4');
+  t.after(() => { sender.close(); lights.close(); });
+  assert.equal(socket, undefined);
+  lights.setEnabled(true);
+  await once(socket, 'listening');
+  const send = async (model, sequence, color, count = 88, legacy = false) => {
+    const header = legacy ? 16 : 20;
+    const packet = Buffer.alloc(header + count * 3, color);
+    packet.write(legacy ? 'AGLED001' : 'OVRLED02');
+    packet.writeUInt32LE(sequence, 8);
+    packet.writeUInt32LE(count, 12);
+    if (!legacy) packet.writeUInt32LE(model, 16);
+    const received = once(socket, 'message');
+    sender.send(packet, socket.address().port, '127.0.0.1');
+    await received;
+  };
+  await send(1, 0xffffffff, 4);
+  await send(1, 0, 8);
+  await send(1, 0xffffffff, 6);
+  await send(1, 1, 7, 88, true);
+  await send(1, 1, 7, 87);
+  await send(4, 2, 9, 76);
+  assert.deepEqual(lights.sample('hyper-p1'), Buffer.alloc(264, 8));
+  assert.deepEqual(lights.sample(4), Buffer.alloc(228, 9));
+  assert.equal(lights.sample(2), null);
+  clock = 1001;
+  assert.equal(lights.sample(1), null);
+  await send(1, 0, 2, 88, true);
+  assert.deepEqual(lights.sample(1), Buffer.alloc(264, 2));
+  lights.setEnabled(false);
+  assert.equal(lights.sample(1), null);
+});

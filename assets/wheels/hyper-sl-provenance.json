@@ -1,0 +1,1373 @@
+{
+  "model": "Gomez Sim Industries Hyper SL",
+  "authorization": "The user stated they are a GSI member and explicitly authorized extracting and using these official models in oVRlay.",
+  "primary_page": "https://custom.gomezsimindustries.com/",
+  "source_manifest": "gsi-source-manifest.json",
+  "identity_evidence": "Official chooser id/file=hypersl; default theme model=hypersl, hub=qrs1.",
+  "original_model": {
+    "copyright": "anderson_mancini",
+    "generator": "Khronos glTF Blender I/O v4.1.63",
+    "version": "2.0"
+  },
+  "credits": {
+    "configurator": "GSI / Neotix",
+    "materials": [
+      {
+        "name": "Die-cast aluminum",
+        "id": "76f47d07-e067-4870-b5b7-5bcc5777ddfa",
+        "license": "royalty_free",
+        "author": "Joachim Bornemann",
+        "url": "https://www.blenderkit.com/api/v1/assets/76f47d07-e067-4870-b5b7-5bcc5777ddfa/"
+      },
+      {
+        "name": "Carbon Fiber",
+        "id": "aade2d53-0952-4140-a04b-049737a57bae",
+        "license": "royalty_free",
+        "author": "Linka Palm",
+        "url": "https://www.blenderkit.com/api/v1/assets/aade2d53-0952-4140-a04b-049737a57bae/"
+      },
+      {
+        "name": "Rubber Black",
+        "id": "13ad6c74-f4ff-4f2a-a3e4-d313b491c39a",
+        "license": "royalty_free",
+        "author": "Arfat Ikhte Rohman",
+        "url": "https://www.blenderkit.com/api/v1/assets/13ad6c74-f4ff-4f2a-a3e4-d313b491c39a/"
+      },
+      {
+        "name": "Black Plastic",
+        "id": "7241e7a9-cc3e-4f80-ab34-076465f5e7b7",
+        "license": "royalty_free",
+        "author": "Nobody",
+        "url": "https://www.blenderkit.com/api/v1/assets/7241e7a9-cc3e-4f80-ab34-076465f5e7b7/"
+      }
+    ],
+    "baked_font": "Poppins, SIL Open Font License 1.1; see POPPINS-OFL.txt."
+  },
+  "output": {
+    "format": "AGMESH1",
+    "version": 4,
+    "vertex_stride": 36,
+    "file": "hyper-sl.agm",
+    "sha256": "783e234b7bbec5ca5a166b7e0230a5dcb57cbb6b561c4b75852d76f3b0ba4b89",
+    "bytes": 24888576,
+    "vertices": 167115,
+    "triangles": 174599,
+    "indices": 523797,
+    "atlas": [
+      2048,
+      2048
+    ],
+    "source_width": 8.846662521362305,
+    "source_shaft_origin": [
+      0,
+      0,
+      0
+    ],
+    "source_hub_translation": [
+      0,
+      0,
+      -0.75
+    ],
+    "width_m": 0.3,
+    "kind": 2,
+    "screen_rectangle": null,
+    "normalized_bounds": [
+      [
+        -0.5002115964889526,
+        -0.2864830791950226,
+        -0.19679702818393707
+      ],
+      [
+        0.499788373708725,
+        0.283718466758728,
+        0.1943330466747284
+      ]
+    ],
+    "led_mapping": {
+      "verified_control_groups": true,
+      "angular_wiring_verified": false,
+      "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+      "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+      "telemetry_banks": [
+        3,
+        12,
+        3
+      ],
+      "telemetry_bank_sizes_verified": true,
+      "telemetry_within_bank_orientation_verified": false,
+      "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+      "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+      "tagged_vertices": 3314,
+      "groups": [
+        {
+          "node": 17,
+          "name": "static_led_hyper-sl",
+          "tag": 1,
+          "vertices": 242,
+          "triangles": 226,
+          "center": [
+            -1.0366368293762207,
+            0.34171709418296814,
+            1.285262107849121
+          ],
+          "bounds": [
+            [
+              -1.4535359144210815,
+              -0.07544761896133423,
+              1.251878261566162
+            ],
+            [
+              -0.6197377443313599,
+              0.7588818073272705,
+              1.3186458349227905
+            ]
+          ],
+          "physical_first": 0,
+          "physical_count": 4
+        },
+        {
+          "node": 17,
+          "name": "static_led_hyper-sl",
+          "tag": 5,
+          "vertices": 242,
+          "triangles": 226,
+          "center": [
+            -0.0033329129219055176,
+            0.10661360621452332,
+            1.285262107849121
+          ],
+          "bounds": [
+            [
+              -0.4203205108642578,
+              -0.3104625344276428,
+              1.251878261566162
+            ],
+            [
+              0.4136546850204468,
+              0.5236897468566895,
+              1.3186458349227905
+            ]
+          ],
+          "physical_first": 4,
+          "physical_count": 4
+        },
+        {
+          "node": 17,
+          "name": "static_led_hyper-sl",
+          "tag": 9,
+          "vertices": 242,
+          "triangles": 226,
+          "center": [
+            1.0310336351394653,
+            0.34171709418296814,
+            1.285262107849121
+          ],
+          "bounds": [
+            [
+              0.614134669303894,
+              -0.07544761896133423,
+              1.251878261566162
+            ],
+            [
+              1.4479326009750366,
+              0.7588818073272705,
+              1.3186458349227905
+            ]
+          ],
+          "physical_first": 8,
+          "physical_count": 4
+        },
+        {
+          "node": 17,
+          "name": "static_led_hyper-sl",
+          "tag": 13,
+          "vertices": 242,
+          "triangles": 226,
+          "center": [
+            -0.7388392090797424,
+            -0.6382790803909302,
+            1.285262107849121
+          ],
+          "bounds": [
+            [
+              -1.1558268070220947,
+              -1.055355191230774,
+              1.251878261566162
+            ],
+            [
+              -0.32185161113739014,
+              -0.22120290994644165,
+              1.3186458349227905
+            ]
+          ],
+          "physical_first": 12,
+          "physical_count": 4
+        },
+        {
+          "node": 17,
+          "name": "static_led_hyper-sl",
+          "tag": 17,
+          "vertices": 242,
+          "triangles": 226,
+          "center": [
+            0.7326160073280334,
+            -0.6370393633842468,
+            1.285262107849121
+          ],
+          "bounds": [
+            [
+              0.3157169818878174,
+              -1.0541155338287354,
+              1.251878261566162
+            ],
+            [
+              1.1495150327682495,
+              -0.2199631929397583,
+              1.3186458349227905
+            ]
+          ],
+          "physical_first": 16,
+          "physical_count": 4
+        },
+        {
+          "node": 18,
+          "name": "custom_button_l_1_hyper-sl",
+          "tag": 21,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -2.9375157356262207,
+            2.0110678672790527,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -3.1118202209472656,
+              1.8366785049438477,
+              1.3798894882202148
+            ],
+            [
+              -2.763211488723755,
+              2.185457468032837,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 20,
+          "physical_count": 4
+        },
+        {
+          "node": 30,
+          "name": "sticker_l_1_hyper-sl",
+          "tag": 121,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.936790943145752,
+            2.0099024772644043,
+            1.4265782833099365
+          ],
+          "bounds": [
+            [
+              -3.0656850337982178,
+              1.8810081481933594,
+              1.4265782833099365
+            ],
+            [
+              -2.807896614074707,
+              2.13879656791687,
+              1.4265782833099365
+            ]
+          ],
+          "physical_first": 20,
+          "physical_count": 4
+        },
+        {
+          "node": 19,
+          "name": "custom_button_l_2_hyper-sl",
+          "tag": 25,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -2.352090358734131,
+            1.8645455837249756,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -2.5263946056365967,
+              1.690156102180481,
+              1.3798894882202148
+            ],
+            [
+              -2.177785873413086,
+              2.0389351844787598,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 4
+        },
+        {
+          "node": 31,
+          "name": "sticker_l_2_hyper-sl",
+          "tag": 125,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.3526854515075684,
+            1.8647048473358154,
+            1.427949070930481
+          ],
+          "bounds": [
+            [
+              -2.4815797805786133,
+              1.73581063747406,
+              1.427949070930481
+            ],
+            [
+              -2.2237913608551025,
+              1.9935991764068604,
+              1.427949070930481
+            ]
+          ],
+          "physical_first": 24,
+          "physical_count": 4
+        },
+        {
+          "node": 20,
+          "name": "custom_button_l_3_hyper-sl",
+          "tag": 29,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -2.058610439300537,
+            1.3458940982818604,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -2.232914686203003,
+              1.1715046167373657,
+              1.3798894882202148
+            ],
+            [
+              -1.8843060731887817,
+              1.520283579826355,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 4
+        },
+        {
+          "node": 32,
+          "name": "sticker_l_3_hyper-sl",
+          "tag": 129,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.0589799880981445,
+            1.3459434509277344,
+            1.4243133068084717
+          ],
+          "bounds": [
+            [
+              -2.1878743171691895,
+              1.217049241065979,
+              1.4243133068084717
+            ],
+            [
+              -1.9300858974456787,
+              1.4748377799987793,
+              1.4243133068084717
+            ]
+          ],
+          "physical_first": 28,
+          "physical_count": 4
+        },
+        {
+          "node": 21,
+          "name": "custom_button_l_6_hyper-sl",
+          "tag": 33,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -2.0192878246307373,
+            -0.5228586792945862,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -2.193592071533203,
+              -0.6972481608390808,
+              1.3798894882202148
+            ],
+            [
+              -1.844983458518982,
+              -0.34846919775009155,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 32,
+          "physical_count": 4
+        },
+        {
+          "node": 33,
+          "name": "sticker_l_6_hyper-sl",
+          "tag": 133,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -2.0201778411865234,
+            -0.5218329429626465,
+            1.4249974489212036
+          ],
+          "bounds": [
+            [
+              -2.1490721702575684,
+              -0.6507271528244019,
+              1.4249974489212036
+            ],
+            [
+              -1.8912837505340576,
+              -0.3929387032985687,
+              1.4249974489212036
+            ]
+          ],
+          "physical_first": 32,
+          "physical_count": 4
+        },
+        {
+          "node": 22,
+          "name": "custom_button_l_7_hyper-sl",
+          "tag": 37,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -1.8927080631256104,
+            -1.154390573501587,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -2.067012310028076,
+              -1.3287800550460815,
+              1.3798894882202148
+            ],
+            [
+              -1.7184038162231445,
+              -0.9800010919570923,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 36,
+          "physical_count": 4
+        },
+        {
+          "node": 34,
+          "name": "sticker_l_7_hyper-sl",
+          "tag": 137,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -1.8926550149917603,
+            -1.1548550128936768,
+            1.423789381980896
+          ],
+          "bounds": [
+            [
+              -2.0215492248535156,
+              -1.2837492227554321,
+              1.423789381980896
+            ],
+            [
+              -1.7637608051300049,
+              -1.0259606838226318,
+              1.423789381980896
+            ]
+          ],
+          "physical_first": 36,
+          "physical_count": 4
+        },
+        {
+          "node": 23,
+          "name": "custom_button_l_8_hyper-sl",
+          "tag": 41,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            -1.50205397605896,
+            -1.654792070388794,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              -1.6763583421707153,
+              -1.8291815519332886,
+              1.3798894882202148
+            ],
+            [
+              -1.3277497291564941,
+              -1.4804025888442993,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 4
+        },
+        {
+          "node": 35,
+          "name": "sticker_l_8_hyper-sl",
+          "tag": 141,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            -1.502232551574707,
+            -1.6541543006896973,
+            1.42732834815979
+          ],
+          "bounds": [
+            [
+              -1.6311267614364624,
+              -1.7830485105514526,
+              1.42732834815979
+            ],
+            [
+              -1.373338222503662,
+              -1.5252599716186523,
+              1.42732834815979
+            ]
+          ],
+          "physical_first": 40,
+          "physical_count": 4
+        },
+        {
+          "node": 24,
+          "name": "custom_button_r_10_hyper-sl",
+          "tag": 45,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            2.936764717102051,
+            2.0110678672790527,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              2.762460470199585,
+              1.8366785049438477,
+              1.3798894882202148
+            ],
+            [
+              3.1110692024230957,
+              2.185457468032837,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 4
+        },
+        {
+          "node": 36,
+          "name": "sticker_r_10_hyper-sl",
+          "tag": 145,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.9368338584899902,
+            2.012049674987793,
+            1.4289534091949463
+          ],
+          "bounds": [
+            [
+              2.8079395294189453,
+              1.883155345916748,
+              1.4289534091949463
+            ],
+            [
+              3.065727949142456,
+              2.140943765640259,
+              1.4289534091949463
+            ]
+          ],
+          "physical_first": 44,
+          "physical_count": 4
+        },
+        {
+          "node": 25,
+          "name": "custom_button_r_11_hyper-sl",
+          "tag": 49,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            2.351339817047119,
+            1.8645455837249756,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              2.177035331726074,
+              1.690156102180481,
+              1.3798894882202148
+            ],
+            [
+              2.525644063949585,
+              2.0389351844787598,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 4
+        },
+        {
+          "node": 37,
+          "name": "sticker_r_11_hyper-sl",
+          "tag": 149,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.351745128631592,
+            1.8648691177368164,
+            1.4254460334777832
+          ],
+          "bounds": [
+            [
+              2.222851037979126,
+              1.735974907875061,
+              1.4254460334777832
+            ],
+            [
+              2.4806394577026367,
+              1.9937634468078613,
+              1.4254460334777832
+            ]
+          ],
+          "physical_first": 48,
+          "physical_count": 4
+        },
+        {
+          "node": 26,
+          "name": "custom_button_r_12_hyper-sl",
+          "tag": 53,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            2.0578603744506836,
+            1.3458940982818604,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              1.8835561275482178,
+              1.1715046167373657,
+              1.3798894882202148
+            ],
+            [
+              2.2321648597717285,
+              1.520283579826355,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 52,
+          "physical_count": 4
+        },
+        {
+          "node": 38,
+          "name": "sticker_r_12_hyper-sl",
+          "tag": 153,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.0580976009368896,
+            1.345768690109253,
+            1.4252086877822876
+          ],
+          "bounds": [
+            [
+              1.9292033910751343,
+              1.216874361038208,
+              1.4252086877822876
+            ],
+            [
+              2.1869919300079346,
+              1.4746628999710083,
+              1.4252086877822876
+            ]
+          ],
+          "physical_first": 52,
+          "physical_count": 4
+        },
+        {
+          "node": 27,
+          "name": "custom_button_r_15_hyper-sl",
+          "tag": 57,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            2.018540382385254,
+            -0.5228586792945862,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              1.844236135482788,
+              -0.6972481608390808,
+              1.3798894882202148
+            ],
+            [
+              2.192844867706299,
+              -0.34846919775009155,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 56,
+          "physical_count": 4
+        },
+        {
+          "node": 39,
+          "name": "sticker_r_15_hyper-sl",
+          "tag": 157,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            2.018639326095581,
+            -0.5235393643379211,
+            1.4246242046356201
+          ],
+          "bounds": [
+            [
+              1.8897451162338257,
+              -0.6524336338043213,
+              1.4246242046356201
+            ],
+            [
+              2.147533655166626,
+              -0.3946451246738434,
+              1.4246242046356201
+            ]
+          ],
+          "physical_first": 56,
+          "physical_count": 4
+        },
+        {
+          "node": 28,
+          "name": "custom_button_r_16_hyper-sl",
+          "tag": 61,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            1.8919599056243896,
+            -1.154390573501587,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              1.7176555395126343,
+              -1.3287800550460815,
+              1.3798894882202148
+            ],
+            [
+              2.0662641525268555,
+              -0.9800010919570923,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 60,
+          "physical_count": 4
+        },
+        {
+          "node": 40,
+          "name": "sticker_r_16_hyper-sl",
+          "tag": 161,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            1.8922574520111084,
+            -1.1541874408721924,
+            1.4244786500930786
+          ],
+          "bounds": [
+            [
+              1.763363242149353,
+              -1.2830816507339478,
+              1.4244786500930786
+            ],
+            [
+              2.0211517810821533,
+              -1.0252931118011475,
+              1.4244786500930786
+            ]
+          ],
+          "physical_first": 60,
+          "physical_count": 4
+        },
+        {
+          "node": 29,
+          "name": "custom_button_r_17_hyper-sl",
+          "tag": 65,
+          "vertices": 112,
+          "triangles": 96,
+          "center": [
+            1.5013046264648438,
+            -1.654792070388794,
+            1.4010827541351318
+          ],
+          "bounds": [
+            [
+              1.327000379562378,
+              -1.8291815519332886,
+              1.3798894882202148
+            ],
+            [
+              1.6756089925765991,
+              -1.4804025888442993,
+              1.4222761392593384
+            ]
+          ],
+          "physical_first": 64,
+          "physical_count": 4
+        },
+        {
+          "node": 41,
+          "name": "sticker_r_17_hyper-sl",
+          "tag": 165,
+          "vertices": 48,
+          "triangles": 46,
+          "center": [
+            1.5019426345825195,
+            -1.6555497646331787,
+            1.425965666770935
+          ],
+          "bounds": [
+            [
+              1.3730483055114746,
+              -1.7844440937042236,
+              1.425965666770935
+            ],
+            [
+              1.630836844444275,
+              -1.5266555547714233,
+              1.425965666770935
+            ]
+          ],
+          "physical_first": 64,
+          "physical_count": 4
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 69,
+          "vertices": 27,
+          "triangles": 34,
+          "center": [
+            -1.4092369079589844,
+            1.0355387926101685,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -1.4404231309890747,
+              0.9989026188850403,
+              1.2488539218902588
+            ],
+            [
+              -1.3780508041381836,
+              1.0721749067306519,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 68,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 70,
+          "vertices": 24,
+          "triangles": 31,
+          "center": [
+            -1.613713026046753,
+            1.1482731103897095,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -1.6448992490768433,
+              1.1115360260009766,
+              1.2488539218902588
+            ],
+            [
+              -1.5825269222259521,
+              1.1850101947784424,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 69,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 71,
+          "vertices": 28,
+          "triangles": 33,
+          "center": [
+            -1.4092369079589844,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -1.4404231309890747,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -1.3780508041381836,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 70,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 72,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            -1.1296719312667847,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -1.1608580350875854,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -1.0984858274459839,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 71,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 73,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            -0.9245902299880981,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -0.9557763338088989,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -0.8934040665626526,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 72,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 74,
+          "vertices": 26,
+          "triangles": 33,
+          "center": [
+            -0.7195085287094116,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -0.7506946921348572,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -0.6883224248886108,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 73,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 75,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            -0.5144269466400146,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -0.5456131100654602,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -0.4832407832145691,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 74,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 76,
+          "vertices": 26,
+          "triangles": 33,
+          "center": [
+            -0.3093452453613281,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -0.3405314087867737,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -0.27815908193588257,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 75,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 77,
+          "vertices": 26,
+          "triangles": 33,
+          "center": [
+            -0.10446549952030182,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              -0.13565166294574738,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              -0.07327932864427567,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 76,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 78,
+          "vertices": 26,
+          "triangles": 33,
+          "center": [
+            0.10061614215373993,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              0.06943004578351974,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              0.1318022459745407,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 77,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 79,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            0.30569779872894287,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              0.2745116353034973,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              0.3368839621543884,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 78,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 80,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            0.5107795596122742,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              0.4795934557914734,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              0.541965663433075,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 79,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 81,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            0.7158611416816711,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              0.6846749186515808,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              0.7470473647117615,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 80,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 82,
+          "vertices": 24,
+          "triangles": 31,
+          "center": [
+            0.9207409024238586,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              0.8895546793937683,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              0.951927125453949,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 81,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 83,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            1.1258225440979004,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              1.09463632106781,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              1.1570087671279907,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 82,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 84,
+          "vertices": 28,
+          "triangles": 33,
+          "center": [
+            1.4053875207901,
+            1.26100754737854,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              1.3742014169692993,
+              1.224371314048767,
+              1.2488539218902588
+            ],
+            [
+              1.4365736246109009,
+              1.2976436614990234,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 83,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 85,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            1.6100655794143677,
+            1.1482731103897095,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              1.578879475593567,
+              1.1115360260009766,
+              1.2488539218902588
+            ],
+            [
+              1.6412516832351685,
+              1.1850101947784424,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 84,
+          "physical_count": 1
+        },
+        {
+          "node": 51,
+          "name": "HYPER_SL.006",
+          "tag": 86,
+          "vertices": 25,
+          "triangles": 32,
+          "center": [
+            1.4053875207901,
+            1.0355387926101685,
+            1.2561206817626953
+          ],
+          "bounds": [
+            [
+              1.3742014169692993,
+              0.9989026188850403,
+              1.2488539218902588
+            ],
+            [
+              1.4365736246109009,
+              1.0721749067306519,
+              1.2633873224258423
+            ]
+          ],
+          "physical_first": 85,
+          "physical_count": 1
+        }
+      ]
+    },
+    "geometry_adjustments": [],
+    "approximations": [
+      "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+      "Default configurator canvas stickers are baked from original font and icons.",
+      "Screen pixels are opaque dark for a separately fitted live dashboard.",
+      "New controls use verified physical-group means; individual angular wiring is unknown.",
+      "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+    ],
+    "optimization": {
+      "tool": "meshoptimizer 0.25",
+      "source_sha256": "ae5e079d3c6795c68e52ca28c58e49872c80dacf77455965760c77d7906da10e",
+      "source_vertices": 343045,
+      "source_triangles": 294039,
+      "triangle_reduction_percent": 40.620461911515136,
+      "target_error_mm": 0.075,
+      "max_reported_error_mm": 0.07487186521757394,
+      "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+    },
+    "model": {
+      "path": "assets/models/hyper-sl.agm",
+      "bytes": 24888576,
+      "sha256": "783e234b7bbec5ca5a166b7e0230a5dcb57cbb6b561c4b75852d76f3b0ba4b89"
+    },
+    "preview": {
+      "path": "assets/models/hyper-sl-preview.png",
+      "bytes": 291477,
+      "sha256": "f3868a8d7cb0c1648aa617043c1ea806250910171a5ceefff7448a94d6f2f617"
+    },
+    "suggested_physical_width_m": 0.3,
+    "physical_width_source": "https://gomezsimindustries.com/products/hyper-sl"
+  },
+  "conversion_tools": [
+    "tools/download_gsi_models.py",
+    "tools/decode_gsi_glb.cjs",
+    "tools/rasterize_gsi_icons.cjs",
+    "tools/convert_gsi_models.py",
+    "tools/gsi_model_lights.py",
+    "tools/gsi_light_sources.json",
+    "tools/optimize_gsi_mesh.cjs"
+  ],
+  "verification": [
+    "Decoded primitives preserve original node transforms and reverse winding for negative determinants; explicit decal-clearance adjustments are recorded separately.",
+    "Every protected control, sticker, LED, screen and logo triangle retains its attributes and winding after the documented decal-clearance correction.",
+    "Optimizer selects existing converted vertices only; it does not reposition geometry. Atlas bytes are unchanged by optimization.",
+    "Two complete conversion and optimization runs produced byte-identical AGM files.",
+    "Native front and angled stereo previews were reviewed before staging."
+  ]
+}

@@ -1,0 +1,81 @@
+// Re-declares the loader negotiation interface from the OpenXR SDK's
+// src/common/loader_interfaces.h, which carries this notice:
+//
+// Copyright (c) 2017-2023, The Khronos Group Inc.
+// Copyright (c) 2017 Valve Corporation
+// Copyright (c) 2017 LunarG, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//
+// See THIRD-PARTY-NOTICES.txt in the repository root.
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include <openxr/openxr.h>
+
+namespace depthxr {
+
+enum XrLoaderInterfaceStructs : uint32_t {
+    XR_LOADER_INTERFACE_STRUCT_UNINTIALIZED = 0,
+    XR_LOADER_INTERFACE_STRUCT_LOADER_INFO = 1,
+    XR_LOADER_INTERFACE_STRUCT_API_LAYER_REQUEST = 2,
+    XR_LOADER_INTERFACE_STRUCT_RUNTIME_REQUEST = 3,
+    XR_LOADER_INTERFACE_STRUCT_API_LAYER_CREATE_INFO = 4,
+    XR_LOADER_INTERFACE_STRUCT_API_LAYER_NEXT_INFO = 5,
+};
+
+constexpr uint32_t XR_LOADER_INFO_STRUCT_VERSION = 1;
+constexpr uint32_t XR_API_LAYER_INFO_STRUCT_VERSION = 1;
+constexpr uint32_t XR_API_LAYER_CREATE_INFO_STRUCT_VERSION = 1;
+constexpr uint32_t XR_API_LAYER_NEXT_INFO_STRUCT_VERSION = 1;
+constexpr uint32_t XR_CURRENT_LOADER_API_LAYER_VERSION = 1;
+constexpr uint32_t XR_API_LAYER_MAX_SETTINGS_PATH_SIZE = 512;
+
+struct XrApiLayerCreateInfo;
+
+using PFN_xrCreateApiLayerInstance =
+    XrResult(XRAPI_PTR*)(const XrInstanceCreateInfo* info, const XrApiLayerCreateInfo* layer_info, XrInstance* out);
+
+struct XrNegotiateLoaderInfo {
+    XrLoaderInterfaceStructs structType;
+    uint32_t structVersion;
+    size_t structSize;
+    uint32_t minInterfaceVersion;
+    uint32_t maxInterfaceVersion;
+    XrVersion minApiVersion;
+    XrVersion maxApiVersion;
+};
+
+struct XrNegotiateApiLayerRequest {
+    XrLoaderInterfaceStructs structType;
+    uint32_t structVersion;
+    size_t structSize;
+    uint32_t layerInterfaceVersion;
+    XrVersion layerApiVersion;
+    PFN_xrGetInstanceProcAddr getInstanceProcAddr;
+    PFN_xrCreateApiLayerInstance createApiLayerInstance;
+};
+
+struct XrApiLayerNextInfo {
+    XrLoaderInterfaceStructs structType;
+    uint32_t structVersion;
+    size_t structSize;
+    char layerName[XR_MAX_API_LAYER_NAME_SIZE];
+    PFN_xrGetInstanceProcAddr nextGetInstanceProcAddr;
+    PFN_xrCreateApiLayerInstance nextCreateApiLayerInstance;
+    XrApiLayerNextInfo* next;
+};
+
+struct XrApiLayerCreateInfo {
+    XrLoaderInterfaceStructs structType;
+    uint32_t structVersion;
+    size_t structSize;
+    void* loaderInstance;
+    char settings_file_location[XR_API_LAYER_MAX_SETTINGS_PATH_SIZE];
+    XrApiLayerNextInfo* nextInfo;
+};
+
+} // namespace depthxr

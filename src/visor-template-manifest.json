@@ -1,0 +1,8 @@
+{
+  "styles": ["formula", "gt", "open", "level3"],
+  "formats": {
+    "png": {"file": "visor-template.png", "extension": "png", "label": "Transparent PNG template"},
+    "guide": {"file": "visor-guide-{style}.png", "extension": "png", "label": "Visor guide PNG"},
+    "psd": {"file": "visor-template-{style}.psd", "extension": "psd", "label": "Layered Photoshop template"}
+  }
+}

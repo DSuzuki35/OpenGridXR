@@ -1,0 +1,3967 @@
+{
+  "format": "AGMESH1",
+  "version": 4,
+  "vertex_stride": 36,
+  "file": "hyper-sl.agm",
+  "sha256": "783e234b7bbec5ca5a166b7e0230a5dcb57cbb6b561c4b75852d76f3b0ba4b89",
+  "bytes": 24888576,
+  "vertices": 167115,
+  "triangles": 174599,
+  "indices": 523797,
+  "atlas": [
+    2048,
+    2048
+  ],
+  "source_width": 8.846662521362305,
+  "source_shaft_origin": [
+    0,
+    0,
+    0
+  ],
+  "source_hub_translation": [
+    0,
+    0,
+    -0.75
+  ],
+  "width_m": 0.3,
+  "kind": 2,
+  "screen_rectangle": null,
+  "normalized_bounds": [
+    [
+      -0.5002115964889526,
+      -0.2864830791950226,
+      -0.19679702818393707
+    ],
+    [
+      0.499788373708725,
+      0.283718466758728,
+      0.1943330466747284
+    ]
+  ],
+  "led_mapping": {
+    "verified_control_groups": true,
+    "angular_wiring_verified": false,
+    "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+    "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+    "telemetry_banks": [
+      3,
+      12,
+      3
+    ],
+    "telemetry_bank_sizes_verified": true,
+    "telemetry_within_bank_orientation_verified": false,
+    "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+    "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+    "tagged_vertices": 3314,
+    "groups": [
+      {
+        "node": 17,
+        "name": "static_led_hyper-sl",
+        "tag": 1,
+        "vertices": 242,
+        "triangles": 226,
+        "center": [
+          -1.0366368293762207,
+          0.34171709418296814,
+          1.285262107849121
+        ],
+        "bounds": [
+          [
+            -1.4535359144210815,
+            -0.07544761896133423,
+            1.251878261566162
+          ],
+          [
+            -0.6197377443313599,
+            0.7588818073272705,
+            1.3186458349227905
+          ]
+        ],
+        "physical_first": 0,
+        "physical_count": 4
+      },
+      {
+        "node": 17,
+        "name": "static_led_hyper-sl",
+        "tag": 5,
+        "vertices": 242,
+        "triangles": 226,
+        "center": [
+          -0.0033329129219055176,
+          0.10661360621452332,
+          1.285262107849121
+        ],
+        "bounds": [
+          [
+            -0.4203205108642578,
+            -0.3104625344276428,
+            1.251878261566162
+          ],
+          [
+            0.4136546850204468,
+            0.5236897468566895,
+            1.3186458349227905
+          ]
+        ],
+        "physical_first": 4,
+        "physical_count": 4
+      },
+      {
+        "node": 17,
+        "name": "static_led_hyper-sl",
+        "tag": 9,
+        "vertices": 242,
+        "triangles": 226,
+        "center": [
+          1.0310336351394653,
+          0.34171709418296814,
+          1.285262107849121
+        ],
+        "bounds": [
+          [
+            0.614134669303894,
+            -0.07544761896133423,
+            1.251878261566162
+          ],
+          [
+            1.4479326009750366,
+            0.7588818073272705,
+            1.3186458349227905
+          ]
+        ],
+        "physical_first": 8,
+        "physical_count": 4
+      },
+      {
+        "node": 17,
+        "name": "static_led_hyper-sl",
+        "tag": 13,
+        "vertices": 242,
+        "triangles": 226,
+        "center": [
+          -0.7388392090797424,
+          -0.6382790803909302,
+          1.285262107849121
+        ],
+        "bounds": [
+          [
+            -1.1558268070220947,
+            -1.055355191230774,
+            1.251878261566162
+          ],
+          [
+            -0.32185161113739014,
+            -0.22120290994644165,
+            1.3186458349227905
+          ]
+        ],
+        "physical_first": 12,
+        "physical_count": 4
+      },
+      {
+        "node": 17,
+        "name": "static_led_hyper-sl",
+        "tag": 17,
+        "vertices": 242,
+        "triangles": 226,
+        "center": [
+          0.7326160073280334,
+          -0.6370393633842468,
+          1.285262107849121
+        ],
+        "bounds": [
+          [
+            0.3157169818878174,
+            -1.0541155338287354,
+            1.251878261566162
+          ],
+          [
+            1.1495150327682495,
+            -0.2199631929397583,
+            1.3186458349227905
+          ]
+        ],
+        "physical_first": 16,
+        "physical_count": 4
+      },
+      {
+        "node": 18,
+        "name": "custom_button_l_1_hyper-sl",
+        "tag": 21,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -2.9375157356262207,
+          2.0110678672790527,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -3.1118202209472656,
+            1.8366785049438477,
+            1.3798894882202148
+          ],
+          [
+            -2.763211488723755,
+            2.185457468032837,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 20,
+        "physical_count": 4
+      },
+      {
+        "node": 30,
+        "name": "sticker_l_1_hyper-sl",
+        "tag": 121,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.936790943145752,
+          2.0099024772644043,
+          1.4265782833099365
+        ],
+        "bounds": [
+          [
+            -3.0656850337982178,
+            1.8810081481933594,
+            1.4265782833099365
+          ],
+          [
+            -2.807896614074707,
+            2.13879656791687,
+            1.4265782833099365
+          ]
+        ],
+        "physical_first": 20,
+        "physical_count": 4
+      },
+      {
+        "node": 19,
+        "name": "custom_button_l_2_hyper-sl",
+        "tag": 25,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -2.352090358734131,
+          1.8645455837249756,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -2.5263946056365967,
+            1.690156102180481,
+            1.3798894882202148
+          ],
+          [
+            -2.177785873413086,
+            2.0389351844787598,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 4
+      },
+      {
+        "node": 31,
+        "name": "sticker_l_2_hyper-sl",
+        "tag": 125,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.3526854515075684,
+          1.8647048473358154,
+          1.427949070930481
+        ],
+        "bounds": [
+          [
+            -2.4815797805786133,
+            1.73581063747406,
+            1.427949070930481
+          ],
+          [
+            -2.2237913608551025,
+            1.9935991764068604,
+            1.427949070930481
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 4
+      },
+      {
+        "node": 20,
+        "name": "custom_button_l_3_hyper-sl",
+        "tag": 29,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -2.058610439300537,
+          1.3458940982818604,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -2.232914686203003,
+            1.1715046167373657,
+            1.3798894882202148
+          ],
+          [
+            -1.8843060731887817,
+            1.520283579826355,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 28,
+        "physical_count": 4
+      },
+      {
+        "node": 32,
+        "name": "sticker_l_3_hyper-sl",
+        "tag": 129,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.0589799880981445,
+          1.3459434509277344,
+          1.4243133068084717
+        ],
+        "bounds": [
+          [
+            -2.1878743171691895,
+            1.217049241065979,
+            1.4243133068084717
+          ],
+          [
+            -1.9300858974456787,
+            1.4748377799987793,
+            1.4243133068084717
+          ]
+        ],
+        "physical_first": 28,
+        "physical_count": 4
+      },
+      {
+        "node": 21,
+        "name": "custom_button_l_6_hyper-sl",
+        "tag": 33,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -2.0192878246307373,
+          -0.5228586792945862,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -2.193592071533203,
+            -0.6972481608390808,
+            1.3798894882202148
+          ],
+          [
+            -1.844983458518982,
+            -0.34846919775009155,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 32,
+        "physical_count": 4
+      },
+      {
+        "node": 33,
+        "name": "sticker_l_6_hyper-sl",
+        "tag": 133,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.0201778411865234,
+          -0.5218329429626465,
+          1.4249974489212036
+        ],
+        "bounds": [
+          [
+            -2.1490721702575684,
+            -0.6507271528244019,
+            1.4249974489212036
+          ],
+          [
+            -1.8912837505340576,
+            -0.3929387032985687,
+            1.4249974489212036
+          ]
+        ],
+        "physical_first": 32,
+        "physical_count": 4
+      },
+      {
+        "node": 22,
+        "name": "custom_button_l_7_hyper-sl",
+        "tag": 37,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -1.8927080631256104,
+          -1.154390573501587,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -2.067012310028076,
+            -1.3287800550460815,
+            1.3798894882202148
+          ],
+          [
+            -1.7184038162231445,
+            -0.9800010919570923,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 36,
+        "physical_count": 4
+      },
+      {
+        "node": 34,
+        "name": "sticker_l_7_hyper-sl",
+        "tag": 137,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -1.8926550149917603,
+          -1.1548550128936768,
+          1.423789381980896
+        ],
+        "bounds": [
+          [
+            -2.0215492248535156,
+            -1.2837492227554321,
+            1.423789381980896
+          ],
+          [
+            -1.7637608051300049,
+            -1.0259606838226318,
+            1.423789381980896
+          ]
+        ],
+        "physical_first": 36,
+        "physical_count": 4
+      },
+      {
+        "node": 23,
+        "name": "custom_button_l_8_hyper-sl",
+        "tag": 41,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          -1.50205397605896,
+          -1.654792070388794,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            -1.6763583421707153,
+            -1.8291815519332886,
+            1.3798894882202148
+          ],
+          [
+            -1.3277497291564941,
+            -1.4804025888442993,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 4
+      },
+      {
+        "node": 35,
+        "name": "sticker_l_8_hyper-sl",
+        "tag": 141,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -1.502232551574707,
+          -1.6541543006896973,
+          1.42732834815979
+        ],
+        "bounds": [
+          [
+            -1.6311267614364624,
+            -1.7830485105514526,
+            1.42732834815979
+          ],
+          [
+            -1.373338222503662,
+            -1.5252599716186523,
+            1.42732834815979
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 4
+      },
+      {
+        "node": 24,
+        "name": "custom_button_r_10_hyper-sl",
+        "tag": 45,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          2.936764717102051,
+          2.0110678672790527,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            2.762460470199585,
+            1.8366785049438477,
+            1.3798894882202148
+          ],
+          [
+            3.1110692024230957,
+            2.185457468032837,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 4
+      },
+      {
+        "node": 36,
+        "name": "sticker_r_10_hyper-sl",
+        "tag": 145,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.9368338584899902,
+          2.012049674987793,
+          1.4289534091949463
+        ],
+        "bounds": [
+          [
+            2.8079395294189453,
+            1.883155345916748,
+            1.4289534091949463
+          ],
+          [
+            3.065727949142456,
+            2.140943765640259,
+            1.4289534091949463
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 4
+      },
+      {
+        "node": 25,
+        "name": "custom_button_r_11_hyper-sl",
+        "tag": 49,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          2.351339817047119,
+          1.8645455837249756,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            2.177035331726074,
+            1.690156102180481,
+            1.3798894882202148
+          ],
+          [
+            2.525644063949585,
+            2.0389351844787598,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 48,
+        "physical_count": 4
+      },
+      {
+        "node": 37,
+        "name": "sticker_r_11_hyper-sl",
+        "tag": 149,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.351745128631592,
+          1.8648691177368164,
+          1.4254460334777832
+        ],
+        "bounds": [
+          [
+            2.222851037979126,
+            1.735974907875061,
+            1.4254460334777832
+          ],
+          [
+            2.4806394577026367,
+            1.9937634468078613,
+            1.4254460334777832
+          ]
+        ],
+        "physical_first": 48,
+        "physical_count": 4
+      },
+      {
+        "node": 26,
+        "name": "custom_button_r_12_hyper-sl",
+        "tag": 53,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          2.0578603744506836,
+          1.3458940982818604,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            1.8835561275482178,
+            1.1715046167373657,
+            1.3798894882202148
+          ],
+          [
+            2.2321648597717285,
+            1.520283579826355,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 52,
+        "physical_count": 4
+      },
+      {
+        "node": 38,
+        "name": "sticker_r_12_hyper-sl",
+        "tag": 153,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.0580976009368896,
+          1.345768690109253,
+          1.4252086877822876
+        ],
+        "bounds": [
+          [
+            1.9292033910751343,
+            1.216874361038208,
+            1.4252086877822876
+          ],
+          [
+            2.1869919300079346,
+            1.4746628999710083,
+            1.4252086877822876
+          ]
+        ],
+        "physical_first": 52,
+        "physical_count": 4
+      },
+      {
+        "node": 27,
+        "name": "custom_button_r_15_hyper-sl",
+        "tag": 57,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          2.018540382385254,
+          -0.5228586792945862,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            1.844236135482788,
+            -0.6972481608390808,
+            1.3798894882202148
+          ],
+          [
+            2.192844867706299,
+            -0.34846919775009155,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 56,
+        "physical_count": 4
+      },
+      {
+        "node": 39,
+        "name": "sticker_r_15_hyper-sl",
+        "tag": 157,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.018639326095581,
+          -0.5235393643379211,
+          1.4246242046356201
+        ],
+        "bounds": [
+          [
+            1.8897451162338257,
+            -0.6524336338043213,
+            1.4246242046356201
+          ],
+          [
+            2.147533655166626,
+            -0.3946451246738434,
+            1.4246242046356201
+          ]
+        ],
+        "physical_first": 56,
+        "physical_count": 4
+      },
+      {
+        "node": 28,
+        "name": "custom_button_r_16_hyper-sl",
+        "tag": 61,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          1.8919599056243896,
+          -1.154390573501587,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            1.7176555395126343,
+            -1.3287800550460815,
+            1.3798894882202148
+          ],
+          [
+            2.0662641525268555,
+            -0.9800010919570923,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 60,
+        "physical_count": 4
+      },
+      {
+        "node": 40,
+        "name": "sticker_r_16_hyper-sl",
+        "tag": 161,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          1.8922574520111084,
+          -1.1541874408721924,
+          1.4244786500930786
+        ],
+        "bounds": [
+          [
+            1.763363242149353,
+            -1.2830816507339478,
+            1.4244786500930786
+          ],
+          [
+            2.0211517810821533,
+            -1.0252931118011475,
+            1.4244786500930786
+          ]
+        ],
+        "physical_first": 60,
+        "physical_count": 4
+      },
+      {
+        "node": 29,
+        "name": "custom_button_r_17_hyper-sl",
+        "tag": 65,
+        "vertices": 112,
+        "triangles": 96,
+        "center": [
+          1.5013046264648438,
+          -1.654792070388794,
+          1.4010827541351318
+        ],
+        "bounds": [
+          [
+            1.327000379562378,
+            -1.8291815519332886,
+            1.3798894882202148
+          ],
+          [
+            1.6756089925765991,
+            -1.4804025888442993,
+            1.4222761392593384
+          ]
+        ],
+        "physical_first": 64,
+        "physical_count": 4
+      },
+      {
+        "node": 41,
+        "name": "sticker_r_17_hyper-sl",
+        "tag": 165,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          1.5019426345825195,
+          -1.6555497646331787,
+          1.425965666770935
+        ],
+        "bounds": [
+          [
+            1.3730483055114746,
+            -1.7844440937042236,
+            1.425965666770935
+          ],
+          [
+            1.630836844444275,
+            -1.5266555547714233,
+            1.425965666770935
+          ]
+        ],
+        "physical_first": 64,
+        "physical_count": 4
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 69,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.4092369079589844,
+          1.0355387926101685,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -1.4404231309890747,
+            0.9989026188850403,
+            1.2488539218902588
+          ],
+          [
+            -1.3780508041381836,
+            1.0721749067306519,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 68,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 70,
+        "vertices": 24,
+        "triangles": 31,
+        "center": [
+          -1.613713026046753,
+          1.1482731103897095,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -1.6448992490768433,
+            1.1115360260009766,
+            1.2488539218902588
+          ],
+          [
+            -1.5825269222259521,
+            1.1850101947784424,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 69,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 71,
+        "vertices": 28,
+        "triangles": 33,
+        "center": [
+          -1.4092369079589844,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -1.4404231309890747,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -1.3780508041381836,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 70,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 72,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          -1.1296719312667847,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -1.1608580350875854,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -1.0984858274459839,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 71,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 73,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          -0.9245902299880981,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -0.9557763338088989,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -0.8934040665626526,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 72,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 74,
+        "vertices": 26,
+        "triangles": 33,
+        "center": [
+          -0.7195085287094116,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -0.7506946921348572,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -0.6883224248886108,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 73,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 75,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          -0.5144269466400146,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -0.5456131100654602,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -0.4832407832145691,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 74,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 76,
+        "vertices": 26,
+        "triangles": 33,
+        "center": [
+          -0.3093452453613281,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -0.3405314087867737,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -0.27815908193588257,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 75,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 77,
+        "vertices": 26,
+        "triangles": 33,
+        "center": [
+          -0.10446549952030182,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            -0.13565166294574738,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            -0.07327932864427567,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 76,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 78,
+        "vertices": 26,
+        "triangles": 33,
+        "center": [
+          0.10061614215373993,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            0.06943004578351974,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            0.1318022459745407,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 77,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 79,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          0.30569779872894287,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            0.2745116353034973,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            0.3368839621543884,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 78,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 80,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          0.5107795596122742,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            0.4795934557914734,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            0.541965663433075,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 79,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 81,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          0.7158611416816711,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            0.6846749186515808,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            0.7470473647117615,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 80,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 82,
+        "vertices": 24,
+        "triangles": 31,
+        "center": [
+          0.9207409024238586,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            0.8895546793937683,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            0.951927125453949,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 81,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 83,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          1.1258225440979004,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            1.09463632106781,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            1.1570087671279907,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 82,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 84,
+        "vertices": 28,
+        "triangles": 33,
+        "center": [
+          1.4053875207901,
+          1.26100754737854,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            1.3742014169692993,
+            1.224371314048767,
+            1.2488539218902588
+          ],
+          [
+            1.4365736246109009,
+            1.2976436614990234,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 83,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 85,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          1.6100655794143677,
+          1.1482731103897095,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            1.578879475593567,
+            1.1115360260009766,
+            1.2488539218902588
+          ],
+          [
+            1.6412516832351685,
+            1.1850101947784424,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 84,
+        "physical_count": 1
+      },
+      {
+        "node": 51,
+        "name": "HYPER_SL.006",
+        "tag": 86,
+        "vertices": 25,
+        "triangles": 32,
+        "center": [
+          1.4053875207901,
+          1.0355387926101685,
+          1.2561206817626953
+        ],
+        "bounds": [
+          [
+            1.3742014169692993,
+            0.9989026188850403,
+            1.2488539218902588
+          ],
+          [
+            1.4365736246109009,
+            1.0721749067306519,
+            1.2633873224258423
+          ]
+        ],
+        "physical_first": 85,
+        "physical_count": 1
+      }
+    ]
+  },
+  "geometry_adjustments": [],
+  "parts": [
+    {
+      "source": "hypersl",
+      "node": 0,
+      "name": "logo_GSI.002",
+      "material": 0,
+      "material_name": "White Plastic.016",
+      "atlas_key": "hypersl:0",
+      "kind": "solid",
+      "vertices": 146,
+      "triangles": 128,
+      "source_bounds": [
+        [
+          -0.5929274559020996,
+          0.034193992614746094,
+          1.2659841775894165
+        ],
+        [
+          0.5978505611419678,
+          0.8180156946182251,
+          1.2695456743240356
+        ]
+      ],
+      "vertex_start": 0,
+      "triangle_start": 0,
+      "source_vertices": 154,
+      "source_triangles": 128,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 1,
+      "name": "static_back_gxl.001",
+      "material": 1,
+      "material_name": "White Plastic",
+      "atlas_key": "hypersl:1",
+      "kind": "solid",
+      "vertices": 1015,
+      "triangles": 978,
+      "source_bounds": [
+        [
+          -0.30458682775497437,
+          -1.731488823890686,
+          1.2618489265441895
+        ],
+        [
+          0.30136972665786743,
+          -1.714576244354248,
+          1.2716134786605835
+        ]
+      ],
+      "vertex_start": 146,
+      "triangle_start": 128,
+      "source_vertices": 1016,
+      "source_triangles": 978,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 2,
+      "name": "path1",
+      "material": 2,
+      "material_name": "sticker_gsi",
+      "atlas_key": "hypersl:2",
+      "kind": "solid",
+      "vertices": 165,
+      "triangles": 151,
+      "source_bounds": [
+        [
+          -0.33134356141090393,
+          -1.2475825548171997,
+          1.2720452547073364
+        ],
+        [
+          0.1361391246318817,
+          -1.166601300239563,
+          1.2720452547073364
+        ]
+      ],
+      "vertex_start": 1161,
+      "triangle_start": 1106,
+      "source_vertices": 167,
+      "source_triangles": 151,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 3,
+      "name": "Text.004",
+      "material": -1,
+      "material_name": "sticker_19_hyper-sl",
+      "atlas_key": "hypersl:-1",
+      "kind": "solid",
+      "vertices": 365,
+      "triangles": 292,
+      "source_bounds": [
+        [
+          -3.7612338066101074,
+          1.9295852184295654,
+          1.3840941190719604
+        ],
+        [
+          -3.715855836868286,
+          1.9978206157684326,
+          1.3867721557617188
+        ]
+      ],
+      "vertex_start": 1326,
+      "triangle_start": 1257,
+      "source_vertices": 488,
+      "source_triangles": 292,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 4,
+      "name": "Text.005",
+      "material": -1,
+      "material_name": "sticker_19_hyper-sl",
+      "atlas_key": "hypersl:-1",
+      "kind": "solid",
+      "vertices": 367,
+      "triangles": 292,
+      "source_bounds": [
+        [
+          3.7180190086364746,
+          1.9271661043167114,
+          1.3840785026550293
+        ],
+        [
+          3.7633960247039795,
+          1.9953813552856445,
+          1.3867723941802979
+        ]
+      ],
+      "vertex_start": 1691,
+      "triangle_start": 1549,
+      "source_vertices": 518,
+      "source_triangles": 292,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 5,
+      "name": "custom_rotarie_l_0_hyper-sl",
+      "material": 3,
+      "material_name": "material_rotarie_l_0_hyper-sl",
+      "atlas_key": "hypersl:3",
+      "kind": "solid",
+      "vertices": 8164,
+      "triangles": 3264,
+      "source_bounds": [
+        [
+          -4.049684047698975,
+          1.667172908782959,
+          0.8419380187988281
+        ],
+        [
+          -3.640685796737671,
+          2.2565128803253174,
+          1.4447826147079468
+        ]
+      ],
+      "vertex_start": 2058,
+      "triangle_start": 1841,
+      "source_vertices": 9045,
+      "source_triangles": 3264,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 6,
+      "name": "custom_rotarie_r_13_hyper-sl",
+      "material": 4,
+      "material_name": "material_rotarie_r_13_hyper-sl",
+      "atlas_key": "hypersl:4",
+      "kind": "solid",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          1.8794313669204712,
+          0.5834545493125916,
+          1.2577693462371826
+        ],
+        [
+          2.183847427368164,
+          0.8878706097602844,
+          1.5759553909301758
+        ]
+      ],
+      "vertex_start": 10222,
+      "triangle_start": 5105,
+      "source_vertices": 3891,
+      "source_triangles": 6472,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 7,
+      "name": "custom_rotarie_r_14_hyper-sl",
+      "material": 5,
+      "material_name": "material_rotarie_r_14_hyper-sl",
+      "atlas_key": "hypersl:5",
+      "kind": "solid",
+      "vertices": 8165,
+      "triangles": 3264,
+      "source_bounds": [
+        [
+          2.2970058917999268,
+          -0.2570471465587616,
+          0.8419381380081177
+        ],
+        [
+          2.7060041427612305,
+          0.33229294419288635,
+          1.4447827339172363
+        ]
+      ],
+      "vertex_start": 13606,
+      "triangle_start": 11577,
+      "source_vertices": 8872,
+      "source_triangles": 3264,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 8,
+      "name": "custom_rotarie_19_hyper-sl",
+      "material": 6,
+      "material_name": "material_rotarie_19_hyper-sl",
+      "atlas_key": "hypersl:6",
+      "kind": "solid",
+      "vertices": 2037,
+      "triangles": 2493,
+      "source_bounds": [
+        [
+          -1.4199988842010498,
+          -0.04215317964553833,
+          1.3186395168304443
+        ],
+        [
+          -0.652560830116272,
+          0.7249569892883301,
+          1.7191988229751587
+        ]
+      ],
+      "vertex_start": 21771,
+      "triangle_start": 14841,
+      "source_vertices": 2367,
+      "source_triangles": 2493,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 9,
+      "name": "custom_rotarie_22_hyper-sl",
+      "material": 7,
+      "material_name": "material_rotarie_22_hyper-sl",
+      "atlas_key": "hypersl:7",
+      "kind": "solid",
+      "vertices": 2037,
+      "triangles": 2493,
+      "source_bounds": [
+        [
+          -1.1222076416015625,
+          -1.0221331119537354,
+          1.3186392784118652
+        ],
+        [
+          -0.35476958751678467,
+          -0.25502294301986694,
+          1.7191985845565796
+        ]
+      ],
+      "vertex_start": 23808,
+      "triangle_start": 17334,
+      "source_vertices": 2367,
+      "source_triangles": 2493,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 10,
+      "name": "custom_rotarie_21_hyper-sl",
+      "material": 8,
+      "material_name": "material_rotarie_21_hyper-sl",
+      "atlas_key": "hypersl:8",
+      "kind": "solid",
+      "vertices": 2037,
+      "triangles": 2493,
+      "source_bounds": [
+        [
+          -0.38670700788497925,
+          -0.27728942036628723,
+          1.3186395168304443
+        ],
+        [
+          0.38073092699050903,
+          0.4898206293582916,
+          1.7191987037658691
+        ]
+      ],
+      "vertex_start": 25845,
+      "triangle_start": 19827,
+      "source_vertices": 2367,
+      "source_triangles": 2493,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 11,
+      "name": "custom_rotarie_r_9_hyper-sl",
+      "material": 9,
+      "material_name": "material_rotarie_r_9_hyper-sl",
+      "atlas_key": "hypersl:9",
+      "kind": "solid",
+      "vertices": 8160,
+      "triangles": 3264,
+      "source_bounds": [
+        [
+          3.6406986713409424,
+          1.667172908782959,
+          0.8419380187988281
+        ],
+        [
+          4.049696922302246,
+          2.2565128803253174,
+          1.4447826147079468
+        ]
+      ],
+      "vertex_start": 27882,
+      "triangle_start": 22320,
+      "source_vertices": 9040,
+      "source_triangles": 3264,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 12,
+      "name": "custom_rotarie_l_4_hyper-sl",
+      "material": 10,
+      "material_name": "material_rotarie_l_4_hyper",
+      "atlas_key": "hypersl:10",
+      "kind": "solid",
+      "vertices": 3384,
+      "triangles": 6472,
+      "source_bounds": [
+        [
+          -2.1838507652282715,
+          0.5834545493125916,
+          1.2577693462371826
+        ],
+        [
+          -1.8794347047805786,
+          0.8878706097602844,
+          1.5759553909301758
+        ]
+      ],
+      "vertex_start": 36042,
+      "triangle_start": 25584,
+      "source_vertices": 3891,
+      "source_triangles": 6472,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 13,
+      "name": "custom_rotarie_l_5_hyper-sl",
+      "material": 11,
+      "material_name": "material_rotarie_l_5_hyper-sl",
+      "atlas_key": "hypersl:11",
+      "kind": "solid",
+      "vertices": 8166,
+      "triangles": 3264,
+      "source_bounds": [
+        [
+          -2.705991268157959,
+          -0.2570471465587616,
+          0.8419381380081177
+        ],
+        [
+          -2.2969930171966553,
+          0.33229294419288635,
+          1.4447827339172363
+        ]
+      ],
+      "vertex_start": 39426,
+      "triangle_start": 32056,
+      "source_vertices": 8852,
+      "source_triangles": 3264,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 14,
+      "name": "custom_rotarie_20_hyper-sl",
+      "material": 12,
+      "material_name": "material_rotarie_20_hyper-sl",
+      "atlas_key": "hypersl:12",
+      "kind": "solid",
+      "vertices": 2037,
+      "triangles": 2493,
+      "source_bounds": [
+        [
+          0.6475911736488342,
+          -0.04215317964553833,
+          1.3186395168304443
+        ],
+        [
+          1.4150291681289673,
+          0.7249569296836853,
+          1.7191987037658691
+        ]
+      ],
+      "vertex_start": 47592,
+      "triangle_start": 35320,
+      "source_vertices": 2367,
+      "source_triangles": 2493,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 15,
+      "name": "custom_rotarie_23_hyper-sl",
+      "material": 13,
+      "material_name": "material_rotarie_23_hyper-sl",
+      "atlas_key": "hypersl:13",
+      "kind": "solid",
+      "vertices": 2037,
+      "triangles": 2493,
+      "source_bounds": [
+        [
+          0.3491792678833008,
+          -1.0208922624588013,
+          1.3186392784118652
+        ],
+        [
+          1.116617202758789,
+          -0.2537822127342224,
+          1.71919846534729
+        ]
+      ],
+      "vertex_start": 49629,
+      "triangle_start": 37813,
+      "source_vertices": 2367,
+      "source_triangles": 2493,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 16,
+      "name": "custom_rotarie_18_hyper-sl",
+      "material": 14,
+      "material_name": "material_rotarie_18_hyper-sl",
+      "atlas_key": "hypersl:14",
+      "kind": "solid",
+      "vertices": 3511,
+      "triangles": 6726,
+      "source_bounds": [
+        [
+          -0.15247096121311188,
+          -0.9995327591896057,
+          1.228580117225647
+        ],
+        [
+          0.15246526896953583,
+          -0.694596529006958,
+          1.5473098754882812
+        ]
+      ],
+      "vertex_start": 51666,
+      "triangle_start": 40306,
+      "source_vertices": 4070,
+      "source_triangles": 6726,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 17,
+      "name": "static_led_hyper-sl",
+      "material": 15,
+      "material_name": "0,0,0.012",
+      "atlas_key": "hypersl:15",
+      "kind": "solid",
+      "vertices": 1130,
+      "triangles": 1130,
+      "source_bounds": [
+        [
+          -1.4535359144210815,
+          -1.055355191230774,
+          1.251878261566162
+        ],
+        [
+          1.4479326009750366,
+          0.7588818073272705,
+          1.3186458349227905
+        ]
+      ],
+      "vertex_start": 55177,
+      "triangle_start": 47032,
+      "source_vertices": 1210,
+      "source_triangles": 1130,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 18,
+      "name": "custom_button_l_1_hyper-sl",
+      "material": 16,
+      "material_name": "material_button_l_1_hyper-sl",
+      "atlas_key": "hypersl:16",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -3.1118202209472656,
+          1.8366785049438477,
+          1.0858235359191895
+        ],
+        [
+          -2.763211488723755,
+          2.185457468032837,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 56307,
+      "triangle_start": 48162,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 19,
+      "name": "custom_button_l_2_hyper-sl",
+      "material": 17,
+      "material_name": "material_button_l_2_hyper-sl",
+      "atlas_key": "hypersl:17",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -2.5263946056365967,
+          1.690156102180481,
+          1.0858235359191895
+        ],
+        [
+          -2.177785873413086,
+          2.0389351844787598,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 56836,
+      "triangle_start": 48595,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 20,
+      "name": "custom_button_l_3_hyper-sl",
+      "material": 18,
+      "material_name": "material_button_l_3_hyper-sl",
+      "atlas_key": "hypersl:18",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -2.232914686203003,
+          1.1715046167373657,
+          1.0858235359191895
+        ],
+        [
+          -1.8843060731887817,
+          1.520283579826355,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 57365,
+      "triangle_start": 49028,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 21,
+      "name": "custom_button_l_6_hyper-sl",
+      "material": 19,
+      "material_name": "material_button_l_6_hyper-sl",
+      "atlas_key": "hypersl:19",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -2.193592071533203,
+          -0.6972481608390808,
+          1.0858235359191895
+        ],
+        [
+          -1.844983458518982,
+          -0.34846919775009155,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 57894,
+      "triangle_start": 49461,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 22,
+      "name": "custom_button_l_7_hyper-sl",
+      "material": 20,
+      "material_name": "material_button_l_7_hyper-sl",
+      "atlas_key": "hypersl:20",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -2.067012310028076,
+          -1.3287800550460815,
+          1.0858235359191895
+        ],
+        [
+          -1.7184038162231445,
+          -0.9800010919570923,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 58423,
+      "triangle_start": 49894,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 23,
+      "name": "custom_button_l_8_hyper-sl",
+      "material": 21,
+      "material_name": "material_button_l_8_hyper-sl",
+      "atlas_key": "hypersl:21",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          -1.6763583421707153,
+          -1.8291815519332886,
+          1.0858235359191895
+        ],
+        [
+          -1.3277497291564941,
+          -1.4804025888442993,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 58952,
+      "triangle_start": 50327,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 24,
+      "name": "custom_button_r_10_hyper-sl",
+      "material": 22,
+      "material_name": "material_button_r_10_hyper-sl",
+      "atlas_key": "hypersl:22",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          2.762460470199585,
+          1.8366785049438477,
+          1.0858235359191895
+        ],
+        [
+          3.1110692024230957,
+          2.185457468032837,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 59481,
+      "triangle_start": 50760,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 25,
+      "name": "custom_button_r_11_hyper-sl",
+      "material": 23,
+      "material_name": "material_button_r_11_hyper-sl",
+      "atlas_key": "hypersl:23",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          2.177035331726074,
+          1.690156102180481,
+          1.0858235359191895
+        ],
+        [
+          2.525644063949585,
+          2.0389351844787598,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 60010,
+      "triangle_start": 51193,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 26,
+      "name": "custom_button_r_12_hyper-sl",
+      "material": 24,
+      "material_name": "material_button_r_12_hyper-sl",
+      "atlas_key": "hypersl:24",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          1.8835561275482178,
+          1.1715046167373657,
+          1.0858235359191895
+        ],
+        [
+          2.2321648597717285,
+          1.520283579826355,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 60539,
+      "triangle_start": 51626,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 27,
+      "name": "custom_button_r_15_hyper-sl",
+      "material": 25,
+      "material_name": "material_button_r_15_hyper-sl",
+      "atlas_key": "hypersl:25",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          1.844236135482788,
+          -0.6972481608390808,
+          1.0858235359191895
+        ],
+        [
+          2.192844867706299,
+          -0.34846919775009155,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 61068,
+      "triangle_start": 52059,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 28,
+      "name": "custom_button_r_16_hyper-sl",
+      "material": 26,
+      "material_name": "material_button_r_16_hyper-sl",
+      "atlas_key": "hypersl:26",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          1.7176555395126343,
+          -1.3287800550460815,
+          1.0858235359191895
+        ],
+        [
+          2.0662641525268555,
+          -0.9800010919570923,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 61597,
+      "triangle_start": 52492,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 29,
+      "name": "custom_button_r_17_hyper-sl",
+      "material": 27,
+      "material_name": "material_button_r_17_hyper-sl",
+      "atlas_key": "hypersl:27",
+      "kind": "solid",
+      "vertices": 529,
+      "triangles": 433,
+      "source_bounds": [
+        [
+          1.327000379562378,
+          -1.8291815519332886,
+          1.0858235359191895
+        ],
+        [
+          1.6756089925765991,
+          -1.4804025888442993,
+          1.4222761392593384
+        ]
+      ],
+      "vertex_start": 62126,
+      "triangle_start": 52925,
+      "source_vertices": 553,
+      "source_triangles": 433,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 30,
+      "name": "sticker_l_1_hyper-sl",
+      "material": 28,
+      "material_name": "sticker_l_1_hyper-sl",
+      "atlas_key": "sticker:1",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -3.0656850337982178,
+          1.8810081481933594,
+          1.4265782833099365
+        ],
+        [
+          -2.807896614074707,
+          2.13879656791687,
+          1.4265782833099365
+        ]
+      ],
+      "vertex_start": 62655,
+      "triangle_start": 53358,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 31,
+      "name": "sticker_l_2_hyper-sl",
+      "material": 29,
+      "material_name": "sticker_l_2_hyper-sl",
+      "atlas_key": "sticker:2",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -2.4815797805786133,
+          1.73581063747406,
+          1.427949070930481
+        ],
+        [
+          -2.2237913608551025,
+          1.9935991764068604,
+          1.427949070930481
+        ]
+      ],
+      "vertex_start": 62703,
+      "triangle_start": 53404,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 32,
+      "name": "sticker_l_3_hyper-sl",
+      "material": 30,
+      "material_name": "sticker_l_3_hyper-sl",
+      "atlas_key": "sticker:3",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -2.1878743171691895,
+          1.217049241065979,
+          1.4243133068084717
+        ],
+        [
+          -1.9300858974456787,
+          1.4748377799987793,
+          1.4243133068084717
+        ]
+      ],
+      "vertex_start": 62751,
+      "triangle_start": 53450,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 33,
+      "name": "sticker_l_6_hyper-sl",
+      "material": 31,
+      "material_name": "sticker_l_6_hyper-sl",
+      "atlas_key": "sticker:6",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -2.1490721702575684,
+          -0.6507271528244019,
+          1.4249974489212036
+        ],
+        [
+          -1.8912837505340576,
+          -0.3929387032985687,
+          1.4249974489212036
+        ]
+      ],
+      "vertex_start": 62799,
+      "triangle_start": 53496,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 34,
+      "name": "sticker_l_7_hyper-sl",
+      "material": 32,
+      "material_name": "sticker_l_7_hyper-sl",
+      "atlas_key": "sticker:7",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -2.0215492248535156,
+          -1.2837492227554321,
+          1.423789381980896
+        ],
+        [
+          -1.7637608051300049,
+          -1.0259606838226318,
+          1.423789381980896
+        ]
+      ],
+      "vertex_start": 62847,
+      "triangle_start": 53542,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 35,
+      "name": "sticker_l_8_hyper-sl",
+      "material": 33,
+      "material_name": "sticker_l_8_hyper-sl",
+      "atlas_key": "sticker:8",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -1.6311267614364624,
+          -1.7830485105514526,
+          1.42732834815979
+        ],
+        [
+          -1.373338222503662,
+          -1.5252599716186523,
+          1.42732834815979
+        ]
+      ],
+      "vertex_start": 62895,
+      "triangle_start": 53588,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 36,
+      "name": "sticker_r_10_hyper-sl",
+      "material": 34,
+      "material_name": "sticker_r_10_hyper-sl",
+      "atlas_key": "sticker:10",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          2.8079395294189453,
+          1.883155345916748,
+          1.4289534091949463
+        ],
+        [
+          3.065727949142456,
+          2.140943765640259,
+          1.4289534091949463
+        ]
+      ],
+      "vertex_start": 62943,
+      "triangle_start": 53634,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 37,
+      "name": "sticker_r_11_hyper-sl",
+      "material": 35,
+      "material_name": "sticker_r_11_hyper-sl",
+      "atlas_key": "sticker:11",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          2.222851037979126,
+          1.735974907875061,
+          1.4254460334777832
+        ],
+        [
+          2.4806394577026367,
+          1.9937634468078613,
+          1.4254460334777832
+        ]
+      ],
+      "vertex_start": 62991,
+      "triangle_start": 53680,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 38,
+      "name": "sticker_r_12_hyper-sl",
+      "material": 36,
+      "material_name": "sticker_r_12_hyper-sl",
+      "atlas_key": "sticker:12",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          1.9292033910751343,
+          1.216874361038208,
+          1.4252086877822876
+        ],
+        [
+          2.1869919300079346,
+          1.4746628999710083,
+          1.4252086877822876
+        ]
+      ],
+      "vertex_start": 63039,
+      "triangle_start": 53726,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 39,
+      "name": "sticker_r_15_hyper-sl",
+      "material": 37,
+      "material_name": "sticker_r_15_hyper-sl",
+      "atlas_key": "sticker:15",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          1.8897451162338257,
+          -0.6524336338043213,
+          1.4246242046356201
+        ],
+        [
+          2.147533655166626,
+          -0.3946451246738434,
+          1.4246242046356201
+        ]
+      ],
+      "vertex_start": 63087,
+      "triangle_start": 53772,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 40,
+      "name": "sticker_r_16_hyper-sl",
+      "material": 38,
+      "material_name": "sticker_r_16_hyper-sl",
+      "atlas_key": "sticker:16",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          1.763363242149353,
+          -1.2830816507339478,
+          1.4244786500930786
+        ],
+        [
+          2.0211517810821533,
+          -1.0252931118011475,
+          1.4244786500930786
+        ]
+      ],
+      "vertex_start": 63135,
+      "triangle_start": 53818,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 41,
+      "name": "sticker_r_17_hyper-sl",
+      "material": 39,
+      "material_name": "sticker_r_17_hyper-sl",
+      "atlas_key": "sticker:17",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          1.3730483055114746,
+          -1.7844440937042236,
+          1.425965666770935
+        ],
+        [
+          1.630836844444275,
+          -1.5266555547714233,
+          1.425965666770935
+        ]
+      ],
+      "vertex_start": 63183,
+      "triangle_start": 53864,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 42,
+      "name": "sticker_l_4_hyper-sl",
+      "material": 40,
+      "material_name": "sticker_l_4_hyper-sl",
+      "atlas_key": "sticker:4",
+      "kind": "sticker",
+      "vertices": 159,
+      "triangles": 155,
+      "source_bounds": [
+        [
+          -2.4084298610687256,
+          0.41403019428253174,
+          1.2644500732421875
+        ],
+        [
+          -1.8105738162994385,
+          1.0125072002410889,
+          1.2644500732421875
+        ]
+      ],
+      "vertex_start": 63231,
+      "triangle_start": 53910,
+      "source_vertices": 159,
+      "source_triangles": 155,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 43,
+      "name": "sticker_r_13_hyper-sl",
+      "material": 41,
+      "material_name": "sticker_r_13_hyper-sl",
+      "atlas_key": "sticker:13",
+      "kind": "sticker",
+      "vertices": 168,
+      "triangles": 155,
+      "source_bounds": [
+        [
+          1.810577630996704,
+          0.41403019428253174,
+          1.2644680738449097
+        ],
+        [
+          2.408433675765991,
+          1.0125072002410889,
+          1.2644680738449097
+        ]
+      ],
+      "vertex_start": 63390,
+      "triangle_start": 54065,
+      "source_vertices": 171,
+      "source_triangles": 155,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 44,
+      "name": "sticker_c_5_hyper-sl",
+      "material": 42,
+      "material_name": "sticker_black.001",
+      "atlas_key": "hypersl:42",
+      "kind": "solid",
+      "vertices": 378,
+      "triangles": 371,
+      "source_bounds": [
+        [
+          -1.5400493144989014,
+          -1.2988933324813843,
+          1.2656517028808594
+        ],
+        [
+          1.5502574443817139,
+          0.8590208292007446,
+          1.2656517028808594
+        ]
+      ],
+      "vertex_start": 63558,
+      "triangle_start": 54220,
+      "source_vertices": 379,
+      "source_triangles": 371,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 45,
+      "name": "HYPER_SL",
+      "material": 43,
+      "material_name": "Black_Plastic.002",
+      "atlas_key": "hypersl:43",
+      "kind": "solid",
+      "vertices": 7730,
+      "triangles": 11722,
+      "source_bounds": [
+        [
+          -4.300146102905273,
+          -2.0346360206604004,
+          1.1667938232421875
+        ],
+        [
+          4.300146102905273,
+          2.4500303268432617,
+          1.4969887733459473
+        ]
+      ],
+      "vertex_start": 63936,
+      "triangle_start": 54591,
+      "source_vertices": 36904,
+      "source_triangles": 18656,
+      "protected": false,
+      "error_mm": 0.07395767024718225
+    },
+    {
+      "source": "hypersl",
+      "node": 46,
+      "name": "HYPER P1 Assembly_V2.009",
+      "material": 44,
+      "material_name": "White_metalic.003",
+      "atlas_key": "hypersl:44",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -0.10925078392028809,
+          -0.9553500413894653,
+          1.5261257886886597
+        ],
+        [
+          0.1070113405585289,
+          -0.7392330765724182,
+          1.5267198085784912
+        ]
+      ],
+      "vertex_start": 71666,
+      "triangle_start": 66313,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 47,
+      "name": "HYPER P1 Assembly_V2.010",
+      "material": 45,
+      "material_name": "White_metalic.004",
+      "atlas_key": "hypersl:45",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -2.1392271518707275,
+          0.6273301839828491,
+          1.5541527271270752
+        ],
+        [
+          -1.9229649305343628,
+          0.8434471487998962,
+          1.5547467470169067
+        ]
+      ],
+      "vertex_start": 71721,
+      "triangle_start": 66366,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 48,
+      "name": "HYPER P1 Assembly_V2.020",
+      "material": 45,
+      "material_name": "White_metalic.004",
+      "atlas_key": "hypersl:45",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          1.923871397972107,
+          0.6273301839828491,
+          1.5541527271270752
+        ],
+        [
+          2.1401336193084717,
+          0.8434471487998962,
+          1.5547467470169067
+        ]
+      ],
+      "vertex_start": 71776,
+      "triangle_start": 66419,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 49,
+      "name": "static_front_face _hyper-sl",
+      "material": 46,
+      "material_name": "Carbon Fiber.004",
+      "atlas_key": "hypersl:46",
+      "kind": "solid",
+      "vertices": 4464,
+      "triangles": 4522,
+      "source_bounds": [
+        [
+          -4.366302490234375,
+          -2.0912437438964844,
+          1.1169975996017456
+        ],
+        [
+          4.362504959106445,
+          2.509455680847168,
+          1.2635166645050049
+        ]
+      ],
+      "vertex_start": 71831,
+      "triangle_start": 66472,
+      "source_vertices": 7428,
+      "source_triangles": 5180,
+      "protected": false,
+      "error_mm": 0.07329540385399014
+    },
+    {
+      "source": "hypersl",
+      "node": 50,
+      "name": "HYPER_SL.005",
+      "material": 47,
+      "material_name": "Rubber Black.001",
+      "atlas_key": "hypersl:47",
+      "kind": "solid",
+      "vertices": 4148,
+      "triangles": 8276,
+      "source_bounds": [
+        [
+          -4.425203323364258,
+          -2.534419059753418,
+          0.37358254194259644
+        ],
+        [
+          4.421459197998047,
+          1.4436900615692139,
+          1.7084386348724365
+        ]
+      ],
+      "vertex_start": 76295,
+      "triangle_start": 70994,
+      "source_vertices": 11815,
+      "source_triangles": 20852,
+      "protected": false,
+      "error_mm": 0.07487186521757394
+    },
+    {
+      "source": "hypersl",
+      "node": 51,
+      "name": "HYPER_SL.006",
+      "material": 48,
+      "material_name": "0,0,0.006",
+      "atlas_key": "hypersl:48",
+      "kind": "solid",
+      "vertices": 1237,
+      "triangles": 1536,
+      "source_bounds": [
+        [
+          -1.6562029123306274,
+          0.9934526085853577,
+          1.175581693649292
+        ],
+        [
+          1.6507385969161987,
+          1.303093671798706,
+          1.2633873224258423
+        ]
+      ],
+      "vertex_start": 80443,
+      "triangle_start": 79270,
+      "source_vertices": 1991,
+      "source_triangles": 1536,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 52,
+      "name": "icon_ctrl",
+      "material": 48,
+      "material_name": "0,0,0.006",
+      "atlas_key": "hypersl:48",
+      "kind": "solid",
+      "vertices": 823,
+      "triangles": 461,
+      "source_bounds": [
+        [
+          3.3810765743255615,
+          1.8446552753448486,
+          1.4354445934295654
+        ],
+        [
+          3.592355489730835,
+          2.0570621490478516,
+          1.4548403024673462
+        ]
+      ],
+      "vertex_start": 81680,
+      "triangle_start": 80806,
+      "source_vertices": 1237,
+      "source_triangles": 461,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 53,
+      "name": "icon_map",
+      "material": 48,
+      "material_name": "0,0,0.006",
+      "atlas_key": "hypersl:48",
+      "kind": "solid",
+      "vertices": 772,
+      "triangles": 419,
+      "source_bounds": [
+        [
+          -3.5827982425689697,
+          1.867411732673645,
+          1.4216692447662354
+        ],
+        [
+          -3.420590400695801,
+          2.072953701019287,
+          1.4413915872573853
+        ]
+      ],
+      "vertex_start": 82503,
+      "triangle_start": 81267,
+      "source_vertices": 1143,
+      "source_triangles": 419,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 54,
+      "name": "icon_page",
+      "material": 49,
+      "material_name": "SVGMat.012",
+      "atlas_key": "hypersl:49",
+      "kind": "solid",
+      "vertices": 211,
+      "triangles": 154,
+      "source_bounds": [
+        [
+          2.041016101837158,
+          -0.08263872563838959,
+          1.4254980087280273
+        ],
+        [
+          2.2385056018829346,
+          0.15894052386283875,
+          1.4491944313049316
+        ]
+      ],
+      "vertex_start": 83275,
+      "triangle_start": 81686,
+      "source_vertices": 212,
+      "source_triangles": 154,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 55,
+      "name": "icon_set",
+      "material": 49,
+      "material_name": "SVGMat.012",
+      "atlas_key": "hypersl:49",
+      "kind": "solid",
+      "vertices": 323,
+      "triangles": 206,
+      "source_bounds": [
+        [
+          -2.2160043716430664,
+          -0.08570230007171631,
+          1.4247790575027466
+        ],
+        [
+          -2.0737624168395996,
+          0.1571437269449234,
+          1.4485256671905518
+        ]
+      ],
+      "vertex_start": 83486,
+      "triangle_start": 81840,
+      "source_vertices": 454,
+      "source_triangles": 206,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 56,
+      "name": "static_HYPER_SL_Screws",
+      "material": 50,
+      "material_name": "Black_Plastic.004",
+      "atlas_key": "hypersl:50",
+      "kind": "solid",
+      "vertices": 2237,
+      "triangles": 2179,
+      "source_bounds": [
+        [
+          -4.248501300811768,
+          -1.963381290435791,
+          1.269352674484253
+        ],
+        [
+          4.247775554656982,
+          2.2782745361328125,
+          1.3212130069732666
+        ]
+      ],
+      "vertex_start": 83809,
+      "triangle_start": 82046,
+      "source_vertices": 7726,
+      "source_triangles": 4324,
+      "protected": false,
+      "error_mm": 0.07482998189516366
+    },
+    {
+      "source": "hypersl",
+      "node": 57,
+      "name": "HYPER_SL.001",
+      "material": 51,
+      "material_name": "Carbon_Controls.002",
+      "atlas_key": "hypersl:51",
+      "kind": "solid",
+      "vertices": 3500,
+      "triangles": 1636,
+      "source_bounds": [
+        [
+          -3.7803940773010254,
+          -1.0626225471496582,
+          -0.5782691836357117
+        ],
+        [
+          3.7803940773010254,
+          1.0478262901306152,
+          -0.4610476493835449
+        ]
+      ],
+      "vertex_start": 86046,
+      "triangle_start": 84225,
+      "source_vertices": 4350,
+      "source_triangles": 1644,
+      "protected": false,
+      "error_mm": 0.05721084162360057
+    },
+    {
+      "source": "hypersl",
+      "node": 58,
+      "name": "HYPER_SL.002",
+      "material": 51,
+      "material_name": "Carbon_Controls.002",
+      "atlas_key": "hypersl:51",
+      "kind": "solid",
+      "vertices": 3290,
+      "triangles": 1576,
+      "source_bounds": [
+        [
+          -4.0601043701171875,
+          1.08743417263031,
+          -0.5782663822174072
+        ],
+        [
+          4.0601043701171875,
+          2.285416603088379,
+          -0.4612933397293091
+        ]
+      ],
+      "vertex_start": 89546,
+      "triangle_start": 85861,
+      "source_vertices": 4380,
+      "source_triangles": 1672,
+      "protected": false,
+      "error_mm": 0.07487118418794125
+    },
+    {
+      "source": "hypersl",
+      "node": 59,
+      "name": "static_back_face _hyper-sl",
+      "material": 43,
+      "material_name": "Black_Plastic.002",
+      "atlas_key": "hypersl:43",
+      "kind": "solid",
+      "vertices": 7253,
+      "triangles": 9123,
+      "source_bounds": [
+        [
+          -4.3662495613098145,
+          -2.091243267059326,
+          0.09064650535583496
+        ],
+        [
+          4.36250638961792,
+          2.5099616050720215,
+          1.2894319295883179
+        ]
+      ],
+      "vertex_start": 92836,
+      "triangle_start": 87437,
+      "source_vertices": 42478,
+      "source_triangles": 20558,
+      "protected": false,
+      "error_mm": 0.0744649936677888
+    },
+    {
+      "source": "hypersl",
+      "node": 60,
+      "name": "HYPER_SL_Assembly_rear_01.001",
+      "material": 52,
+      "material_name": "Black Plastic.015",
+      "atlas_key": "hypersl:52",
+      "kind": "solid",
+      "vertices": 9611,
+      "triangles": 9931,
+      "source_bounds": [
+        [
+          -3.283820867538452,
+          0.8388541340827942,
+          -0.689105749130249
+        ],
+        [
+          3.283820867538452,
+          1.8803443908691406,
+          0.2385340929031372
+        ]
+      ],
+      "vertex_start": 100089,
+      "triangle_start": 96560,
+      "source_vertices": 21292,
+      "source_triangles": 20720,
+      "protected": false,
+      "error_mm": 0.0746210542274639
+    },
+    {
+      "source": "hypersl",
+      "node": 60,
+      "name": "HYPER_SL_Assembly_rear_01.001",
+      "material": 53,
+      "material_name": "White Plastic.015",
+      "atlas_key": "hypersl:53",
+      "kind": "solid",
+      "vertices": 596,
+      "triangles": 552,
+      "source_bounds": [
+        [
+          -2.9851982593536377,
+          1.2509100437164307,
+          -0.39538389444351196
+        ],
+        [
+          2.9851982593536377,
+          1.6328288316726685,
+          -0.24268926680088043
+        ]
+      ],
+      "vertex_start": 109700,
+      "triangle_start": 106491,
+      "source_vertices": 596,
+      "source_triangles": 552,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 60,
+      "name": "HYPER_SL_Assembly_rear_01.001",
+      "material": 54,
+      "material_name": "Metal Black.007",
+      "atlas_key": "hypersl:54",
+      "kind": "solid",
+      "vertices": 461,
+      "triangles": 444,
+      "source_bounds": [
+        [
+          -3.225677967071533,
+          1.1437195539474487,
+          -0.6119914650917053
+        ],
+        [
+          3.225677967071533,
+          1.5615239143371582,
+          -0.5698566436767578
+        ]
+      ],
+      "vertex_start": 110296,
+      "triangle_start": 107043,
+      "source_vertices": 1752,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.05855822819285095
+    },
+    {
+      "source": "hypersl",
+      "node": 61,
+      "name": "HYPER_SL_Assembly_rear_01.003",
+      "material": 52,
+      "material_name": "Black Plastic.015",
+      "atlas_key": "hypersl:52",
+      "kind": "solid",
+      "vertices": 9622,
+      "triangles": 9950,
+      "source_bounds": [
+        [
+          -3.1458723545074463,
+          -0.3934665322303772,
+          -0.6880894899368286
+        ],
+        [
+          3.1458723545074463,
+          0.6480527520179749,
+          0.23936963081359863
+        ]
+      ],
+      "vertex_start": 110757,
+      "triangle_start": 107487,
+      "source_vertices": 21276,
+      "source_triangles": 20708,
+      "protected": false,
+      "error_mm": 0.07364363700617105
+    },
+    {
+      "source": "hypersl",
+      "node": 61,
+      "name": "HYPER_SL_Assembly_rear_01.003",
+      "material": 53,
+      "material_name": "White Plastic.015",
+      "atlas_key": "hypersl:53",
+      "kind": "solid",
+      "vertices": 596,
+      "triangles": 552,
+      "source_bounds": [
+        [
+          -2.847249984741211,
+          0.01858939230442047,
+          -0.39436766505241394
+        ],
+        [
+          2.847249984741211,
+          0.4005863070487976,
+          -0.24142986536026
+        ]
+      ],
+      "vertex_start": 120379,
+      "triangle_start": 117437,
+      "source_vertices": 596,
+      "source_triangles": 552,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 61,
+      "name": "HYPER_SL_Assembly_rear_01.003",
+      "material": 54,
+      "material_name": "Metal Black.007",
+      "atlas_key": "hypersl:54",
+      "kind": "solid",
+      "vertices": 462,
+      "triangles": 444,
+      "source_bounds": [
+        [
+          -3.0877294540405273,
+          -0.08860109001398087,
+          -0.6109752655029297
+        ],
+        [
+          3.0877294540405273,
+          0.32942885160446167,
+          -0.5691345930099487
+        ]
+      ],
+      "vertex_start": 120975,
+      "triangle_start": 117989,
+      "source_vertices": 1752,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.059863447677344084
+    },
+    {
+      "source": "hypersl",
+      "node": 62,
+      "name": "HYPER_SL_Assembly_rear_02.002",
+      "material": 51,
+      "material_name": "Carbon_Controls.002",
+      "atlas_key": "hypersl:51",
+      "kind": "solid",
+      "vertices": 992,
+      "triangles": 1268,
+      "source_bounds": [
+        [
+          -3.2427473068237305,
+          -2.367056131362915,
+          -1.147446632385254
+        ],
+        [
+          3.2427473068237305,
+          -1.112156629562378,
+          -0.5393943786621094
+        ]
+      ],
+      "vertex_start": 121437,
+      "triangle_start": 118433,
+      "source_vertices": 1546,
+      "source_triangles": 1280,
+      "protected": false,
+      "error_mm": 0.07093454914866015
+    },
+    {
+      "source": "hypersl",
+      "node": 62,
+      "name": "HYPER_SL_Assembly_rear_02.002",
+      "material": 55,
+      "material_name": "White Plastic.010",
+      "atlas_key": "hypersl:55",
+      "kind": "solid",
+      "vertices": 100,
+      "triangles": 96,
+      "source_bounds": [
+        [
+          -1.889568567276001,
+          -1.307106614112854,
+          -0.6387653350830078
+        ],
+        [
+          1.889568567276001,
+          -1.0512888431549072,
+          -0.5391140580177307
+        ]
+      ],
+      "vertex_start": 122429,
+      "triangle_start": 119701,
+      "source_vertices": 100,
+      "source_triangles": 96,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 63,
+      "name": "HYPER_SL_Assembly_rear_02.003",
+      "material": 56,
+      "material_name": "Black Plastic.013",
+      "atlas_key": "hypersl:56",
+      "kind": "solid",
+      "vertices": 20933,
+      "triangles": 26267,
+      "source_bounds": [
+        [
+          -2.2886133193969727,
+          -1.6154940128326416,
+          -0.6333510279655457
+        ],
+        [
+          2.2886133193969727,
+          -0.4596625566482544,
+          0.24867939949035645
+        ]
+      ],
+      "vertex_start": 122529,
+      "triangle_start": 119797,
+      "source_vertices": 72278,
+      "source_triangles": 87566,
+      "protected": false,
+      "error_mm": 0.0412879409850575
+    },
+    {
+      "source": "hypersl",
+      "node": 64,
+      "name": "HYPER_SL_Rear_socket.001",
+      "material": 57,
+      "material_name": "Black Plastic.012",
+      "atlas_key": "hypersl:57",
+      "kind": "solid",
+      "vertices": 414,
+      "triangles": 392,
+      "source_bounds": [
+        [
+          -0.17360873520374298,
+          -1.7406028509140015,
+          0.08143430948257446
+        ],
+        [
+          0.17320115864276886,
+          -1.3308827877044678,
+          0.506272554397583
+        ]
+      ],
+      "vertex_start": 143462,
+      "triangle_start": 146064,
+      "source_vertices": 2332,
+      "source_triangles": 1050,
+      "protected": false,
+      "error_mm": 0.07425845833495259
+    },
+    {
+      "source": "hypersl",
+      "node": 65,
+      "name": "HYPER_SL_Rear_socket_base.001",
+      "material": 58,
+      "material_name": "Metal.010",
+      "atlas_key": "hypersl:58",
+      "kind": "solid",
+      "vertices": 757,
+      "triangles": 939,
+      "source_bounds": [
+        [
+          -0.2939922511577606,
+          -1.8473037481307983,
+          0.057586267590522766
+        ],
+        [
+          0.293574720621109,
+          -1.2749791145324707,
+          0.4509473443031311
+        ]
+      ],
+      "vertex_start": 143876,
+      "triangle_start": 146456,
+      "source_vertices": 1520,
+      "source_triangles": 939,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 66,
+      "name": "sticker_18_hyper-sl",
+      "material": 59,
+      "material_name": "sticker_18_hyper-sl",
+      "atlas_key": "sticker:18",
+      "kind": "sticker",
+      "vertices": 525,
+      "triangles": 511,
+      "source_bounds": [
+        [
+          -0.2590247690677643,
+          -1.2482532262802124,
+          1.2721154689788818
+        ],
+        [
+          0.3477824330329895,
+          -0.3919190764427185,
+          1.2833527326583862
+        ]
+      ],
+      "vertex_start": 144633,
+      "triangle_start": 147395,
+      "source_vertices": 581,
+      "source_triangles": 511,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 67,
+      "name": "sticker_20_hyper-sl",
+      "material": 60,
+      "material_name": "sticker_20_hyper-sl",
+      "atlas_key": "sticker:20",
+      "kind": "sticker",
+      "vertices": 153,
+      "triangles": 154,
+      "source_bounds": [
+        [
+          0.3045818507671356,
+          -0.10440247505903244,
+          1.2836302518844604
+        ],
+        [
+          1.4822332859039307,
+          0.8296390175819397,
+          1.2836302518844604
+        ]
+      ],
+      "vertex_start": 145158,
+      "triangle_start": 147906,
+      "source_vertices": 154,
+      "source_triangles": 154,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 68,
+      "name": "sticker_23_hyper-sl",
+      "material": 61,
+      "material_name": "sticker_23_hyper-sl",
+      "atlas_key": "sticker:23",
+      "kind": "sticker",
+      "vertices": 147,
+      "triangles": 147,
+      "source_bounds": [
+        [
+          0.20307597517967224,
+          -1.1223492622375488,
+          1.283630132675171
+        ],
+        [
+          1.2191269397735596,
+          0.10477674752473831,
+          1.283630132675171
+        ]
+      ],
+      "vertex_start": 145311,
+      "triangle_start": 148060,
+      "source_vertices": 147,
+      "source_triangles": 147,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 69,
+      "name": "sticker_22_hyper-sl",
+      "material": 62,
+      "material_name": "sticker_22_hyper-sl",
+      "atlas_key": "sticker:22",
+      "kind": "sticker",
+      "vertices": 144,
+      "triangles": 144,
+      "source_bounds": [
+        [
+          -1.2272965908050537,
+          -1.1213090419769287,
+          1.283630132675171
+        ],
+        [
+          -0.21124161779880524,
+          0.0933748334646225,
+          1.283630132675171
+        ]
+      ],
+      "vertex_start": 145458,
+      "triangle_start": 148207,
+      "source_vertices": 144,
+      "source_triangles": 144,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 70,
+      "name": "sticker_21_hyper-sl",
+      "material": 63,
+      "material_name": "sticker_21_hyper-sl",
+      "atlas_key": "sticker:21",
+      "kind": "sticker",
+      "vertices": 155,
+      "triangles": 155,
+      "source_bounds": [
+        [
+          -0.49190661311149597,
+          -0.38234561681747437,
+          1.283630132675171
+        ],
+        [
+          0.4889579713344574,
+          0.6645958423614502,
+          1.283630132675171
+        ]
+      ],
+      "vertex_start": 145602,
+      "triangle_start": 148351,
+      "source_vertices": 155,
+      "source_triangles": 155,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "hypersl",
+      "node": 71,
+      "name": "sticker_19_hyper-sl",
+      "material": 64,
+      "material_name": "sticker_19_hyper-sl",
+      "atlas_key": "sticker:19",
+      "kind": "sticker",
+      "vertices": 145,
+      "triangles": 145,
+      "source_bounds": [
+        [
+          -1.4862337112426758,
+          -0.10444411635398865,
+          1.2836302518844604
+        ],
+        [
+          -0.31376323103904724,
+          0.8296390175819397,
+          1.2836302518844604
+        ]
+      ],
+      "vertex_start": 145757,
+      "triangle_start": 148506,
+      "source_vertices": 145,
+      "source_triangles": 145,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "qrs1",
+      "node": 0,
+      "name": "custom_qrs1",
+      "material": 0,
+      "material_name": "Black Plastic",
+      "atlas_key": "qrs1:0",
+      "kind": "solid",
+      "vertices": 21213,
+      "triangles": 25948,
+      "source_bounds": [
+        [
+          -1.356419324874878,
+          -1.495776891708374,
+          -1.7409968376159668
+        ],
+        [
+          1.3563666343688965,
+          1.4980642795562744,
+          0.24996361136436462
+        ]
+      ],
+      "vertex_start": 145902,
+      "triangle_start": 148651,
+      "source_vertices": 25426,
+      "source_triangles": 25948,
+      "protected": true,
+      "error_mm": 0
+    }
+  ],
+  "atlas_tiles": {
+    "sticker:1": [
+      4,
+      4,
+      256,
+      256
+    ],
+    "sticker:2": [
+      268,
+      4,
+      256,
+      256
+    ],
+    "sticker:3": [
+      532,
+      4,
+      256,
+      256
+    ],
+    "sticker:6": [
+      796,
+      4,
+      256,
+      256
+    ],
+    "sticker:7": [
+      1060,
+      4,
+      256,
+      256
+    ],
+    "sticker:8": [
+      1324,
+      4,
+      256,
+      256
+    ],
+    "sticker:10": [
+      1588,
+      4,
+      256,
+      256
+    ],
+    "sticker:11": [
+      4,
+      268,
+      256,
+      256
+    ],
+    "sticker:12": [
+      268,
+      268,
+      256,
+      256
+    ],
+    "sticker:15": [
+      532,
+      268,
+      256,
+      256
+    ],
+    "sticker:16": [
+      796,
+      268,
+      256,
+      256
+    ],
+    "sticker:17": [
+      1060,
+      268,
+      256,
+      256
+    ],
+    "sticker:4": [
+      1324,
+      268,
+      256,
+      256
+    ],
+    "sticker:13": [
+      1588,
+      268,
+      256,
+      256
+    ],
+    "sticker:18": [
+      4,
+      532,
+      256,
+      256
+    ],
+    "sticker:20": [
+      268,
+      532,
+      256,
+      256
+    ],
+    "sticker:23": [
+      532,
+      532,
+      256,
+      256
+    ],
+    "sticker:22": [
+      796,
+      532,
+      256,
+      256
+    ],
+    "sticker:21": [
+      1060,
+      532,
+      256,
+      256
+    ],
+    "sticker:19": [
+      1324,
+      532,
+      256,
+      256
+    ],
+    "hypersl:0": [
+      1852,
+      4,
+      8,
+      8
+    ],
+    "hypersl:1": [
+      1868,
+      4,
+      8,
+      8
+    ],
+    "hypersl:2": [
+      1884,
+      4,
+      8,
+      8
+    ],
+    "hypersl:-1": [
+      1900,
+      4,
+      8,
+      8
+    ],
+    "hypersl:3": [
+      1916,
+      4,
+      8,
+      8
+    ],
+    "hypersl:4": [
+      1932,
+      4,
+      8,
+      8
+    ],
+    "hypersl:5": [
+      1948,
+      4,
+      8,
+      8
+    ],
+    "hypersl:6": [
+      1964,
+      4,
+      8,
+      8
+    ],
+    "hypersl:7": [
+      1980,
+      4,
+      8,
+      8
+    ],
+    "hypersl:8": [
+      1996,
+      4,
+      8,
+      8
+    ],
+    "hypersl:9": [
+      2012,
+      4,
+      8,
+      8
+    ],
+    "hypersl:10": [
+      2028,
+      4,
+      8,
+      8
+    ],
+    "hypersl:11": [
+      1852,
+      20,
+      8,
+      8
+    ],
+    "hypersl:12": [
+      1868,
+      20,
+      8,
+      8
+    ],
+    "hypersl:13": [
+      1884,
+      20,
+      8,
+      8
+    ],
+    "hypersl:14": [
+      1900,
+      20,
+      8,
+      8
+    ],
+    "hypersl:15": [
+      1916,
+      20,
+      8,
+      8
+    ],
+    "hypersl:16": [
+      1932,
+      20,
+      8,
+      8
+    ],
+    "hypersl:17": [
+      1948,
+      20,
+      8,
+      8
+    ],
+    "hypersl:18": [
+      1964,
+      20,
+      8,
+      8
+    ],
+    "hypersl:19": [
+      1980,
+      20,
+      8,
+      8
+    ],
+    "hypersl:20": [
+      1996,
+      20,
+      8,
+      8
+    ],
+    "hypersl:21": [
+      2012,
+      20,
+      8,
+      8
+    ],
+    "hypersl:22": [
+      2028,
+      20,
+      8,
+      8
+    ],
+    "hypersl:23": [
+      1852,
+      36,
+      8,
+      8
+    ],
+    "hypersl:24": [
+      1868,
+      36,
+      8,
+      8
+    ],
+    "hypersl:25": [
+      1884,
+      36,
+      8,
+      8
+    ],
+    "hypersl:26": [
+      1900,
+      36,
+      8,
+      8
+    ],
+    "hypersl:27": [
+      1916,
+      36,
+      8,
+      8
+    ],
+    "hypersl:42": [
+      1932,
+      36,
+      8,
+      8
+    ],
+    "hypersl:43": [
+      1948,
+      36,
+      8,
+      8
+    ],
+    "hypersl:44": [
+      1964,
+      36,
+      8,
+      8
+    ],
+    "hypersl:45": [
+      1980,
+      36,
+      8,
+      8
+    ],
+    "hypersl:46": [
+      1996,
+      36,
+      8,
+      8
+    ],
+    "hypersl:47": [
+      2012,
+      36,
+      8,
+      8
+    ],
+    "hypersl:48": [
+      2028,
+      36,
+      8,
+      8
+    ],
+    "hypersl:49": [
+      1852,
+      52,
+      8,
+      8
+    ],
+    "hypersl:50": [
+      1868,
+      52,
+      8,
+      8
+    ],
+    "hypersl:51": [
+      1884,
+      52,
+      8,
+      8
+    ],
+    "hypersl:52": [
+      1900,
+      52,
+      8,
+      8
+    ],
+    "hypersl:53": [
+      1916,
+      52,
+      8,
+      8
+    ],
+    "hypersl:54": [
+      1932,
+      52,
+      8,
+      8
+    ],
+    "hypersl:55": [
+      1948,
+      52,
+      8,
+      8
+    ],
+    "hypersl:56": [
+      1964,
+      52,
+      8,
+      8
+    ],
+    "hypersl:57": [
+      1980,
+      52,
+      8,
+      8
+    ],
+    "hypersl:58": [
+      1996,
+      52,
+      8,
+      8
+    ],
+    "qrs1:0": [
+      2012,
+      52,
+      8,
+      8
+    ]
+  },
+  "approximations": [
+    "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+    "Default configurator canvas stickers are baked from original font and icons.",
+    "Screen pixels are opaque dark for a separately fitted live dashboard.",
+    "New controls use verified physical-group means; individual angular wiring is unknown.",
+    "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+  ],
+  "optimization": {
+    "tool": "meshoptimizer 0.25",
+    "source_sha256": "ae5e079d3c6795c68e52ca28c58e49872c80dacf77455965760c77d7906da10e",
+    "source_vertices": 343045,
+    "source_triangles": 294039,
+    "triangle_reduction_percent": 40.620461911515136,
+    "target_error_mm": 0.075,
+    "max_reported_error_mm": 0.07487186521757394,
+    "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+  }
+}

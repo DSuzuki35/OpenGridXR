@@ -1,0 +1,4235 @@
+{
+  "format": "AGMESH1",
+  "version": 4,
+  "vertex_stride": 36,
+  "file": "fpe2.agm",
+  "sha256": "5c311f9bb4680c05918f984398b0f050353885c5e7a5e985c9394b99d3ac9259",
+  "bytes": 23349660,
+  "vertices": 128766,
+  "triangles": 161403,
+  "indices": 484209,
+  "atlas": [
+    2048,
+    2048
+  ],
+  "source_width": 9.648602485656738,
+  "source_shaft_origin": [
+    0.125,
+    0.35,
+    0
+  ],
+  "source_hub_translation": [
+    0.125,
+    0.35,
+    -0.75
+  ],
+  "width_m": 0.3,
+  "kind": 5,
+  "screen_rectangle": {
+    "source_node": "static_FPE_Assembly_V1.001",
+    "source_material": "Screen",
+    "center": [
+      -0.013353905535798953,
+      0.10472478378109638,
+      0.12867644042729612
+    ],
+    "width": 0.3416904106661732,
+    "height": 0.2014936857369,
+    "aspect_ratio": 1.6957871876557704,
+    "right": [
+      1,
+      0,
+      0
+    ],
+    "up": [
+      0,
+      0.9999999999999323,
+      3.679048345469626e-7
+    ],
+    "normal": [
+      0,
+      -3.679048345469626e-7,
+      0.9999999999999323
+    ],
+    "corners": [
+      [
+        -0.18419911086888557,
+        0.003977940912653219,
+        0.12867640336204555
+      ],
+      [
+        -0.18419911086888557,
+        0.20547162664953955,
+        0.12867647749254668
+      ],
+      [
+        0.15749129979728768,
+        0.003977940912653219,
+        0.12867640336204555
+      ],
+      [
+        0.15749129979728768,
+        0.20547162664953955,
+        0.12867647749254668
+      ]
+    ],
+    "recommended_dashboard_surface_offset_m": 0.0005
+  },
+  "normalized_bounds": [
+    [
+      -0.5129556655883789,
+      -0.3548058569431305,
+      -0.18044030666351318
+    ],
+    [
+      0.4870443642139435,
+      0.25171011686325073,
+      0.18617573380470276
+    ]
+  ],
+  "led_mapping": {
+    "verified_control_groups": true,
+    "angular_wiring_verified": false,
+    "coordinate_space": "Original transformed source units, +X right, +Y up, +Z toward driver; before shaft/width normalization.",
+    "control_rendering": "Uniform linear mean of every physical LED assigned to that control; no sector resampling.",
+    "telemetry_banks": [
+      3,
+      14,
+      3
+    ],
+    "telemetry_bank_sizes_verified": true,
+    "telemetry_within_bank_orientation_verified": false,
+    "telemetry_orientation": "Experimental: left bottom-to-top, top left-to-right, right top-to-bottom, following Hyper P1.",
+    "evidence": "SimHub physical mapper and DefaultColorsEditor BAML child order; GSI source node identities and LedSplit bank counts.",
+    "tagged_vertices": 6473,
+    "groups": [
+      {
+        "node": 59,
+        "name": "sticker_16_fpe_v2",
+        "tag": 101,
+        "vertices": 512,
+        "triangles": 808,
+        "center": [
+          -1.0322052240371704,
+          -0.4105815291404724,
+          1.239791989326477
+        ],
+        "bounds": [
+          [
+            -1.6306489706039429,
+            -0.9162432551383972,
+            1.1920859813690186
+          ],
+          [
+            -0.4337615668773651,
+            0.09508019685745239,
+            1.2874979972839355
+          ]
+        ],
+        "physical_first": 0,
+        "physical_count": 5
+      },
+      {
+        "node": 60,
+        "name": "sticker_18_fpe_v2",
+        "tag": 105,
+        "vertices": 399,
+        "triangles": 584,
+        "center": [
+          -0.0013070106506347656,
+          -0.6075620651245117,
+          1.2442378997802734
+        ],
+        "bounds": [
+          [
+            -0.50483638048172,
+            -1.1787655353546143,
+            1.196471929550171
+          ],
+          [
+            0.5022223591804504,
+            -0.036358535289764404,
+            1.2920037508010864
+          ]
+        ],
+        "physical_first": 5,
+        "physical_count": 4
+      },
+      {
+        "node": 64,
+        "name": "sticker_17_fpe_v2",
+        "tag": 109,
+        "vertices": 515,
+        "triangles": 808,
+        "center": [
+          1.0290586948394775,
+          -0.4105815291404724,
+          1.239791989326477
+        ],
+        "bounds": [
+          [
+            0.43061497807502747,
+            -0.9162432551383972,
+            1.1920859813690186
+          ],
+          [
+            1.6275023221969604,
+            0.09508019685745239,
+            1.2874979972839355
+          ]
+        ],
+        "physical_first": 9,
+        "physical_count": 5
+      },
+      {
+        "node": 61,
+        "name": "sticker_19_fpe_v2",
+        "tag": 113,
+        "vertices": 532,
+        "triangles": 828,
+        "center": [
+          -0.8879554271697998,
+          -1.4762074947357178,
+          1.2601044178009033
+        ],
+        "bounds": [
+          [
+            -1.4863991737365723,
+            -1.9818692207336426,
+            1.2123984098434448
+          ],
+          [
+            -0.28951165080070496,
+            -0.9705457091331482,
+            1.3078104257583618
+          ]
+        ],
+        "physical_first": 14,
+        "physical_count": 5
+      },
+      {
+        "node": 65,
+        "name": "sticker_20_fpe_v2",
+        "tag": 117,
+        "vertices": 531,
+        "triangles": 826,
+        "center": [
+          0.8848088383674622,
+          -1.4762074947357178,
+          1.2601044178009033
+        ],
+        "bounds": [
+          [
+            0.2863651216030121,
+            -1.9818692207336426,
+            1.2123984098434448
+          ],
+          [
+            1.4832525253295898,
+            -0.9705457091331482,
+            1.3078104257583618
+          ]
+        ],
+        "physical_first": 19,
+        "physical_count": 5
+      },
+      {
+        "node": 44,
+        "name": "custom_button_l_0_fpe_v2",
+        "tag": 21,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -3.3022983074188232,
+          2.316654682159424,
+          1.401336669921875
+        ],
+        "bounds": [
+          [
+            -3.4765396118164062,
+            2.1424977779388428,
+            1.3836572170257568
+          ],
+          [
+            -3.1280570030212402,
+            2.490811586380005,
+            1.4190160036087036
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 2
+      },
+      {
+        "node": 53,
+        "name": "sticker_l_0_fpe_v2",
+        "tag": 121,
+        "vertices": 24,
+        "triangles": 22,
+        "center": [
+          -3.299698829650879,
+          2.3179922103881836,
+          1.4194533824920654
+        ],
+        "bounds": [
+          [
+            -3.438685417175293,
+            2.1790056228637695,
+            1.4194533824920654
+          ],
+          [
+            -3.160712480545044,
+            2.4569785594940186,
+            1.4194533824920654
+          ]
+        ],
+        "physical_first": 24,
+        "physical_count": 2
+      },
+      {
+        "node": 43,
+        "name": "custom_button_l_1_fpe_v2",
+        "tag": 25,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.2569847106933594,
+          1.800727367401123,
+          1.401336669921875
+        ],
+        "bounds": [
+          [
+            -2.4312262535095215,
+            1.6265703439712524,
+            1.3836572170257568
+          ],
+          [
+            -2.0827434062957764,
+            1.9748845100402832,
+            1.4190161228179932
+          ]
+        ],
+        "physical_first": 26,
+        "physical_count": 2
+      },
+      {
+        "node": 3,
+        "name": "sticker_l_1_fpe_v2",
+        "tag": 125,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.2543818950653076,
+          1.8020795583724976,
+          1.4194804430007935
+        ],
+        "bounds": [
+          [
+            -2.3933818340301514,
+            1.6630796194076538,
+            1.4194804430007935
+          ],
+          [
+            -2.115381956100464,
+            1.9410794973373413,
+            1.4194804430007935
+          ]
+        ],
+        "physical_first": 26,
+        "physical_count": 2
+      },
+      {
+        "node": 54,
+        "name": "static_sticker_l_3_fpe_v2",
+        "tag": 129,
+        "vertices": 31,
+        "triangles": 29,
+        "center": [
+          -2.070086717605591,
+          1.0256128311157227,
+          1.2884423732757568
+        ],
+        "bounds": [
+          [
+            -2.3267805576324463,
+            0.8907243609428406,
+            1.2884423732757568
+          ],
+          [
+            -1.8133927583694458,
+            1.16050124168396,
+            1.2884423732757568
+          ]
+        ],
+        "physical_first": 28,
+        "physical_count": 1
+      },
+      {
+        "node": 42,
+        "name": "custom_button_l_5_fpe_v2",
+        "tag": 33,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.354520559310913,
+          0.06376449018716812,
+          1.401336431503296
+        ],
+        "bounds": [
+          [
+            -2.528761863708496,
+            -0.11039255559444427,
+            1.3836569786071777
+          ],
+          [
+            -2.18027925491333,
+            0.23792153596878052,
+            1.419015884399414
+          ]
+        ],
+        "physical_first": 29,
+        "physical_count": 2
+      },
+      {
+        "node": 2,
+        "name": "sticker_l_5_fpe_v2",
+        "tag": 133,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.351912021636963,
+          0.06511107087135315,
+          1.4194728136062622
+        ],
+        "bounds": [
+          [
+            -2.490906238555908,
+            -0.07388317584991455,
+            1.4194728136062622
+          ],
+          [
+            -2.2129178047180176,
+            0.20410531759262085,
+            1.4194728136062622
+          ]
+        ],
+        "physical_first": 29,
+        "physical_count": 2
+      },
+      {
+        "node": 41,
+        "name": "custom_button_l_6_fpe_v2",
+        "tag": 37,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -2.1600069999694824,
+          -0.6490013599395752,
+          1.4013363122940063
+        ],
+        "bounds": [
+          [
+            -2.3342485427856445,
+            -0.8231583833694458,
+            1.3836568593978882
+          ],
+          [
+            -1.9857656955718994,
+            -0.4748442769050598,
+            1.4190157651901245
+          ]
+        ],
+        "physical_first": 31,
+        "physical_count": 2
+      },
+      {
+        "node": 49,
+        "name": "sticker_l_6_fpe_v2",
+        "tag": 137,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -2.157402992248535,
+          -0.6476320028305054,
+          1.4251561164855957
+        ],
+        "bounds": [
+          [
+            -2.2963802814483643,
+            -0.7866361141204834,
+            1.4251561164855957
+          ],
+          [
+            -2.018425703048706,
+            -0.5086279511451721,
+            1.4251561164855957
+          ]
+        ],
+        "physical_first": 31,
+        "physical_count": 2
+      },
+      {
+        "node": 40,
+        "name": "custom_button_l_7_fpe_v2",
+        "tag": 41,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          -1.8775101900100708,
+          -1.3338738679885864,
+          1.4013361930847168
+        ],
+        "bounds": [
+          [
+            -2.0517516136169434,
+            -1.508030891418457,
+            1.3836567401885986
+          ],
+          [
+            -1.7032687664031982,
+            -1.1597168445587158,
+            1.419015645980835
+          ]
+        ],
+        "physical_first": 33,
+        "physical_count": 2
+      },
+      {
+        "node": 48,
+        "name": "sticker_l_7_fpe_v2",
+        "tag": 141,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          -1.8749110698699951,
+          -1.332517147064209,
+          1.4274042844772339
+        ],
+        "bounds": [
+          [
+            -2.0139174461364746,
+            -1.4714958667755127,
+            1.4274042844772339
+          ],
+          [
+            -1.7359046936035156,
+            -1.1935384273529053,
+            1.4274042844772339
+          ]
+        ],
+        "physical_first": 33,
+        "physical_count": 2
+      },
+      {
+        "node": 36,
+        "name": "custom_button_r_8_fpe_v2",
+        "tag": 45,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          3.302290439605713,
+          2.316654682159424,
+          1.401336669921875
+        ],
+        "bounds": [
+          [
+            3.12804913520813,
+            2.1424977779388428,
+            1.3836572170257568
+          ],
+          [
+            3.476531505584717,
+            2.490811586380005,
+            1.4190160036087036
+          ]
+        ],
+        "physical_first": 35,
+        "physical_count": 2
+      },
+      {
+        "node": 56,
+        "name": "sticker_r_8_fpe_v2",
+        "tag": 145,
+        "vertices": 24,
+        "triangles": 22,
+        "center": [
+          3.2996985912323,
+          2.3179922103881836,
+          1.4194533824920654
+        ],
+        "bounds": [
+          [
+            3.160712242126465,
+            2.1790056228637695,
+            1.4194533824920654
+          ],
+          [
+            3.4386849403381348,
+            2.4569787979125977,
+            1.4194533824920654
+          ]
+        ],
+        "physical_first": 35,
+        "physical_count": 2
+      },
+      {
+        "node": 35,
+        "name": "custom_button_r_9_fpe_v2",
+        "tag": 49,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.256977081298828,
+          1.800727367401123,
+          1.401336669921875
+        ],
+        "bounds": [
+          [
+            2.082735776901245,
+            1.6265703439712524,
+            1.3836572170257568
+          ],
+          [
+            2.431218385696411,
+            1.9748845100402832,
+            1.4190161228179932
+          ]
+        ],
+        "physical_first": 37,
+        "physical_count": 2
+      },
+      {
+        "node": 51,
+        "name": "sticker_r_9_fpe_v2",
+        "tag": 149,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.2543818950653076,
+          1.8020795583724976,
+          1.4194804430007935
+        ],
+        "bounds": [
+          [
+            2.115381956100464,
+            1.6630796194076538,
+            1.4194804430007935
+          ],
+          [
+            2.3933818340301514,
+            1.9410794973373413,
+            1.4194804430007935
+          ]
+        ],
+        "physical_first": 37,
+        "physical_count": 2
+      },
+      {
+        "node": 57,
+        "name": "static_sticker_r_11_fpe_v2",
+        "tag": 153,
+        "vertices": 31,
+        "triangles": 29,
+        "center": [
+          2.068988561630249,
+          1.0256128311157227,
+          1.2884423732757568
+        ],
+        "bounds": [
+          [
+            1.812294602394104,
+            0.8907243609428406,
+            1.2884423732757568
+          ],
+          [
+            2.3256824016571045,
+            1.16050124168396,
+            1.2884423732757568
+          ]
+        ],
+        "physical_first": 39,
+        "physical_count": 1
+      },
+      {
+        "node": 39,
+        "name": "custom_button_r_13_fpe_v2",
+        "tag": 57,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.354512929916382,
+          0.06376449018716812,
+          1.401336431503296
+        ],
+        "bounds": [
+          [
+            2.180271625518799,
+            -0.11039255559444427,
+            1.3836569786071777
+          ],
+          [
+            2.528754234313965,
+            0.23792153596878052,
+            1.419015884399414
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 2
+      },
+      {
+        "node": 68,
+        "name": "sticker_r_13_fpe_v2",
+        "tag": 157,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.351912021636963,
+          0.06511107087135315,
+          1.4194728136062622
+        ],
+        "bounds": [
+          [
+            2.2129178047180176,
+            -0.07388317584991455,
+            1.4194728136062622
+          ],
+          [
+            2.490906238555908,
+            0.20410531759262085,
+            1.4194728136062622
+          ]
+        ],
+        "physical_first": 40,
+        "physical_count": 2
+      },
+      {
+        "node": 38,
+        "name": "custom_button_r_14_fpe_v2",
+        "tag": 61,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          2.1551735401153564,
+          -0.6421070098876953,
+          1.4013363122940063
+        ],
+        "bounds": [
+          [
+            1.9809322357177734,
+            -0.8162640333175659,
+            1.3836568593978882
+          ],
+          [
+            2.3294148445129395,
+            -0.46794992685317993,
+            1.4190157651901245
+          ]
+        ],
+        "physical_first": 42,
+        "physical_count": 2
+      },
+      {
+        "node": 67,
+        "name": "sticker_r_14_fpe_v2",
+        "tag": 161,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          2.157402992248535,
+          -0.6476320028305054,
+          1.4230159521102905
+        ],
+        "bounds": [
+          [
+            2.018425703048706,
+            -0.7866361141204834,
+            1.4230159521102905
+          ],
+          [
+            2.2963802814483643,
+            -0.5086279511451721,
+            1.4230159521102905
+          ]
+        ],
+        "physical_first": 42,
+        "physical_count": 2
+      },
+      {
+        "node": 37,
+        "name": "custom_button_r_15_fpe_v2",
+        "tag": 65,
+        "vertices": 404,
+        "triangles": 493,
+        "center": [
+          1.87750244140625,
+          -1.3338738679885864,
+          1.4013361930847168
+        ],
+        "bounds": [
+          [
+            1.703261137008667,
+            -1.508030891418457,
+            1.3836567401885986
+          ],
+          [
+            2.051743745803833,
+            -1.1597168445587158,
+            1.419015645980835
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 2
+      },
+      {
+        "node": 58,
+        "name": "sticker_r_15_fpe_v2",
+        "tag": 165,
+        "vertices": 48,
+        "triangles": 46,
+        "center": [
+          1.8749110698699951,
+          -1.332517147064209,
+          1.423982858657837
+        ],
+        "bounds": [
+          [
+            1.735904574394226,
+            -1.4714958667755127,
+            1.423982858657837
+          ],
+          [
+            2.0139174461364746,
+            -1.1935384273529053,
+            1.423982858657837
+          ]
+        ],
+        "physical_first": 44,
+        "physical_count": 2
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 69,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.8097624778747559,
+          1.45097815990448,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.850289225578308,
+            1.4068188667297363,
+            1.28194260597229
+          ],
+          [
+            -1.7692358493804932,
+            1.4951374530792236,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 46,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 70,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.8097624778747559,
+          1.6824455261230469,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.850289225578308,
+            1.6383998394012451,
+            1.28194260597229
+          ],
+          [
+            -1.7692358493804932,
+            1.7264913320541382,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 47,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 71,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.8097624778747559,
+          1.9123237133026123,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.850289225578308,
+            1.8681644201278687,
+            1.28194260597229
+          ],
+          [
+            -1.7692358493804932,
+            1.9564831256866455,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 48,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 72,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.4919061660766602,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.5324329137802124,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -1.4513795375823975,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 49,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 73,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.2619144916534424,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.3024412393569946,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -1.2213878631591797,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 50,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 74,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -1.0320364236831665,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -1.072676658630371,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -0.9913961887359619,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 51,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 75,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -0.8021582365036011,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -0.8426848649978638,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -0.7616316080093384,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 52,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 76,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -0.5721665024757385,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -0.612693190574646,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -0.531639814376831,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 53,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 77,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -0.3422883152961731,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -0.3829284906387329,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -0.3016481399536133,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 54,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 78,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          -0.11241018772125244,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            -0.15293681621551514,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            -0.07188355922698975,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 55,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 79,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          0.11746799945831299,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            0.0768277645111084,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            0.15810823440551758,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 56,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 80,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          0.3473461866378784,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            0.30681943893432617,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            0.38787293434143066,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 57,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 81,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          0.5773378610610962,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            0.536811113357544,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            0.6178646087646484,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 58,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 82,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          0.8072160482406616,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            0.766575813293457,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            0.8478562831878662,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 59,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 83,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.037094235420227,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            0.9965674877166748,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            1.0776209831237793,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 60,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 84,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.2670859098434448,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            1.2265591621398926,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            1.307612657546997,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 61,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 85,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.4969640970230103,
+          2.542133331298828,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            1.4563238620758057,
+            2.497973918914795,
+            1.28194260597229
+          ],
+          [
+            1.5376043319702148,
+            2.5862925052642822,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 62,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 86,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.814820408821106,
+          1.9123237133026123,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            1.7741801738739014,
+            1.8681644201278687,
+            1.28194260597229
+          ],
+          [
+            1.8554606437683105,
+            1.9564831256866455,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 63,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 87,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.814820408821106,
+          1.6824455261230469,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            1.7741801738739014,
+            1.6383998394012451,
+            1.28194260597229
+          ],
+          [
+            1.8554606437683105,
+            1.7264913320541382,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 64,
+        "physical_count": 1
+      },
+      {
+        "node": 17,
+        "name": "FPE_Controls.016",
+        "tag": 88,
+        "vertices": 27,
+        "triangles": 34,
+        "center": [
+          1.814820408821106,
+          1.4525673389434814,
+          1.2859158515930176
+        ],
+        "bounds": [
+          [
+            1.7741801738739014,
+            1.4084080457687378,
+            1.28194260597229
+          ],
+          [
+            1.8554606437683105,
+            1.4967267513275146,
+            1.2898889780044556
+          ]
+        ],
+        "physical_first": 65,
+        "physical_count": 1
+      }
+    ]
+  },
+  "geometry_adjustments": [
+    {
+      "source_node": 2,
+      "source_name": "sticker_l_5_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 133,
+      "selected_vertices": 48,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 110,
+      "vertex_count": 221,
+      "triangle_start": 106,
+      "triangle_count": 189
+    },
+    {
+      "source_node": 3,
+      "source_name": "sticker_l_1_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 125,
+      "selected_vertices": 48,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 331,
+      "vertex_count": 48,
+      "triangle_start": 295,
+      "triangle_count": 46
+    },
+    {
+      "source_node": 51,
+      "source_name": "sticker_r_9_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 149,
+      "selected_vertices": 48,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 97268,
+      "vertex_count": 48,
+      "triangle_start": 126846,
+      "triangle_count": 46
+    },
+    {
+      "source_node": 53,
+      "source_name": "sticker_l_0_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 121,
+      "selected_vertices": 24,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 97320,
+      "vertex_count": 68,
+      "triangle_start": 126894,
+      "triangle_count": 64
+    },
+    {
+      "source_node": 56,
+      "source_name": "sticker_r_8_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 145,
+      "selected_vertices": 24,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 97431,
+      "vertex_count": 68,
+      "triangle_start": 126993,
+      "triangle_count": 64
+    },
+    {
+      "source_node": 68,
+      "source_name": "sticker_r_13_fpe_v2",
+      "selection": "Only the front icon component identified by light_group",
+      "light_group": 157,
+      "selected_vertices": 48,
+      "normalized_z_offset": 0.0005,
+      "nominal_offset_mm": 0.15,
+      "reason": "Original front ink was only about 0.014 mm ahead of its button cap; this restores stable depth separation.",
+      "vertex_start": 106262,
+      "vertex_count": 221,
+      "triangle_start": 133762,
+      "triangle_count": 189
+    }
+  ],
+  "parts": [
+    {
+      "source": "fpe",
+      "node": 0,
+      "name": "sticker_rotarie_r_10_fpe_v2.001",
+      "material": 0,
+      "material_name": "White_metalic.002",
+      "atlas_key": "fpe:0",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          2.042994499206543,
+          0.5425406098365784,
+          1.574623465538025
+        ],
+        [
+          2.259256601333618,
+          0.7586575746536255,
+          1.5752174854278564
+        ]
+      ],
+      "vertex_start": 0,
+      "triangle_start": 0,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 1,
+      "name": "sticker_rotarie_l_3_fpe_v2.001",
+      "material": 0,
+      "material_name": "White_metalic.002",
+      "atlas_key": "fpe:0",
+      "kind": "solid",
+      "vertices": 55,
+      "triangles": 53,
+      "source_bounds": [
+        [
+          -2.258488416671753,
+          0.5425406098365784,
+          1.574623465538025
+        ],
+        [
+          -2.0422263145446777,
+          0.7586575746536255,
+          1.5752174854278564
+        ]
+      ],
+      "vertex_start": 55,
+      "triangle_start": 53,
+      "source_vertices": 55,
+      "source_triangles": 53,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 2,
+      "name": "sticker_l_5_fpe_v2",
+      "material": 1,
+      "material_name": "material_sticker_button_r_13_fpe_v2",
+      "atlas_key": "sticker:5",
+      "kind": "sticker",
+      "vertices": 221,
+      "triangles": 189,
+      "source_bounds": [
+        [
+          -2.9292256832122803,
+          -0.07388317584991455,
+          1.2601475715637207
+        ],
+        [
+          -2.2129178047180176,
+          0.257709264755249,
+          1.4194728136062622
+        ]
+      ],
+      "vertex_start": 110,
+      "triangle_start": 106,
+      "source_vertices": 265,
+      "source_triangles": 189,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 3,
+      "name": "sticker_l_1_fpe_v2",
+      "material": 2,
+      "material_name": "sticker_l_1_fpev2",
+      "atlas_key": "sticker:1",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          -2.3933818340301514,
+          1.6630796194076538,
+          1.4194804430007935
+        ],
+        [
+          -2.115381956100464,
+          1.9410794973373413,
+          1.4194804430007935
+        ]
+      ],
+      "vertex_start": 331,
+      "triangle_start": 295,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 4,
+      "name": "Plane.004",
+      "material": 3,
+      "material_name": "Black Plastic Stencil.002",
+      "atlas_key": "fpe:3",
+      "kind": "texture",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          -0.5697293281555176,
+          2.055651903152466,
+          0.3039335608482361
+        ],
+        [
+          0.5697293281555176,
+          2.7310643196105957,
+          0.6206700801849365
+        ]
+      ],
+      "vertex_start": 379,
+      "triangle_start": 341,
+      "source_vertices": 4,
+      "source_triangles": 2,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 5,
+      "name": "logo_GSI.001",
+      "material": 4,
+      "material_name": "White Plastic.002",
+      "atlas_key": "fpe:4",
+      "kind": "solid",
+      "vertices": 58,
+      "triangles": 44,
+      "source_bounds": [
+        [
+          -0.2232966423034668,
+          0.12818685173988342,
+          1.3232423067092896
+        ],
+        [
+          0.2210116982460022,
+          0.2723572254180908,
+          1.3232423067092896
+        ]
+      ],
+      "vertex_start": 383,
+      "triangle_start": 343,
+      "source_vertices": 58,
+      "source_triangles": 44,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 6,
+      "name": "FPEV2_Screws.001",
+      "material": 5,
+      "material_name": "Metal Black.003",
+      "atlas_key": "fpe:5",
+      "kind": "solid",
+      "vertices": 2669,
+      "triangles": 3252,
+      "source_bounds": [
+        [
+          -3.9878649711608887,
+          -2.1877200603485107,
+          1.1730529069900513
+        ],
+        [
+          3.9878687858581543,
+          2.2838122844696045,
+          1.3210492134094238
+        ]
+      ],
+      "vertex_start": 441,
+      "triangle_start": 387,
+      "source_vertices": 25418,
+      "source_triangles": 10842,
+      "protected": false,
+      "error_mm": 0.0595173318288289
+    },
+    {
+      "source": "fpe",
+      "node": 7,
+      "name": "static_front_FPE_V2",
+      "material": 6,
+      "material_name": "Carbon Fiber.004",
+      "atlas_key": "fpe:6",
+      "kind": "solid",
+      "vertices": 7009,
+      "triangles": 7698,
+      "source_bounds": [
+        [
+          -4.12988805770874,
+          -2.3136415481567383,
+          1.0756025314331055
+        ],
+        [
+          4.142467975616455,
+          2.776106834411621,
+          1.2346571683883667
+        ]
+      ],
+      "vertex_start": 3110,
+      "triangle_start": 3639,
+      "source_vertices": 13944,
+      "source_triangles": 10148,
+      "protected": false,
+      "error_mm": 0.07495083846151829
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 7,
+      "material_name": "202,209,238.003",
+      "atlas_key": "fpe:7",
+      "kind": "solid",
+      "vertices": 76,
+      "triangles": 76,
+      "source_bounds": [
+        [
+          -2.192549467086792,
+          0.6114768981933594,
+          1.2738271951675415
+        ],
+        [
+          2.192549467086792,
+          0.6909723877906799,
+          1.2818570137023926
+        ]
+      ],
+      "vertex_start": 10119,
+      "triangle_start": 11337,
+      "source_vertices": 162,
+      "source_triangles": 76,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 8,
+      "material_name": "64,64,64_1.003",
+      "atlas_key": "fpe:8",
+      "kind": "solid",
+      "vertices": 460,
+      "triangles": 428,
+      "source_bounds": [
+        [
+          -2.2673380374908447,
+          0.5371771454811096,
+          1.1831263303756714
+        ],
+        [
+          2.2673380374908447,
+          0.7652533650398254,
+          1.243466854095459
+        ]
+      ],
+      "vertex_start": 10195,
+      "triangle_start": 11413,
+      "source_vertices": 692,
+      "source_triangles": 428,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 9,
+      "material_name": "255,255,0.003",
+      "atlas_key": "fpe:9",
+      "kind": "solid",
+      "vertices": 269,
+      "triangles": 248,
+      "source_bounds": [
+        [
+          -2.192549467086792,
+          0.6114768981933594,
+          1.2435935735702515
+        ],
+        [
+          2.192549467086792,
+          0.6909723877906799,
+          1.4630759954452515
+        ]
+      ],
+      "vertex_start": 10655,
+      "triangle_start": 11841,
+      "source_vertices": 496,
+      "source_triangles": 248,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 10,
+      "material_name": "202,209,238_2.002",
+      "atlas_key": "fpe:10",
+      "kind": "solid",
+      "vertices": 38,
+      "triangles": 38,
+      "source_bounds": [
+        [
+          -2.192533493041992,
+          0.6114920973777771,
+          1.2709758281707764
+        ],
+        [
+          -2.112971305847168,
+          0.6910542845726013,
+          1.2789305448532104
+        ]
+      ],
+      "vertex_start": 10924,
+      "triangle_start": 12089,
+      "source_vertices": 82,
+      "source_triangles": 38,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 11,
+      "material_name": "64,64,64_2.002",
+      "atlas_key": "fpe:11",
+      "kind": "solid",
+      "vertices": 230,
+      "triangles": 214,
+      "source_bounds": [
+        [
+          -2.267322301864624,
+          0.5371922850608826,
+          1.1802748441696167
+        ],
+        [
+          -2.0381829738616943,
+          0.7653526067733765,
+          1.240738034248352
+        ]
+      ],
+      "vertex_start": 10962,
+      "triangle_start": 12127,
+      "source_vertices": 344,
+      "source_triangles": 214,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 12,
+      "material_name": "255,255,0_1.002",
+      "atlas_key": "fpe:12",
+      "kind": "solid",
+      "vertices": 134,
+      "triangles": 124,
+      "source_bounds": [
+        [
+          -2.192533493041992,
+          0.6114920973777771,
+          1.2407422065734863
+        ],
+        [
+          -2.1129696369171143,
+          0.6910560131072998,
+          1.4603338241577148
+        ]
+      ],
+      "vertex_start": 11192,
+      "triangle_start": 12341,
+      "source_vertices": 248,
+      "source_triangles": 124,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 13,
+      "material_name": "202,209,238_3.002",
+      "atlas_key": "fpe:13",
+      "kind": "solid",
+      "vertices": 38,
+      "triangles": 38,
+      "source_bounds": [
+        [
+          2.1130032539367676,
+          0.6114920973777771,
+          1.2709758281707764
+        ],
+        [
+          2.192565679550171,
+          0.6910545229911804,
+          1.2789306640625
+        ]
+      ],
+      "vertex_start": 11326,
+      "triangle_start": 12465,
+      "source_vertices": 84,
+      "source_triangles": 38,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 14,
+      "material_name": "64,64,64_3.002",
+      "atlas_key": "fpe:14",
+      "kind": "solid",
+      "vertices": 230,
+      "triangles": 214,
+      "source_bounds": [
+        [
+          2.038214921951294,
+          0.5371922850608826,
+          1.1802748441696167
+        ],
+        [
+          2.2673540115356445,
+          0.7653523683547974,
+          1.240738034248352
+        ]
+      ],
+      "vertex_start": 11364,
+      "triangle_start": 12503,
+      "source_vertices": 358,
+      "source_triangles": 214,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 8,
+      "name": "FPE_V2_011824_Assembly.003",
+      "material": 15,
+      "material_name": "255,255,0_2.002",
+      "atlas_key": "fpe:15",
+      "kind": "solid",
+      "vertices": 134,
+      "triangles": 124,
+      "source_bounds": [
+        [
+          2.1130032539367676,
+          0.6114920973777771,
+          1.2407422065734863
+        ],
+        [
+          2.1925671100616455,
+          0.6910560131072998,
+          1.4603338241577148
+        ]
+      ],
+      "vertex_start": 11594,
+      "triangle_start": 12717,
+      "source_vertices": 228,
+      "source_triangles": 124,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 9,
+      "name": "FPE_Side_Assembly.001",
+      "material": 16,
+      "material_name": "Rubber_Black.002",
+      "atlas_key": "fpe:16",
+      "kind": "solid",
+      "vertices": 5186,
+      "triangles": 10352,
+      "source_bounds": [
+        [
+          -4.824305057525635,
+          -3.073380708694458,
+          0.3940696120262146
+        ],
+        [
+          4.8242974281311035,
+          2.1811411380767822,
+          1.7963356971740723
+        ]
+      ],
+      "vertex_start": 11728,
+      "triangle_start": 12841,
+      "source_vertices": 13412,
+      "source_triangles": 22572,
+      "protected": false,
+      "error_mm": 0.07449362310580909
+    },
+    {
+      "source": "fpe",
+      "node": 10,
+      "name": "FPE_Rear_socket_base.001",
+      "material": 17,
+      "material_name": "Metal.005",
+      "atlas_key": "fpe:17",
+      "kind": "solid",
+      "vertices": 745,
+      "triangles": 939,
+      "source_bounds": [
+        [
+          -0.31800389289855957,
+          -2.178772211074829,
+          0.05475093424320221
+        ],
+        [
+          0.31800389289855957,
+          -1.5724626779556274,
+          0.5490612983703613
+        ]
+      ],
+      "vertex_start": 16914,
+      "triangle_start": 23193,
+      "source_vertices": 1607,
+      "source_triangles": 939,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 11,
+      "name": "FPE_Rear_socket.001",
+      "material": 18,
+      "material_name": "Black Plastic.003",
+      "atlas_key": "fpe:18",
+      "kind": "solid",
+      "vertices": 396,
+      "triangles": 385,
+      "source_bounds": [
+        [
+          -0.18769557774066925,
+          -2.075953722000122,
+          0.10776571929454803
+        ],
+        [
+          0.18770776689052582,
+          -1.6229639053344727,
+          0.5669782161712646
+        ]
+      ],
+      "vertex_start": 17659,
+      "triangle_start": 24132,
+      "source_vertices": 2240,
+      "source_triangles": 1050,
+      "protected": false,
+      "error_mm": 0.07289842906175181
+    },
+    {
+      "source": "fpe",
+      "node": 12,
+      "name": "FPE_Front_panel.001",
+      "material": 19,
+      "material_name": "Black Plastic FPE V2",
+      "atlas_key": "fpe:19",
+      "kind": "solid",
+      "vertices": 3935,
+      "triangles": 4450,
+      "source_bounds": [
+        [
+          -2.660588026046753,
+          -0.24206136167049408,
+          1.1617615222930908
+        ],
+        [
+          2.660588026046753,
+          2.7106828689575195,
+          1.4004884958267212
+        ]
+      ],
+      "vertex_start": 18055,
+      "triangle_start": 24517,
+      "source_vertices": 9017,
+      "source_triangles": 5556,
+      "protected": false,
+      "error_mm": 0.07484242378268391
+    },
+    {
+      "source": "fpe",
+      "node": 13,
+      "name": "FPE_Controls.010",
+      "material": 19,
+      "material_name": "Black Plastic FPE V2",
+      "atlas_key": "fpe:19",
+      "kind": "solid",
+      "vertices": 350,
+      "triangles": 644,
+      "source_bounds": [
+        [
+          1.5752485990524292,
+          -1.6347882747650146,
+          1.1487716436386108
+        ],
+        [
+          2.1797025203704834,
+          -1.0336549282073975,
+          1.45127534866333
+        ]
+      ],
+      "vertex_start": 21990,
+      "triangle_start": 28967,
+      "source_vertices": 529,
+      "source_triangles": 644,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 14,
+      "name": "FPE_Controls.011",
+      "material": 19,
+      "material_name": "Black Plastic FPE V2",
+      "atlas_key": "fpe:19",
+      "kind": "solid",
+      "vertices": 350,
+      "triangles": 644,
+      "source_bounds": [
+        [
+          -2.4634644985198975,
+          -0.9494202136993408,
+          1.1487761735916138
+        ],
+        [
+          -1.8590105772018433,
+          -0.34828686714172363,
+          1.4512429237365723
+        ]
+      ],
+      "vertex_start": 22340,
+      "triangle_start": 29611,
+      "source_vertices": 533,
+      "source_triangles": 644,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 15,
+      "name": "FPE_Controls.014",
+      "material": 19,
+      "material_name": "Black Plastic FPE V2",
+      "atlas_key": "fpe:19",
+      "kind": "solid",
+      "vertices": 350,
+      "triangles": 644,
+      "source_bounds": [
+        [
+          -2.1797025203704834,
+          -1.6347882747650146,
+          1.1487716436386108
+        ],
+        [
+          -1.5752485990524292,
+          -1.0336549282073975,
+          1.4512383937835693
+        ]
+      ],
+      "vertex_start": 22690,
+      "triangle_start": 30255,
+      "source_vertices": 533,
+      "source_triangles": 644,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 16,
+      "name": "FPE_Controls.015",
+      "material": 19,
+      "material_name": "Black Plastic FPE V2",
+      "atlas_key": "fpe:19",
+      "kind": "solid",
+      "vertices": 385,
+      "triangles": 713,
+      "source_bounds": [
+        [
+          1.853395700454712,
+          -0.9452088475227356,
+          1.1332391500473022
+        ],
+        [
+          2.4578495025634766,
+          -0.3427104949951172,
+          1.429876446723938
+        ]
+      ],
+      "vertex_start": 23040,
+      "triangle_start": 30899,
+      "source_vertices": 573,
+      "source_triangles": 713,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 17,
+      "name": "FPE_Controls.016",
+      "material": 20,
+      "material_name": "191,191,191.005",
+      "atlas_key": "fpe:20",
+      "kind": "solid",
+      "vertices": 1380,
+      "triangles": 1778,
+      "source_bounds": [
+        [
+          -1.8582355976104736,
+          1.4029591083526611,
+          1.0353769063949585
+        ],
+        [
+          1.8613636493682861,
+          2.5901522636413574,
+          1.2898889780044556
+        ]
+      ],
+      "vertex_start": 23425,
+      "triangle_start": 31612,
+      "source_vertices": 1622,
+      "source_triangles": 1778,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 18,
+      "name": "FPE_Base_red.001",
+      "material": 21,
+      "material_name": "material_suport_rear_fpe.002",
+      "atlas_key": "fpe:21",
+      "kind": "solid",
+      "vertices": 517,
+      "triangles": 986,
+      "source_bounds": [
+        [
+          -0.58335942029953,
+          -2.3131110668182373,
+          0.8306384682655334
+        ],
+        [
+          0.5833936333656311,
+          -2.048609972000122,
+          1.2795922756195068
+        ]
+      ],
+      "vertex_start": 24805,
+      "triangle_start": 33390,
+      "source_vertices": 773,
+      "source_triangles": 986,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 19,
+      "name": "sticker_l_0_fpev2",
+      "material": 22,
+      "material_name": "material_sticker_c_16_fpev2.001",
+      "atlas_key": "sticker:0",
+      "kind": "sticker",
+      "vertices": 103,
+      "triangles": 101,
+      "source_bounds": [
+        [
+          -1.6518574953079224,
+          -1.9960575103759766,
+          1.2490854263305664
+        ],
+        [
+          1.6518577337265015,
+          0.10861653089523315,
+          1.2490854263305664
+        ]
+      ],
+      "vertex_start": 25322,
+      "triangle_start": 34376,
+      "source_vertices": 103,
+      "source_triangles": 101,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 20,
+      "name": "static_back_FPE_V2",
+      "material": 23,
+      "material_name": "Black_Plastic.001",
+      "atlas_key": "fpe:23",
+      "kind": "solid",
+      "vertices": 5075,
+      "triangles": 6419,
+      "source_bounds": [
+        [
+          -4.0189528465271,
+          -2.313110113143921,
+          0.07785415649414062
+        ],
+        [
+          4.052485942840576,
+          2.778650999069214,
+          1.1168986558914185
+        ]
+      ],
+      "vertex_start": 25425,
+      "triangle_start": 34477,
+      "source_vertices": 17990,
+      "source_triangles": 9795,
+      "protected": false,
+      "error_mm": 0.07496668549720198
+    },
+    {
+      "source": "fpe",
+      "node": 21,
+      "name": "FPE_Assembly_V1.019",
+      "material": 24,
+      "material_name": "Metal Black.004",
+      "atlas_key": "fpe:24",
+      "kind": "solid",
+      "vertices": 467,
+      "triangles": 444,
+      "source_bounds": [
+        [
+          -2.4197211265563965,
+          -1.0133061408996582,
+          -0.911515474319458
+        ],
+        [
+          2.4197206497192383,
+          -0.6611963510513306,
+          -0.8243741989135742
+        ]
+      ],
+      "vertex_start": 30500,
+      "triangle_start": 40896,
+      "source_vertices": 4440,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.053349556401371956
+    },
+    {
+      "source": "fpe",
+      "node": 22,
+      "name": "FPE_Assembly_V1.020",
+      "material": 24,
+      "material_name": "Metal Black.004",
+      "atlas_key": "fpe:24",
+      "kind": "solid",
+      "vertices": 466,
+      "triangles": 443,
+      "source_bounds": [
+        [
+          -3.251675605773926,
+          0.6734678745269775,
+          -0.7617123126983643
+        ],
+        [
+          3.251678466796875,
+          1.1259993314743042,
+          -0.7164591550827026
+        ]
+      ],
+      "vertex_start": 30967,
+      "triangle_start": 41340,
+      "source_vertices": 4440,
+      "source_triangles": 1480,
+      "protected": false,
+      "error_mm": 0.05132963560754433
+    },
+    {
+      "source": "fpe",
+      "node": 23,
+      "name": "FPE_Assembly_rear_02.002",
+      "material": 25,
+      "material_name": "Carbon_Controls.002",
+      "atlas_key": "fpe:25",
+      "kind": "solid",
+      "vertices": 1682,
+      "triangles": 2094,
+      "source_bounds": [
+        [
+          -3.65979266166687,
+          -1.832855463027954,
+          -1.3531038761138916
+        ],
+        [
+          3.65979266166687,
+          -0.5595344305038452,
+          -0.6941043734550476
+        ]
+      ],
+      "vertex_start": 31433,
+      "triangle_start": 41783,
+      "source_vertices": 3416,
+      "source_triangles": 3416,
+      "protected": false,
+      "error_mm": 0.07463078072760254
+    },
+    {
+      "source": "fpe",
+      "node": 23,
+      "name": "FPE_Assembly_rear_02.002",
+      "material": 26,
+      "material_name": "White Plastic.003",
+      "atlas_key": "fpe:26",
+      "kind": "solid",
+      "vertices": 100,
+      "triangles": 96,
+      "source_bounds": [
+        [
+          -2.1298534870147705,
+          -0.8264015913009644,
+          -0.8017934560775757
+        ],
+        [
+          2.1298534870147705,
+          -0.5474132895469666,
+          -0.6938902139663696
+        ]
+      ],
+      "vertex_start": 33115,
+      "triangle_start": 43877,
+      "source_vertices": 100,
+      "source_triangles": 96,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 24,
+      "name": "FPE_Assembly_rear_02.003",
+      "material": 18,
+      "material_name": "Black Plastic.003",
+      "atlas_key": "fpe:18",
+      "kind": "solid",
+      "vertices": 20966,
+      "triangles": 26267,
+      "source_bounds": [
+        [
+          -2.576375961303711,
+          -1.177802324295044,
+          -0.7959327697753906
+        ],
+        [
+          2.576375961303711,
+          0.07114958763122559,
+          0.15894454717636108
+        ]
+      ],
+      "vertex_start": 33215,
+      "triangle_start": 43973,
+      "source_vertices": 72278,
+      "source_triangles": 87566,
+      "protected": false,
+      "error_mm": 0.04031116113765165
+    },
+    {
+      "source": "fpe",
+      "node": 25,
+      "name": "FPE_Assembly_rear_01.002",
+      "material": 25,
+      "material_name": "Carbon_Controls.002",
+      "atlas_key": "fpe:25",
+      "kind": "solid",
+      "vertices": 1847,
+      "triangles": 2496,
+      "source_bounds": [
+        [
+          -3.8683860301971436,
+          -0.4160572290420532,
+          -0.7242156267166138
+        ],
+        [
+          3.8683860301971436,
+          2.2261476516723633,
+          -0.597182035446167
+        ]
+      ],
+      "vertex_start": 54181,
+      "triangle_start": 70240,
+      "source_vertices": 4394,
+      "source_triangles": 3976,
+      "protected": false,
+      "error_mm": 0.07486575341317803
+    },
+    {
+      "source": "fpe",
+      "node": 26,
+      "name": "FPE_Assembly_rear_01.003",
+      "material": 27,
+      "material_name": "Black Plastic.007",
+      "atlas_key": "fpe:27",
+      "kind": "solid",
+      "vertices": 9568,
+      "triangles": 9905,
+      "source_bounds": [
+        [
+          -3.3146133422851562,
+          0.34346842765808105,
+          -0.8451840877532959
+        ],
+        [
+          3.3146133422851562,
+          1.471201777458191,
+          0.1587291955947876
+        ]
+      ],
+      "vertex_start": 56028,
+      "triangle_start": 72736,
+      "source_vertices": 20990,
+      "source_triangles": 20714,
+      "protected": false,
+      "error_mm": 0.07335648697335273
+    },
+    {
+      "source": "fpe",
+      "node": 26,
+      "name": "FPE_Assembly_rear_01.003",
+      "material": 28,
+      "material_name": "White Plastic.004",
+      "atlas_key": "fpe:28",
+      "kind": "solid",
+      "vertices": 596,
+      "triangles": 552,
+      "source_bounds": [
+        [
+          -2.9913716316223145,
+          0.7894954681396484,
+          -0.5272469520568848
+        ],
+        [
+          2.9913716316223145,
+          1.2028791904449463,
+          -0.36182042956352234
+        ]
+      ],
+      "vertex_start": 65596,
+      "triangle_start": 82641,
+      "source_vertices": 596,
+      "source_triangles": 552,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 27,
+      "name": "custom_rotarie_r_12_fpe_v2",
+      "material": 29,
+      "material_name": "material_rotarie_r_12_fpe_v2",
+      "atlas_key": "fpe:29",
+      "kind": "solid",
+      "vertices": 3511,
+      "triangles": 6726,
+      "source_bounds": [
+        [
+          1.99977445602417,
+          0.49835801124572754,
+          1.273707628250122
+        ],
+        [
+          2.304710626602173,
+          0.8032942414283752,
+          1.5924373865127563
+        ]
+      ],
+      "vertex_start": 66192,
+      "triangle_start": 83193,
+      "source_vertices": 4070,
+      "source_triangles": 6726,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 28,
+      "name": "custom_rotarie_l_4_fpe_v2",
+      "material": 30,
+      "material_name": "material_custom_rotarie_l_3_fpe_v2.001",
+      "atlas_key": "fpe:30",
+      "kind": "solid",
+      "vertices": 3511,
+      "triangles": 6726,
+      "source_bounds": [
+        [
+          -2.301708459854126,
+          0.49835801124572754,
+          1.273707628250122
+        ],
+        [
+          -1.996772289276123,
+          0.8032942414283752,
+          1.5924373865127563
+        ]
+      ],
+      "vertex_start": 69703,
+      "triangle_start": 89919,
+      "source_vertices": 4070,
+      "source_triangles": 6726,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 29,
+      "name": "custom_rotarie_l_2_fpe_v2",
+      "material": 31,
+      "material_name": "material_rotarie_l_2_fpe_v2",
+      "atlas_key": "fpe:31",
+      "kind": "solid",
+      "vertices": 5598,
+      "triangles": 2211,
+      "source_bounds": [
+        [
+          -2.8388876914978027,
+          0.8470644950866699,
+          0.4398505389690399
+        ],
+        [
+          -2.6277003288269043,
+          1.6779167652130127,
+          1.2990219593048096
+        ]
+      ],
+      "vertex_start": 73214,
+      "triangle_start": 96645,
+      "source_vertices": 6049,
+      "source_triangles": 2211,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 30,
+      "name": "custom_rotarie_20_fpe_v2",
+      "material": 32,
+      "material_name": "material_rotarie_20_fpe_v2",
+      "atlas_key": "fpe:32",
+      "kind": "solid",
+      "vertices": 1924,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          0.3977864384651184,
+          -1.8701677322387695,
+          1.3237512111663818
+        ],
+        [
+          1.19264817237854,
+          -1.0907831192016602,
+          1.7691415548324585
+        ]
+      ],
+      "vertex_start": 78812,
+      "triangle_start": 98856,
+      "source_vertices": 2529,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 31,
+      "name": "custom_rotarie_19_fpe_v2",
+      "material": 33,
+      "material_name": "material_rotarie_19_fpe_v2",
+      "atlas_key": "fpe:33",
+      "kind": "solid",
+      "vertices": 1924,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -1.1912630796432495,
+          -1.8701677322387695,
+          1.3237512111663818
+        ],
+        [
+          -0.39640140533447266,
+          -1.0907831192016602,
+          1.7691415548324585
+        ]
+      ],
+      "vertex_start": 80736,
+      "triangle_start": 101750,
+      "source_vertices": 2529,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 32,
+      "name": "custom_rotarie_18_fpe_v2",
+      "material": 34,
+      "material_name": "material_rotarie_18_fpe_v2",
+      "atlas_key": "fpe:34",
+      "kind": "solid",
+      "vertices": 1924,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -0.39673852920532227,
+          -1.052819013595581,
+          1.3237512111663818
+        ],
+        [
+          0.3981231451034546,
+          -0.27343443036079407,
+          1.7691415548324585
+        ]
+      ],
+      "vertex_start": 82660,
+      "triangle_start": 104644,
+      "source_vertices": 2529,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 33,
+      "name": "custom_rotarie_17_fpe_v2",
+      "material": 35,
+      "material_name": "material_rotarie_17_fpe_v2",
+      "atlas_key": "fpe:35",
+      "kind": "solid",
+      "vertices": 1924,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          0.7270814180374146,
+          -0.8100682497024536,
+          1.3237512111663818
+        ],
+        [
+          1.5219430923461914,
+          -0.03068363666534424,
+          1.7691415548324585
+        ]
+      ],
+      "vertex_start": 84584,
+      "triangle_start": 107538,
+      "source_vertices": 2529,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 34,
+      "name": "custom_rotarie_16_fpe_v2",
+      "material": 36,
+      "material_name": "material_rotarie_16_fpe_v2",
+      "atlas_key": "fpe:36",
+      "kind": "solid",
+      "vertices": 1924,
+      "triangles": 2894,
+      "source_bounds": [
+        [
+          -1.5205599069595337,
+          -0.8100682497024536,
+          1.3237512111663818
+        ],
+        [
+          -0.7256982326507568,
+          -0.03068363666534424,
+          1.7691415548324585
+        ]
+      ],
+      "vertex_start": 86508,
+      "triangle_start": 110432,
+      "source_vertices": 2529,
+      "source_triangles": 2894,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 35,
+      "name": "custom_button_r_9_fpe_v2",
+      "material": 37,
+      "material_name": "material_button_r_9_fpe_v2",
+      "atlas_key": "fpe:37",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.059588670730591,
+          1.6032546758651733,
+          1.1063499450683594
+        ],
+        [
+          2.454028367996216,
+          1.9978629350662231,
+          1.4190161228179932
+        ]
+      ],
+      "vertex_start": 88432,
+      "triangle_start": 113326,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 36,
+      "name": "custom_button_r_8_fpe_v2",
+      "material": 38,
+      "material_name": "material_custom_button_r_7_fpe_v2.001",
+      "atlas_key": "fpe:38",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          3.1049020290374756,
+          2.1191821098327637,
+          1.106350064277649
+        ],
+        [
+          3.4993414878845215,
+          2.5137901306152344,
+          1.4190160036087036
+        ]
+      ],
+      "vertex_start": 89142,
+      "triangle_start": 114495,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 37,
+      "name": "custom_button_r_15_fpe_v2",
+      "material": 39,
+      "material_name": "material_button_r_15_fpe_v2",
+      "atlas_key": "fpe:39",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.6801140308380127,
+          -1.5313465595245361,
+          1.1063494682312012
+        ],
+        [
+          2.0745537281036377,
+          -1.1367383003234863,
+          1.419015645980835
+        ]
+      ],
+      "vertex_start": 89852,
+      "triangle_start": 115664,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 38,
+      "name": "custom_button_r_14_fpe_v2",
+      "material": 40,
+      "material_name": "material_button_r_14_fpe_v2",
+      "atlas_key": "fpe:40",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          1.9577851295471191,
+          -0.839579701423645,
+          1.1063495874404907
+        ],
+        [
+          2.352224826812744,
+          -0.4449714422225952,
+          1.4190157651901245
+        ]
+      ],
+      "vertex_start": 90562,
+      "triangle_start": 116833,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 39,
+      "name": "custom_button_r_13_fpe_v2",
+      "material": 41,
+      "material_name": "material_button_r_13_fpe_v2",
+      "atlas_key": "fpe:41",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          2.1571245193481445,
+          -0.13370823860168457,
+          1.1063497066497803
+        ],
+        [
+          2.5515642166137695,
+          0.26090002059936523,
+          1.419015884399414
+        ]
+      ],
+      "vertex_start": 91272,
+      "triangle_start": 118002,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 40,
+      "name": "custom_button_l_7_fpe_v2",
+      "material": 42,
+      "material_name": "material_button_l_7_fpe_v2",
+      "atlas_key": "fpe:42",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.074561357498169,
+          -1.5313465595245361,
+          1.1063494682312012
+        ],
+        [
+          -1.680121660232544,
+          -1.1367383003234863,
+          1.419015645980835
+        ]
+      ],
+      "vertex_start": 91982,
+      "triangle_start": 119171,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 41,
+      "name": "custom_button_l_6_fpe_v2",
+      "material": 43,
+      "material_name": "material_button_l_6_fpe_v2",
+      "atlas_key": "fpe:43",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.35705828666687,
+          -0.8464740514755249,
+          1.1063495874404907
+        ],
+        [
+          -1.9626185894012451,
+          -0.4518657922744751,
+          1.4190157651901245
+        ]
+      ],
+      "vertex_start": 92692,
+      "triangle_start": 120340,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 42,
+      "name": "custom_button_l_5_fpe_v2",
+      "material": 44,
+      "material_name": "material_button_l_5_fpe_v2",
+      "atlas_key": "fpe:44",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.551571846008301,
+          -0.13370823860168457,
+          1.1063497066497803
+        ],
+        [
+          -2.157132148742676,
+          0.26090002059936523,
+          1.419015884399414
+        ]
+      ],
+      "vertex_start": 93402,
+      "triangle_start": 121509,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 43,
+      "name": "custom_button_l_1_fpe_v2",
+      "material": 45,
+      "material_name": "material_button_l_1_fpe_v2",
+      "atlas_key": "fpe:45",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -2.454035997390747,
+          1.6032546758651733,
+          1.1063499450683594
+        ],
+        [
+          -2.059596300125122,
+          1.9978629350662231,
+          1.4190161228179932
+        ]
+      ],
+      "vertex_start": 94112,
+      "triangle_start": 122678,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 44,
+      "name": "custom_button_l_0_fpe_v2",
+      "material": 46,
+      "material_name": "material_button_l_0_fpe_v2",
+      "atlas_key": "fpe:46",
+      "kind": "solid",
+      "vertices": 710,
+      "triangles": 1169,
+      "source_bounds": [
+        [
+          -3.499349355697632,
+          2.1191821098327637,
+          1.106350064277649
+        ],
+        [
+          -3.104909896850586,
+          2.5137901306152344,
+          1.4190160036087036
+        ]
+      ],
+      "vertex_start": 94822,
+      "triangle_start": 123847,
+      "source_vertices": 1008,
+      "source_triangles": 1169,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 45,
+      "name": "Curve.014",
+      "material": 47,
+      "material_name": "text_brand_white.002",
+      "atlas_key": "fpe:47",
+      "kind": "solid",
+      "vertices": 287,
+      "triangles": 262,
+      "source_bounds": [
+        [
+          -0.3207937180995941,
+          -2.2053613662719727,
+          1.2545067071914673
+        ],
+        [
+          0.3147846758365631,
+          -2.105813503265381,
+          1.271925687789917
+        ]
+      ],
+      "vertex_start": 95532,
+      "triangle_start": 125016,
+      "source_vertices": 510,
+      "source_triangles": 262,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 46,
+      "name": "static_button_l_3_fpe_v2",
+      "material": 48,
+      "material_name": "static_material_button_l_3_fpe_v2",
+      "atlas_key": "fpe:48",
+      "kind": "solid",
+      "vertices": 145,
+      "triangles": 253,
+      "source_bounds": [
+        [
+          -2.3586056232452393,
+          0.8591558933258057,
+          1.2222731113433838
+        ],
+        [
+          -1.7815676927566528,
+          1.1923184394836426,
+          1.2859188318252563
+        ]
+      ],
+      "vertex_start": 95819,
+      "triangle_start": 125278,
+      "source_vertices": 264,
+      "source_triangles": 253,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 47,
+      "name": "Curve.016",
+      "material": 47,
+      "material_name": "text_brand_white.002",
+      "atlas_key": "fpe:47",
+      "kind": "solid",
+      "vertices": 625,
+      "triangles": 573,
+      "source_bounds": [
+        [
+          -0.6061067581176758,
+          -1.3731094598770142,
+          1.2661007642745972
+        ],
+        [
+          0.6129673719406128,
+          -0.29169559478759766,
+          1.2698956727981567
+        ]
+      ],
+      "vertex_start": 95964,
+      "triangle_start": 125531,
+      "source_vertices": 1990,
+      "source_triangles": 1912,
+      "protected": false,
+      "error_mm": 0.015545262067462318
+    },
+    {
+      "source": "fpe",
+      "node": 48,
+      "name": "sticker_l_7_fpe_v2",
+      "material": 49,
+      "material_name": "material_sticker_button_l_7_fpe_v2",
+      "atlas_key": "sticker:7",
+      "kind": "sticker",
+      "vertices": 170,
+      "triangles": 168,
+      "source_bounds": [
+        [
+          -2.4425249099731445,
+          -1.6804193258285522,
+          1.246569037437439
+        ],
+        [
+          -1.538459300994873,
+          -0.9904091358184814,
+          1.4274042844772339
+        ]
+      ],
+      "vertex_start": 96589,
+      "triangle_start": 126104,
+      "source_vertices": 170,
+      "source_triangles": 168,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 49,
+      "name": "sticker_l_6_fpe_v2",
+      "material": 50,
+      "material_name": "material_sticker_button_l_6_fpe_v2",
+      "atlas_key": "sticker:6",
+      "kind": "sticker",
+      "vertices": 333,
+      "triangles": 321,
+      "source_bounds": [
+        [
+          -2.53281569480896,
+          -1.0115680694580078,
+          1.2366070747375488
+        ],
+        [
+          -1.6562552452087402,
+          -0.1464574933052063,
+          1.4251561164855957
+        ]
+      ],
+      "vertex_start": 96759,
+      "triangle_start": 126272,
+      "source_vertices": 441,
+      "source_triangles": 321,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 50,
+      "name": "static_button_r_11_fpe_v2",
+      "material": 51,
+      "material_name": "material_button_r_11_fpe_v2",
+      "atlas_key": "fpe:51",
+      "kind": "solid",
+      "vertices": 176,
+      "triangles": 253,
+      "source_bounds": [
+        [
+          1.7815676927566528,
+          0.8591558933258057,
+          1.2222731113433838
+        ],
+        [
+          2.3586056232452393,
+          1.1923184394836426,
+          1.2859188318252563
+        ]
+      ],
+      "vertex_start": 97092,
+      "triangle_start": 126593,
+      "source_vertices": 291,
+      "source_triangles": 253,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 51,
+      "name": "sticker_r_9_fpe_v2",
+      "material": 52,
+      "material_name": "sticker_r_9_fpev2",
+      "atlas_key": "sticker:9",
+      "kind": "sticker",
+      "vertices": 48,
+      "triangles": 46,
+      "source_bounds": [
+        [
+          2.115381956100464,
+          1.6630796194076538,
+          1.4194804430007935
+        ],
+        [
+          2.3933818340301514,
+          1.9410794973373413,
+          1.4194804430007935
+        ]
+      ],
+      "vertex_start": 97268,
+      "triangle_start": 126846,
+      "source_vertices": 48,
+      "source_triangles": 46,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 52,
+      "name": "static_FPE_Assembly_V1.001",
+      "material": 53,
+      "material_name": "Screen",
+      "atlas_key": "fpe:53",
+      "kind": "screen_blank",
+      "vertices": 4,
+      "triangles": 2,
+      "source_bounds": [
+        [
+          -1.6522639989852905,
+          0.38838157057762146,
+          1.2415474653244019
+        ],
+        [
+          1.6445709466934204,
+          2.3325140476226807,
+          1.2415481805801392
+        ]
+      ],
+      "vertex_start": 97316,
+      "triangle_start": 126892,
+      "source_vertices": 6,
+      "source_triangles": 2,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 53,
+      "name": "sticker_l_0_fpe_v2",
+      "material": 54,
+      "material_name": "sticker_l_0_fpev2",
+      "atlas_key": "sticker:0",
+      "kind": "sticker",
+      "vertices": 68,
+      "triangles": 64,
+      "source_bounds": [
+        [
+          -3.6962087154388428,
+          1.9286577701568604,
+          1.235262155532837
+        ],
+        [
+          -2.5206716060638428,
+          2.72526478767395,
+          1.4194533824920654
+        ]
+      ],
+      "vertex_start": 97320,
+      "triangle_start": 126894,
+      "source_vertices": 68,
+      "source_triangles": 64,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 54,
+      "name": "static_sticker_l_3_fpe_v2",
+      "material": 55,
+      "material_name": "static_sticker _fpev2",
+      "atlas_key": "fpe:55",
+      "kind": "texture",
+      "vertices": 31,
+      "triangles": 29,
+      "source_bounds": [
+        [
+          -2.3267805576324463,
+          0.8907243609428406,
+          1.2884423732757568
+        ],
+        [
+          -1.8133927583694458,
+          1.16050124168396,
+          1.2884423732757568
+        ]
+      ],
+      "vertex_start": 97388,
+      "triangle_start": 126958,
+      "source_vertices": 31,
+      "source_triangles": 29,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 55,
+      "name": "sticker_l_4_fpe_v2",
+      "material": 56,
+      "material_name": "sticker_l_4_fpe_v2",
+      "atlas_key": "sticker:4",
+      "kind": "sticker",
+      "vertices": 12,
+      "triangles": 6,
+      "source_bounds": [
+        [
+          -2.19179630279541,
+          0.5937602519989014,
+          1.0278079509735107
+        ],
+        [
+          -2.0926926136016846,
+          0.6934664249420166,
+          1.0278079509735107
+        ]
+      ],
+      "vertex_start": 97419,
+      "triangle_start": 126987,
+      "source_vertices": 12,
+      "source_triangles": 6,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 56,
+      "name": "sticker_r_8_fpe_v2",
+      "material": 57,
+      "material_name": "sticker_r_8_fpev2",
+      "atlas_key": "sticker:8",
+      "kind": "sticker",
+      "vertices": 68,
+      "triangles": 64,
+      "source_bounds": [
+        [
+          2.5206708908081055,
+          1.9286577701568604,
+          1.235262155532837
+        ],
+        [
+          3.6962084770202637,
+          2.7252650260925293,
+          1.4194533824920654
+        ]
+      ],
+      "vertex_start": 97431,
+      "triangle_start": 126993,
+      "source_vertices": 68,
+      "source_triangles": 64,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 57,
+      "name": "static_sticker_r_11_fpe_v2",
+      "material": 58,
+      "material_name": "static_sticker_r_11_fpev2",
+      "atlas_key": "fpe:58",
+      "kind": "texture",
+      "vertices": 31,
+      "triangles": 29,
+      "source_bounds": [
+        [
+          1.812294602394104,
+          0.8907243609428406,
+          1.2884423732757568
+        ],
+        [
+          2.3256824016571045,
+          1.16050124168396,
+          1.2884423732757568
+        ]
+      ],
+      "vertex_start": 97499,
+      "triangle_start": 127057,
+      "source_vertices": 31,
+      "source_triangles": 29,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 58,
+      "name": "sticker_r_15_fpe_v2",
+      "material": 59,
+      "material_name": "material_sticker_button_r_15_fpe_v2",
+      "atlas_key": "sticker:15",
+      "kind": "sticker",
+      "vertices": 170,
+      "triangles": 168,
+      "source_bounds": [
+        [
+          1.5384591817855835,
+          -1.6804193258285522,
+          1.246569037437439
+        ],
+        [
+          2.4425249099731445,
+          -0.9904091358184814,
+          1.423982858657837
+        ]
+      ],
+      "vertex_start": 97530,
+      "triangle_start": 127086,
+      "source_vertices": 170,
+      "source_triangles": 168,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 59,
+      "name": "sticker_16_fpe_v2",
+      "material": 60,
+      "material_name": "sticker_16_fpe_v2",
+      "atlas_key": "sticker:16",
+      "kind": "sticker",
+      "vertices": 512,
+      "triangles": 808,
+      "source_bounds": [
+        [
+          -1.6306489706039429,
+          -0.9162432551383972,
+          1.1920859813690186
+        ],
+        [
+          -0.4337615668773651,
+          0.09508019685745239,
+          1.2874979972839355
+        ]
+      ],
+      "vertex_start": 97700,
+      "triangle_start": 127254,
+      "source_vertices": 512,
+      "source_triangles": 808,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 60,
+      "name": "sticker_18_fpe_v2",
+      "material": 61,
+      "material_name": "sticker_18_fpe_v2",
+      "atlas_key": "sticker:18",
+      "kind": "sticker",
+      "vertices": 399,
+      "triangles": 584,
+      "source_bounds": [
+        [
+          -0.50483638048172,
+          -1.1787655353546143,
+          1.196471929550171
+        ],
+        [
+          0.5022223591804504,
+          -0.036358535289764404,
+          1.2920037508010864
+        ]
+      ],
+      "vertex_start": 98212,
+      "triangle_start": 128062,
+      "source_vertices": 399,
+      "source_triangles": 584,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 61,
+      "name": "sticker_19_fpe_v2",
+      "material": 62,
+      "material_name": "sticker_19_fpe_v2",
+      "atlas_key": "sticker:19",
+      "kind": "sticker",
+      "vertices": 532,
+      "triangles": 828,
+      "source_bounds": [
+        [
+          -1.4863991737365723,
+          -1.9818692207336426,
+          1.2123984098434448
+        ],
+        [
+          -0.28951165080070496,
+          -0.9705457091331482,
+          1.3078104257583618
+        ]
+      ],
+      "vertex_start": 98611,
+      "triangle_start": 128646,
+      "source_vertices": 532,
+      "source_triangles": 828,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 62,
+      "name": "arrow",
+      "material": 63,
+      "material_name": "white",
+      "atlas_key": "fpe:63",
+      "kind": "solid",
+      "vertices": 65,
+      "triangles": 55,
+      "source_bounds": [
+        [
+          -1.1407380104064941,
+          -1.291164755821228,
+          1.708964467048645
+        ],
+        [
+          1.1421211957931519,
+          -0.1718209683895111,
+          1.7096612453460693
+        ]
+      ],
+      "vertex_start": 99143,
+      "triangle_start": 129474,
+      "source_vertices": 65,
+      "source_triangles": 55,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 63,
+      "name": "custom_rotarie_r_10_fpe_v2",
+      "material": 64,
+      "material_name": "material_rotarie_r_10_fpe_v2",
+      "atlas_key": "fpe:64",
+      "kind": "solid",
+      "vertices": 5590,
+      "triangles": 2207,
+      "source_bounds": [
+        [
+          2.627694845199585,
+          0.8470646142959595,
+          0.4398505687713623
+        ],
+        [
+          2.8388822078704834,
+          1.6779168844223022,
+          1.2990219593048096
+        ]
+      ],
+      "vertex_start": 99208,
+      "triangle_start": 129529,
+      "source_vertices": 6037,
+      "source_triangles": 2207,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 64,
+      "name": "sticker_17_fpe_v2",
+      "material": 65,
+      "material_name": "sticker_17_fpe_v2",
+      "atlas_key": "sticker:17",
+      "kind": "sticker",
+      "vertices": 515,
+      "triangles": 808,
+      "source_bounds": [
+        [
+          0.43061497807502747,
+          -0.9162432551383972,
+          1.1920859813690186
+        ],
+        [
+          1.6275023221969604,
+          0.09508019685745239,
+          1.2874979972839355
+        ]
+      ],
+      "vertex_start": 104798,
+      "triangle_start": 131736,
+      "source_vertices": 515,
+      "source_triangles": 808,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 65,
+      "name": "sticker_20_fpe_v2",
+      "material": 66,
+      "material_name": "sticker_20_fpe_v2",
+      "atlas_key": "sticker:20",
+      "kind": "sticker",
+      "vertices": 531,
+      "triangles": 826,
+      "source_bounds": [
+        [
+          0.2863651216030121,
+          -1.9818692207336426,
+          1.2123984098434448
+        ],
+        [
+          1.4832525253295898,
+          -0.9705457091331482,
+          1.3078104257583618
+        ]
+      ],
+      "vertex_start": 105313,
+      "triangle_start": 132544,
+      "source_vertices": 531,
+      "source_triangles": 826,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 66,
+      "name": "static_back_gtmax.001",
+      "material": 67,
+      "material_name": "White Plastic",
+      "atlas_key": "fpe:67",
+      "kind": "solid",
+      "vertices": 85,
+      "triangles": 71,
+      "source_bounds": [
+        [
+          -0.4907918870449066,
+          2.7719929218292236,
+          0.7413268089294434
+        ],
+        [
+          0.45119449496269226,
+          2.7719929218292236,
+          1.0480775833129883
+        ]
+      ],
+      "vertex_start": 105844,
+      "triangle_start": 133370,
+      "source_vertices": 85,
+      "source_triangles": 71,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 67,
+      "name": "sticker_r_14_fpe_v2",
+      "material": 68,
+      "material_name": "material_sticker_button_r_14_fpe_v2",
+      "atlas_key": "sticker:14",
+      "kind": "sticker",
+      "vertices": 333,
+      "triangles": 321,
+      "source_bounds": [
+        [
+          1.6562552452087402,
+          -1.0115680694580078,
+          1.2366070747375488
+        ],
+        [
+          2.53281569480896,
+          -0.1464574933052063,
+          1.4230159521102905
+        ]
+      ],
+      "vertex_start": 105929,
+      "triangle_start": 133441,
+      "source_vertices": 441,
+      "source_triangles": 321,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 68,
+      "name": "sticker_r_13_fpe_v2",
+      "material": 1,
+      "material_name": "material_sticker_button_r_13_fpe_v2",
+      "atlas_key": "sticker:13",
+      "kind": "sticker",
+      "vertices": 221,
+      "triangles": 189,
+      "source_bounds": [
+        [
+          2.2129178047180176,
+          -0.07388317584991455,
+          1.2601475715637207
+        ],
+        [
+          2.9292256832122803,
+          0.257709264755249,
+          1.4194728136062622
+        ]
+      ],
+      "vertex_start": 106262,
+      "triangle_start": 133762,
+      "source_vertices": 265,
+      "source_triangles": 189,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 69,
+      "name": "sticker_l_0_fpe_v2.001",
+      "material": 21,
+      "material_name": "material_suport_rear_fpe.002",
+      "atlas_key": "sticker:0",
+      "kind": "sticker",
+      "vertices": 531,
+      "triangles": 752,
+      "source_bounds": [
+        [
+          -3.6042373180389404,
+          2.0134949684143066,
+          1.2352558374404907
+        ],
+        [
+          -3.0002431869506836,
+          2.6183383464813232,
+          1.422102689743042
+        ]
+      ],
+      "vertex_start": 106483,
+      "triangle_start": 133951,
+      "source_vertices": 540,
+      "source_triangles": 752,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "fpe",
+      "node": 70,
+      "name": "sticker_r_8_fpe_v2.001",
+      "material": 21,
+      "material_name": "material_suport_rear_fpe.002",
+      "atlas_key": "sticker:8",
+      "kind": "sticker",
+      "vertices": 539,
+      "triangles": 752,
+      "source_bounds": [
+        [
+          2.9996328353881836,
+          2.0134706497192383,
+          1.2352603673934937
+        ],
+        [
+          3.6042795181274414,
+          2.6183390617370605,
+          1.4222257137298584
+        ]
+      ],
+      "vertex_start": 107014,
+      "triangle_start": 134703,
+      "source_vertices": 553,
+      "source_triangles": 752,
+      "protected": true,
+      "error_mm": 0
+    },
+    {
+      "source": "qrs1",
+      "node": 0,
+      "name": "custom_qrs1",
+      "material": 0,
+      "material_name": "Black Plastic",
+      "atlas_key": "qrs1:0",
+      "kind": "solid",
+      "vertices": 21213,
+      "triangles": 25948,
+      "source_bounds": [
+        [
+          -1.231419324874878,
+          -1.1457768678665161,
+          -1.7409968376159668
+        ],
+        [
+          1.4813666343688965,
+          1.8480643033981323,
+          0.24996361136436462
+        ]
+      ],
+      "vertex_start": 107553,
+      "triangle_start": 135455,
+      "source_vertices": 25426,
+      "source_triangles": 25948,
+      "protected": true,
+      "error_mm": 0
+    }
+  ],
+  "atlas_tiles": {
+    "fpe:3": [
+      4,
+      4,
+      512,
+      512
+    ],
+    "fpe:55": [
+      524,
+      4,
+      512,
+      512
+    ],
+    "fpe:58": [
+      1044,
+      4,
+      512,
+      512
+    ],
+    "sticker:5": [
+      1564,
+      4,
+      256,
+      256
+    ],
+    "sticker:1": [
+      4,
+      524,
+      256,
+      256
+    ],
+    "sticker:0": [
+      268,
+      524,
+      256,
+      256
+    ],
+    "sticker:7": [
+      532,
+      524,
+      256,
+      256
+    ],
+    "sticker:6": [
+      796,
+      524,
+      256,
+      256
+    ],
+    "sticker:9": [
+      1060,
+      524,
+      256,
+      256
+    ],
+    "sticker:4": [
+      1324,
+      524,
+      256,
+      256
+    ],
+    "sticker:8": [
+      1588,
+      524,
+      256,
+      256
+    ],
+    "sticker:15": [
+      4,
+      788,
+      256,
+      256
+    ],
+    "sticker:16": [
+      268,
+      788,
+      256,
+      256
+    ],
+    "sticker:18": [
+      532,
+      788,
+      256,
+      256
+    ],
+    "sticker:19": [
+      796,
+      788,
+      256,
+      256
+    ],
+    "sticker:17": [
+      1060,
+      788,
+      256,
+      256
+    ],
+    "sticker:20": [
+      1324,
+      788,
+      256,
+      256
+    ],
+    "sticker:14": [
+      1588,
+      788,
+      256,
+      256
+    ],
+    "sticker:13": [
+      4,
+      1052,
+      256,
+      256
+    ],
+    "fpe:0": [
+      1852,
+      524,
+      8,
+      8
+    ],
+    "fpe:4": [
+      1868,
+      524,
+      8,
+      8
+    ],
+    "fpe:5": [
+      1884,
+      524,
+      8,
+      8
+    ],
+    "fpe:6": [
+      1900,
+      524,
+      8,
+      8
+    ],
+    "fpe:7": [
+      1916,
+      524,
+      8,
+      8
+    ],
+    "fpe:8": [
+      1932,
+      524,
+      8,
+      8
+    ],
+    "fpe:9": [
+      1948,
+      524,
+      8,
+      8
+    ],
+    "fpe:10": [
+      1964,
+      524,
+      8,
+      8
+    ],
+    "fpe:11": [
+      1980,
+      524,
+      8,
+      8
+    ],
+    "fpe:12": [
+      1996,
+      524,
+      8,
+      8
+    ],
+    "fpe:13": [
+      2012,
+      524,
+      8,
+      8
+    ],
+    "fpe:14": [
+      2028,
+      524,
+      8,
+      8
+    ],
+    "fpe:15": [
+      1852,
+      540,
+      8,
+      8
+    ],
+    "fpe:16": [
+      1868,
+      540,
+      8,
+      8
+    ],
+    "fpe:17": [
+      1884,
+      540,
+      8,
+      8
+    ],
+    "fpe:18": [
+      1900,
+      540,
+      8,
+      8
+    ],
+    "fpe:19": [
+      1916,
+      540,
+      8,
+      8
+    ],
+    "fpe:20": [
+      1932,
+      540,
+      8,
+      8
+    ],
+    "fpe:21": [
+      1948,
+      540,
+      8,
+      8
+    ],
+    "fpe:23": [
+      1964,
+      540,
+      8,
+      8
+    ],
+    "fpe:24": [
+      1980,
+      540,
+      8,
+      8
+    ],
+    "fpe:25": [
+      1996,
+      540,
+      8,
+      8
+    ],
+    "fpe:26": [
+      2012,
+      540,
+      8,
+      8
+    ],
+    "fpe:27": [
+      2028,
+      540,
+      8,
+      8
+    ],
+    "fpe:28": [
+      1852,
+      556,
+      8,
+      8
+    ],
+    "fpe:29": [
+      1868,
+      556,
+      8,
+      8
+    ],
+    "fpe:30": [
+      1884,
+      556,
+      8,
+      8
+    ],
+    "fpe:31": [
+      1900,
+      556,
+      8,
+      8
+    ],
+    "fpe:32": [
+      1916,
+      556,
+      8,
+      8
+    ],
+    "fpe:33": [
+      1932,
+      556,
+      8,
+      8
+    ],
+    "fpe:34": [
+      1948,
+      556,
+      8,
+      8
+    ],
+    "fpe:35": [
+      1964,
+      556,
+      8,
+      8
+    ],
+    "fpe:36": [
+      1980,
+      556,
+      8,
+      8
+    ],
+    "fpe:37": [
+      1996,
+      556,
+      8,
+      8
+    ],
+    "fpe:38": [
+      2012,
+      556,
+      8,
+      8
+    ],
+    "fpe:39": [
+      2028,
+      556,
+      8,
+      8
+    ],
+    "fpe:40": [
+      1852,
+      572,
+      8,
+      8
+    ],
+    "fpe:41": [
+      1868,
+      572,
+      8,
+      8
+    ],
+    "fpe:42": [
+      1884,
+      572,
+      8,
+      8
+    ],
+    "fpe:43": [
+      1900,
+      572,
+      8,
+      8
+    ],
+    "fpe:44": [
+      1916,
+      572,
+      8,
+      8
+    ],
+    "fpe:45": [
+      1932,
+      572,
+      8,
+      8
+    ],
+    "fpe:46": [
+      1948,
+      572,
+      8,
+      8
+    ],
+    "fpe:47": [
+      1964,
+      572,
+      8,
+      8
+    ],
+    "fpe:48": [
+      1980,
+      572,
+      8,
+      8
+    ],
+    "fpe:51": [
+      1996,
+      572,
+      8,
+      8
+    ],
+    "fpe:53": [
+      2012,
+      572,
+      8,
+      8
+    ],
+    "fpe:63": [
+      2028,
+      572,
+      8,
+      8
+    ],
+    "fpe:64": [
+      1852,
+      588,
+      8,
+      8
+    ],
+    "fpe:67": [
+      1868,
+      588,
+      8,
+      8
+    ],
+    "qrs1:0": [
+      1884,
+      588,
+      8,
+      8
+    ]
+  },
+  "approximations": [
+    "Diffuse atlas only: source normal, metallic, roughness and clearcoat maps are omitted.",
+    "Default configurator canvas stickers are baked from original font and icons.",
+    "Screen pixels are opaque dark for a separately fitted live dashboard.",
+    "New controls use verified physical-group means; individual angular wiring is unknown.",
+    "Telemetry bank sizes are verified; within-bank order is experimental and follows Hyper P1."
+  ],
+  "optimization": {
+    "tool": "meshoptimizer 0.25",
+    "source_sha256": "39236aae7cfcfa0e2cd12f12880cd2f0c57b5de78befd745001e5aa0dcb3260d",
+    "source_vertices": 279042,
+    "source_triangles": 267132,
+    "triangle_reduction_percent": 39.579309105610704,
+    "target_error_mm": 0.075,
+    "max_reported_error_mm": 0.07496668549720198,
+    "policy": "Per-material body simplification with normal/UV error, original vertex positions only; controls, stickers, LEDs, screen, logo, and small parts protected. Full-attribute deduplication and cache/fetch reorder for every part. Atlas unchanged."
+  }
+}
