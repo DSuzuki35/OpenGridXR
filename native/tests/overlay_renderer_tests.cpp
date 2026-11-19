@@ -889,12 +889,17 @@ int main(int argc, char **argv) {
                 return stack;
             };
             auto stack=renderWheel(true);
-            for(unsigned i=0;stack.size()!=4 && i<300;i++){Sleep(10);stack=renderWheel(true);}
-            check(stack.size()==4,"native wheel publishes both eye images");
-            auto left=reinterpret_cast<const XrCompositionLayerQuad*>(stack[2]);
-            auto right=reinterpret_cast<const XrCompositionLayerQuad*>(stack[3]);
-            check(left->eyeVisibility==XR_EYE_VISIBILITY_LEFT && right->eyeVisibility==XR_EYE_VISIBILITY_RIGHT &&
-                  left->subImage.swapchain!=right->subImage.swapchain && left->pose.position.x!=right->pose.position.x,
+            for(unsigned i=0;stack.size()!=3 && i<300;i++){Sleep(10);stack=renderWheel(true);}
+            check(stack.size()==3 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                  "native wheel publishes one stereo projection layer without eyeVisibility quads");
+            auto wheelLayer=reinterpret_cast<const XrCompositionLayerProjection*>(stack[2]);
+            check(wheelLayer->viewCount==2 && wheelLayer->views &&
+                  (wheelLayer->layerFlags & XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT) &&
+                  (wheelLayer->layerFlags & XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT),
+                  "stereo wheel retains both views and straight-alpha blending");
+            auto left=&wheelLayer->views[0];
+            auto right=&wheelLayer->views[1];
+            check(left->subImage.swapchain!=right->subImage.swapchain && left->pose.position.x!=right->pose.position.x,
                   "wheel uses distinct viewpoints with geometric parallax");
             const auto& leftImage=images.at(left->subImage.swapchain);
             constexpr uint32_t screenColor=0xff000080, ledColor=0xff008000;
@@ -951,11 +956,21 @@ int main(int argc, char **argv) {
                 }
                 stack=renderWheel(false,probe.Get(),100);
                 const auto& staleImage=images.at(right->subImage.swapchain);
-                check(stack.size()==4 && pixel(staleImage,staleImage.width*5/8)==0xff000000,
+                check(stack.size()==3 && pixel(staleImage,staleImage.width*5/8)==0xff000000,
                       "stale LED frame stays dark on a scene-lit wheel");
                 renderWheel(true,nullptr,100);
                 check(pixel(leftImage,leftImage.width/8)==baseCase,"losing the probe restores the original casing");
             }
+            std::array<XrCompositionLayerProjectionView,4> quadViews{views[0],views[1],views[0],views[1]};
+            app.viewCount=4;app.views=quadViews.data();
+            stack=renderWheel(true);
+            check(stack.size()==4 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_QUAD &&
+                  stack[3]->type==XR_TYPE_COMPOSITION_LAYER_QUAD,
+                  "four-view sessions retain the existing pair of eye-specific quads");
+            app.viewCount=2;app.views=views;
+            stack=renderWheel(true);
+            check(stack.size()==3 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                  "returning to stereo restores the single projection layer");
         }
         renderer.reset();
         for (auto h : handles)
