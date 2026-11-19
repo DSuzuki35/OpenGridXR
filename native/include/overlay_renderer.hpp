@@ -13,11 +13,15 @@ struct DashboardLayerOrder {
     bool helmetAtLayerLimit{};
 
     void insert(std::vector<const XrCompositionLayerBaseHeader *> &layers, bool dashboard,
-                const XrCompositionLayerQuad &quad) const {
+                const XrCompositionLayerBaseHeader *layer) const {
         auto position = layers.end();
         if (dashboard && firstHelmetEye)
             position = std::find(layers.begin(), layers.end(), firstHelmetEye);
-        layers.insert(position, reinterpret_cast<const XrCompositionLayerBaseHeader *>(&quad));
+        layers.insert(position, layer);
+    }
+    void insert(std::vector<const XrCompositionLayerBaseHeader *> &layers, bool dashboard,
+                const XrCompositionLayerQuad &quad) const {
+        insert(layers, dashboard, reinterpret_cast<const XrCompositionLayerBaseHeader *>(&quad));
     }
 };
 struct OverlayDispatch {

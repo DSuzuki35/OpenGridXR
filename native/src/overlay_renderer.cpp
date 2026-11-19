@@ -16,6 +16,7 @@
 #include "wheel_model.hpp"
 #include "../wheels/mesh_renderer.h"
 #include "windows_memory.hpp"
+#include "wheel_projection.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -156,6 +157,9 @@ struct RuntimeSlot {
 struct MaskSlot {
     RuntimeSlot surface, rightWheel;
     std::array<XrCompositionLayerQuad, 2> eyes{};
+    std::array<XrCompositionLayerProjectionView, 2> wheelViews{};
+    XrCompositionLayerProjection wheelProjection{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+    bool wheelUsesProjection{};
     ComPtr<ID3D11Texture2D> page;
     ComPtr<ID3D11ShaderResourceView> pageView;
     uint64_t frame{}, generation{}, retryAt{};
@@ -895,6 +899,10 @@ struct OverlayRenderer::Impl {
         };
         ovrlay::MeshEyeParameters params[2]{};
         auto& mask=masks[slotIndex];
+        // Stereo projection layers carry one explicit subimage per eye, avoiding
+        // runtimes that ignore eyeVisibility on the two wheel quad layers.
+        // Keep the existing path when the session uses a four-view projection.
+        mask.wheelUsesProjection = projection && projection->viewCount == 2;
         const unsigned pixels=std::clamp(slots[slotIndex].width,256u,1024u);
         for(unsigned eye=0;eye<2;eye++) {
             const auto& eyePose=depth?depth->eyes[eye].pose:projection->views[eye].pose;
@@ -945,7 +953,19 @@ struct OverlayRenderer::Impl {
             const auto& a=params[eye].aperture;
             quad.pose=compose(plain.pose,{{0,0,0,1},{a[0],a[1],0}});
             quad.size={a[2],a[3]};
+            if (mask.wheelUsesProjection) {
+                const auto &p = params[eye];
+                const XrVector3f eyeLocal{p.eyeLocal[0], p.eyeLocal[1], p.eyeLocal[2]};
+                mask.wheelViews[eye] = wheel_projection_view(
+                    compose(plain.pose, {{0, 0, 0, 1}, eyeLocal}), eyeLocal,
+                    p.aperture, quad.subImage);
+            }
         }
+        mask.wheelProjection.space = plain.space;
+        mask.wheelProjection.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                                         XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+        mask.wheelProjection.viewCount = uint32_t(mask.wheelViews.size());
+        mask.wheelProjection.views = mask.wheelViews.data();
         return true;
     }
     bool maskDashboard(unsigned i, const CockpitDepthFrame &depth, XrTime time) {
@@ -1214,10 +1234,14 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
     for (unsigned i = 0; i < overlay_count; ++i) {
         auto &slot = p.slots[i];
         auto &mask = p.masks[i];
-        auto submit = [&](bool dashboard, bool stereo) {
+        auto submit = [&](bool dashboard, bool stereo, bool wheel) {
             if (stereo) {
-                for (auto &eye : mask.eyes)
-                    order.insert(layers, dashboard, eye);
+                if (wheel && mask.wheelUsesProjection)
+                    order.insert(layers, dashboard,
+                        reinterpret_cast<const XrCompositionLayerBaseHeader *>(&mask.wheelProjection));
+                else
+                    for (auto &eye : mask.eyes)
+                        order.insert(layers, dashboard, eye);
                 --spare;
             } else {
                 order.insert(layers, dashboard, slot.quad);
@@ -1235,7 +1259,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
                     : depth && spare && layers.size() + 1 < p.maxLayers &&
                           slot.retainedOcclusion && p.maskDashboard(i, *depth, info.displayTime));
                 if (canRetain(slot)) {
-                    submit(true, stereo);
+                    submit(true, stereo, slot.retainedWheel);
                     retainedDashboard = true;
                     admitted[i] = true;
                     opacities[i] = slot.opacity;
@@ -1477,7 +1501,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
             if (presentable && d->producerPid == p.producer && state.enabled &&
                 state.sourceRevision == config.sourceRevision && state.revision == config.revision &&
                 state.recenter == config.recenter && state.placementToken == config.placementToken) {
-                submit(config.webDashboard, masked);
+                submit(config.webDashboard, masked, isWheel);
                 slot.retainUntil = config.webDashboard && config.opacity > 0
                     ? std::min<uint64_t>(GetTickCount64() + 100, d->producerBeat + 3000) : 0;
                 slot.presentationEpoch = configEpoch;
