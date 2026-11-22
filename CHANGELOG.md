@@ -4,6 +4,7 @@
 
 - Added the Ascher Artura 3D steering wheel, with thanks to Martin Ascher for providing the model.
 - Added a fitted SimHub display and mapped shift lights and button illumination for the Artura Ultimate.
+- Added **Install SimHub bridge** in Setup, with automatic detection, folder selection, updates and a backup of the previous plugin.
 - Fixed duplicated 3D wheels in stereo Pimax OpenXR sessions using the stereo projection approach contributed by [Rak3tenmann](https://github.com/DSuzuki35/OpenGridXR/pull/1). Four-view sessions retain the existing submission path.
 - Added an explicit **3D model without occlusion** option, allowing each wheel to skip cockpit-depth processing while other overlays keep their own occlusion settings.
 

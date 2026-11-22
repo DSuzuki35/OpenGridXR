@@ -17,6 +17,7 @@ If you run into an issue, feel free to clone or fork the repository, open it wit
 The latest release adds:
 
 - **Ascher Artura Ultimate:** a 3D wheel with a fitted SimHub display, 21 shift lights and 14 illuminated button symbols. Thanks to Martin Ascher for providing the model.
+- **SimHub bridge setup:** install or update the wheel-light plugin directly from Setup, with automatic folder detection and a backup of the previous plugin.
 - **Pimax stereo wheels:** a stereo projection fix contributed by Rak3tenmann addresses duplicated wheels. Four-view sessions retain the existing submission path.
 - **Optional wheel occlusion:** choose **3D model without occlusion** to skip cockpit-depth processing for that wheel. Other overlays keep their own settings.
 
