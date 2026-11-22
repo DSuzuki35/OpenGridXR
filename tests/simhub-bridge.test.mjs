@@ -129,6 +129,31 @@ test('rejects a hard-linked target without modifying the linked file', async t =
   assert.deepEqual(await fs.readFile(other), binary(2));
 });
 
+test('accepts Windows short-name expansion when canonical path identifies the same file', async t => {
+  const f = await fixture(t);
+  const expanded = `${f.root}-long-name`;
+  const aliasFs = {
+    ...fs,
+    realpath: async file => (await fs.realpath(file)).replace(f.root, expanded),
+    lstat: (file, options) => fs.lstat(file.replace(expanded, f.root), options),
+  };
+  const bridge = createSimHubBridge({...f.options, fs:aliasFs});
+  assert.equal((await bridge.status()).available, true);
+  assert.equal((await bridge.install()).current, true);
+  assert.deepEqual(await fs.readFile(f.target), binary(1));
+});
+
+test('rejects canonical-path changes that identify a different file', async t => {
+  const f = await fixture(t);
+  const other = path.join(f.root, 'other-source.dll');
+  await fs.writeFile(other, binary(1));
+  const bridge = createSimHubBridge({...f.options, fs:{...fs,
+    realpath: file => file === f.sourceFile ? Promise.resolve(other) : fs.realpath(file),
+  }});
+  await assert.rejects(bridge.install(), /bundled.*bridge/i);
+  await assert.rejects(fs.stat(f.target), {code:'ENOENT'});
+});
+
 test('registry install location discovers custom installation', async t => {
   const f = await fixture(t); const custom = path.join(f.root, 'registry custom');
   await fs.rename(f.directory, custom);

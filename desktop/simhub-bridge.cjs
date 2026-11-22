@@ -47,7 +47,18 @@ function createSimHubBridge({ sourceFile, dataDirectory, chooseDirectory,
       if (parent === current) break;
       current = parent;
     }
-    if (normalize(await fs.realpath(absolute)) !== normalize(absolute)) throw new Error('Redirected paths are not supported. Choose the real SimHub folder.');
+    const canonical = await fs.realpath(absolute);
+    if (normalize(canonical) !== normalize(absolute)) {
+      // Windows expands legitimate 8.3 names (e.g. RUNNER~1) in realpath.
+      // Ancestors were checked above; require the same filesystem identity,
+      // rather than treating a spelling change as proof of a junction.
+      const [original, resolved] = await Promise.all([
+        fs.lstat(absolute, {bigint:true}), fs.lstat(canonical, {bigint:true}),
+      ]);
+      if (original.isSymbolicLink() || resolved.isSymbolicLink() || !original.ino ||
+          original.dev !== resolved.dev || original.ino !== resolved.ino)
+        throw new Error('Redirected paths are not supported. Choose the real SimHub folder.');
+    }
     if (kind === 'directory' ? !leaf.isDirectory() : !leaf.isFile()) throw new Error('Choose a valid SimHub installation folder.');
     if (kind !== 'directory' && leaf.nlink > 1) throw new Error('Hard-linked plugin files are not supported. Use a regular file.');
     return leaf;
