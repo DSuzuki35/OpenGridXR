@@ -12,17 +12,18 @@ const http = require("node:http");
   const bin=path.join(root,"native/build/Release");
   const env={...process.env,LOCALAPPDATA:dir,OPENGRIDXR_TEST_MODE:"1",OPENGRIDXR_DATA_DIR:path.join(dir,"profile")};
   delete env.ELECTRON_RUN_AS_NODE;
-  const server=http.createServer((_,res)=>res.end("<html><body style='background: red'></body></html>"));
+  const server=http.createServer((_,res)=>res.end("<html><body style='margin:0;background:#07121a;color:white;font:30px Arial;display:grid;grid-template-columns:1fr 1fr;height:100vh'><div style='background:#177a38'>TOP LEFT</div><div style='background:#174a9a;text-align:right'>TOP RIGHT</div><div style='background:#9a2717;display:flex;align-items:end'>BOTTOM LEFT</div><div style='background:#817217;display:flex;align-items:end;justify-content:end'>BOTTOM RIGHT</div></body></html>"));
   let app,receiver;
   try {
     await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
     await fs.writeFile(path.join(dir,"test.obj"),"v -1 -1 0\nv 1 -1 0\nv 0 1 0\nf 1 2 3\n");
-    receiver=spawn(path.join(bin,"opengrid-overlay-renderer-tests.exe"),["--listen","--seconds","90"],{env,windowsHide:true,stdio:["ignore","pipe","inherit"]});
+    const captureDirectory=process.env.OPENGRIDXR_WHEEL_CAPTURE_DIR;
+    receiver=spawn(path.join(bin,"opengrid-overlay-renderer-tests.exe"),["--listen","--seconds","90",...(captureDirectory?["--capture-wheel-dir",path.resolve(captureDirectory)]:[])],{env,windowsHide:true,stdio:["ignore","pipe","inherit"]});
     await new Promise((resolve,reject)=>{receiver.once("error",reject);receiver.once("exit",()=>reject(Error("GPU receiver exited")));receiver.stdout.once("data",resolve);});
     receiver.stdout.resume();
     app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE || require("electron"),args:process.env.OPENGRIDXR_TEST_EXE?[]:[root],env});
     await app.firstWindow();
-    const results=await app.evaluate(async(electron,{root,dir,bin,url})=>{
+    const results=await app.evaluate(async(electron,{root,dir,bin,url,captureDirectory})=>{
       if(electron.app.isPackaged) {
         root=electron.app.getAppPath();
         bin=process.resourcesPath+"/native";
@@ -43,13 +44,18 @@ const http = require("node:http");
       try {
         const socket=load("node:dgram").createSocket("udp4");
         let sequence=0;
-        const frame=Buffer.alloc(20+88*3,77);
-        frame.write("OVRLED02");frame.writeUInt32LE(88,12);frame.writeUInt32LE(1,16);
-        udp=setInterval(()=>{frame.writeUInt32LE(++sequence,8);socket.send(frame,29543,"127.0.0.1");},50);
+        const frames=[[1,88],[6,63]].map(([device,count])=>{
+          const frame=Buffer.alloc(20+count*3,77);
+          frame.write("OVRLED02");frame.writeUInt32LE(count,12);frame.writeUInt32LE(device,16);
+          if(device===6) for(const [index,rgb] of [[0,[0,255,0]],[21,[0,0,255]],[42,[255,0,0]],[60,[255,255,0]]]) frame.set(rgb,20+index*3);
+          return frame;
+        });
+        udp=setInterval(()=>{++sequence;for(const frame of frames){frame.writeUInt32LE(sequence,8);socket.send(frame,29543,"127.0.0.1");}},50);
         try {
           for(const wheel of [...wheelModels,{...custom,screenHeight:576}]) {
             const item={...createSpatialOverlay(),enabled:true,wheelModel:wheel.id,wheelName:wheel.name,
-              wheelLights:wheel.id==="hyper-p1",url,width:512,height:288,widthMeters:.3};
+              wheelLights:["hyper-p1","ascher-artura"].includes(wheel.id),url,width:512,height:288,widthMeters:.3};
+            if(captureDirectory && wheel.id==="ascher-artura") {item.width=1024;item.height=608;item.y=0;item.z=-.45;}
             p.spatialOverlays={enabled:true,pixelBudgetMP:60,items:[item]};
             controller.update(document);
             const until=Date.now()+10000;let status;
@@ -59,6 +65,7 @@ const http = require("node:http");
               if(status?.source?.displaying && (!item.wheelLights || status.ledConnected))break;
             } while(Date.now()<until);
             if(!status?.source?.displaying || (item.wheelLights && !status.ledConnected))throw Error(wheel.name+": "+JSON.stringify(controller.status("iracing")));
+            if(captureDirectory && wheel.id==="ascher-artura") await new Promise(resolve=>setTimeout(resolve,2000));
             if(!wheel.screenHeight && electron.BrowserWindow.getAllWindows().some(win=>win.webContents.getURL()===new URL(url).href))
               throw Error("Screenless wheel loaded the saved dashboard URL.");
             if(wheel.id==="hyper-p1") {
@@ -85,7 +92,9 @@ const http = require("node:http");
         } finally { clearInterval(udp);socket.close(); }
       } finally {controller.close();}
       return reports;
-    },{root,dir,bin,url:"http://127.0.0.1:"+server.address().port});
+    },{root,dir,bin,url:"http://127.0.0.1:"+server.address().port,captureDirectory});
+    if(captureDirectory) for(const eye of ["left","right"])
+      await fs.access(path.join(captureDirectory,`ascher-artura-${eye}.ppm`));
     console.log("Electron, native host, stereo renderer and SimHub loopback passed for",results.join(", "));
   } finally {
     if(app)await app.close();

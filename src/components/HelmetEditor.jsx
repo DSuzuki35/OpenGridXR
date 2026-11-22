@@ -10,6 +10,7 @@ import {api} from '../api.mjs';
 import './HelmetEditor.css';
 import {colorCorrectionDefaults,resolvedColorPreset,colorPresetIsIdentity} from '../color-correction.mjs';
 import SceneColorFilter from './SceneColorFilter.jsx';
+import gsiGraphic from '../assets/sponsors/gsi-logo.png?inline';
 
 const detailOptions = [{value:'performance',label:'Performance · 2048'},{value:'3200',label:'3200 × 1800'},{value:'detail',label:'Detail · 4096'}];
 
@@ -267,7 +268,8 @@ export default function HelmetEditor({ profile, onHelmetChange, onMaskChange, on
         </div>}
         {section === 'graphic' && <div className="helmet-editor-controls">
           <Segmented label="Graphic layout" value={visor.graphicPlacement??'sunstrip'} onChange={graphicPlacement=>changeVisor({graphicPlacement})} options={[{value:'sunstrip',label:'Logo / strip'},{value:'full',label:'Custom'}]}/>
-          <Toggle label="Mirror graphic" checked={visor.graphicMirror??visor.mirror} onChange={graphicMirror=>changeVisor({graphicMirror})} description="Flip only the uploaded graphic horizontally, independently of lettering."/>
+          <Toggle label="Mirror graphic" checked={visor.graphicMirror??visor.mirror} onChange={graphicMirror=>changeVisor({graphicMirror})} description="Flip only the graphic horizontally, independently of lettering."/>
+          {!fullGraphic && <div className="helmet-editor-presets"><Button disabled={uploading} onClick={() => { changeVisor({graphic:gsiGraphic}); setNotice('GSI logo added. Adjust its width, position and mirroring below.'); }}>Use GSI logo</Button></div>}
           <p className="panel-description">{fullGraphic?'Design the whole visor using the templates below. Export only your artwork as a transparent PNG; transparent pixels keep the view clear.':'Add your own logo or sponsor strip.'} PNG, JPEG or WebP, up to 4 MB. Images are resized and embedded in the profile.</p>
           {fullGraphic&&<>
             <div className="helmet-template-downloads">{[['png','PNG template'],['psd','PSD template'],['guide','PNG guide']].map(([format,label])=><Button key={format} icon={Download} disabled={!!templateBusy} onClick={()=>saveTemplate(format)}>{label}</Button>)}</div>

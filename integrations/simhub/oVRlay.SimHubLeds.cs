@@ -16,8 +16,8 @@ using SimHub.Plugins.OutputPlugins.GraphicalDash.LedModules;
 using SimHub.Plugins.OutputPlugins.GraphicalDash.PSE;
 
 [assembly: AssemblyTitle("oVRlay SimHub LED Observer")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace oVRlay.SimHubLeds
 {
@@ -29,7 +29,7 @@ namespace oVRlay.SimHubLeds
 
     [PluginName("oVRlay lights")]
     [PluginAuthor("oVRlay")]
-    [PluginDescription("Mirrors each supported GSI wheel's existing LED output to its own oVRlay model.")]
+    [PluginDescription("Mirrors each supported wheel's existing LED output to its own oVRlay model.")]
     public sealed class LedObserverPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
         private sealed class ModelSpec
@@ -50,13 +50,14 @@ namespace oVRlay.SimHubLeds
             public LedForwarder Forwarder;
             public long LastFrame;
         }
-        // Verified against GSIDevicesRegistry and each installed physical mapper.
+        // Verified against the installed GSI/Ascher registries and physical mappers.
         private static readonly ModelSpec[] Models={
             new ModelSpec(1,"Hyper P1",88,"8562E400-8AC8-4A35-98B2-AD05B17339DD","66D962E7-17D7-41EF-98F3-6444689CCB57"),
             new ModelSpec(2,"Hyper SL",86,"9BFB0C71-BAC9-4442-95E0-A2B3C9914401"),
             new ModelSpec(3,"GXL V2",62,"DEC2C70A-4AA1-4E78-A022-2EEFE13C8A9A"),
             new ModelSpec(4,"GT-MAX 32",76,"F3D8503D-9234-4A44-B842-802C9A8552ED","3805B7BC-0587-4458-9AB9-0B9BDCD25377"),
-            new ModelSpec(5,"FPE2",66,"EFC17674-559A-44DB-8D24-C6CFD203384D")
+            new ModelSpec(5,"FPE2",66,"EFC17674-559A-44DB-8D24-C6CFD203384D"),
+            new ModelSpec(6,"Ascher Artura Ultimate",63,"FB95779F-C045-42C0-9D04-C1B3861796EB")
         };
         private ObserverSettings settings;
         private volatile bool stopped = true;
@@ -79,7 +80,7 @@ namespace oVRlay.SimHubLeds
             settings = this.ReadCommonSettings<ObserverSettings>("GeneralSettings", delegate { return new ObserverSettings(); });
             enabled = settings.Enabled;
             stopped = false;
-            status = enabled ? "Waiting for supported GSI wheels." : "Light mirroring is off.";
+            status = enabled ? "Waiting for supported wheels." : "Light mirroring is off.";
             try
             {
                 string error = CompatibilityError();
@@ -133,7 +134,7 @@ namespace oVRlay.SimHubLeds
                     else
                     {
                         var active=activeDevices;
-                        status=active.Length==0 ? "Waiting for a connected GSI wheel in SimHub Devices." :
+                        status=active.Length==0 ? "Waiting for a connected wheel in SimHub Devices." :
                             string.Join("; ",active.Select(binding=>binding.Spec.Name+
                                 (now-System.Threading.Interlocked.Read(ref binding.LastFrame)<=Stopwatch.Frequency ?
                                 " - "+binding.Spec.Count+" live LEDs" : " - waiting for LED output")));
@@ -142,7 +143,7 @@ namespace oVRlay.SimHubLeds
                 catch (Exception ex)
                 {
                     Unbind();
-                    status = "Waiting for compatible GSI wheels: " + ex.Message;
+                    status = "Waiting for compatible wheels: " + ex.Message;
                 }
             }
         }
@@ -151,7 +152,7 @@ namespace oVRlay.SimHubLeds
         private void BindExistingDevices(PluginManager pluginManager)
         {
             DevicesPlugin devices=pluginManager.GetPlugin<DevicesPlugin>();
-            if(devices==null) {Unbind();status="Enable SimHub's Devices feature to mirror GSI lights.";return;}
+            if(devices==null) {Unbind();status="Enable SimHub's Devices feature to mirror wheel lights.";return;}
             var previous=activeDevices;
             var candidates=devices.GetDevices()
                 .Where(d=>d.Enabled && !d.Suspended && d.DeviceDescriptor!=null)
@@ -218,9 +219,9 @@ namespace oVRlay.SimHubLeds
         {
             var panel = new StackPanel { Margin = new Thickness(20), MaxWidth = 680 };
             panel.Children.Add(new TextBlock { Text = "oVRlay lights", FontSize = 24, Margin = new Thickness(0, 0, 0, 16) });
-            var toggle = new CheckBox { Content = "Mirror my GSI wheel lights in oVRlay", IsChecked = enabled, Margin = new Thickness(0, 0, 0, 16) };
+            var toggle = new CheckBox { Content = "Mirror my wheel lights in oVRlay", IsChecked = enabled, Margin = new Thickness(0, 0, 0, 16) };
             panel.Children.Add(toggle);
-            panel.Children.Add(new TextBlock { Text = "Each virtual wheel uses its own matching SimHub device: Hyper P1, Hyper SL, GXL V2, GT-MAX 32 or FPE2. Keep those devices connected and enabled. Existing effects, button colors and brightness are preserved; missing devices do not borrow another wheel's colors.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 16) });
+            panel.Children.Add(new TextBlock { Text = "Each virtual wheel uses its own matching SimHub device: Hyper P1, Hyper SL, GXL V2, GT-MAX 32, FPE2 or Ascher Artura Ultimate. Keep those devices connected and enabled. Existing effects, button colors and brightness are preserved; missing devices do not borrow another wheel's colors.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 16) });
             var statusText = new TextBlock { Text = status, TextWrapping = TextWrapping.Wrap };
             panel.Children.Add(statusText);
             RoutedEventHandler changed = delegate
@@ -231,7 +232,7 @@ namespace oVRlay.SimHubLeds
                     settings.Enabled = enabled;
                     System.Threading.Interlocked.Exchange(ref nextBind, 0);
                     if (!enabled) Unbind();
-                    status = enabled ? "Waiting for supported GSI wheels." : "Light mirroring is off.";
+                    status = enabled ? "Waiting for supported wheels." : "Light mirroring is off.";
                 }
                 try { this.SaveCommonSettings("GeneralSettings", settings); }
                 catch (Exception) { status = "Setting changed for this session; it could not be saved."; }

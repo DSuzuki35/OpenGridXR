@@ -1,0 +1,54 @@
+{
+  "model": "Ascher Artura Ultimate",
+  "credit": "Ascher Racing; thanks to Martin Ascher",
+  "product_url": "https://ascher-racing.com/int/ascher-racing-mclaren-artura-ultimate/",
+  "source": {
+    "archive": "Ascher-Artura-fuer-Dan-2026-11-21.zip",
+    "archive_sha256": "c6cf4c165a641b0175caea32c19a10090fc7e7083d73e4a8801410db17a0481f",
+    "selected_variant": "03_AGM_Varianten/Gedaempfte_Farben_mit_Versatz_AKTUELL/80166eb4e005043ccae1b13372eaa282ed0a166e548590f299a0daa1941a0202.agm",
+    "sha256": "80166eb4e005043ccae1b13372eaa282ed0a166e548590f299a0daa1941a0202",
+    "manifest_verification": "All 14 supplied manifest entries verified before integration; original muted prototype retained in editable source ZIP.",
+    "editable_source": "ascher-artura-source.zip",
+    "editable_source_sha256": "a812403ea2f2a075798378d300473dfbf6712abc4eea9784db86cf22066333ae",
+    "editable_files": [
+      {
+        "file": "Ascher 188_2.obj",
+        "bytes": 25808281,
+        "sha256": "3efbdee47016ff95c140e77b9d8643ace5fd722e5d24327ef1b771add947af54"
+      },
+      {
+        "file": "Ascher 188_2.mtl",
+        "bytes": 834,
+        "sha256": "430a65c222edace3b9a97852fea558491120f6e5833394ef52dcd47d129ea02f"
+      },
+      {
+        "file": "muted-prototype.agm",
+        "bytes": 22578816,
+        "sha256": "80166eb4e005043ccae1b13372eaa282ed0a166e548590f299a0daa1941a0202"
+      }
+    ]
+  },
+  "permissions": {
+    "inclusion": "The project owner authorized integration of the supplied model.",
+    "model_license": "No independent model license text was supplied. The OpenGrid code license does not grant independent rights to the Ascher model.",
+    "converter_license": "ASCHER-CONVERTER-LICENSE.txt applies to the supplied OpenGrid-derived conversion software, not the model."
+  },
+  "local_changes": [
+    "Preserved the original position/normal data and diffuse atlas; tagged 21 shift-light diffusers and 14 illuminated button-symbol CAD bodies using the installed SimHub physical mapper.",
+    "Duplicated the 14 original rounded screen triangles 0.05 mm forward with full dashboard UVs; preserved original dark glass when the dashboard is disabled.",
+    "Added built-in catalog metadata, integrity manifest and physical device6 support. Mapping details and source body/triangle ranges are in ascher-artura.mapping.json.",
+    "Rebuild with python scripts/build-artura-wheel.py using only the bundled editable source archive and mapping; no supplied converter code is executed.",
+    "Preserved original OBJ/MTL, muted prototype, conversion report and software license as compressed editable source; excluded source-only ZIP from installer resources."
+  ],
+  "limitations": [
+    "The supplied placement translation is +0.0666667 normalized Z, or 20 mm toward the driver at 300 mm wheel width. This does not add or extend hub geometry.",
+    "Diffuse material colors only; no PBR roughness/metallic, carbon or label image textures.",
+    "Source package reports unresolved button flicker on the original rig; no headset validation or correction is claimed."
+  ],
+  "validation": {
+    "geometry": "All 564102 vertices checked for finite bounded positions, unit normals, UV bounds; all 564102 indices in range; width normalized to1. 14 diffuse colors preserved.",
+    "mapping": "Installed SimHub mapper and default LED profile establish physical63-channel layout, 21 shift lights,14 button lights; no remapping of unused physical channel gaps.",
+    "hardware": "Synthetic GPU and loopback validation are separate from physical-wheel and headset validation; no hardware LED flashing performed.",
+    "gpu": "Production D3D11 renderer readback inspected for both eyes with a four-corner dashboard test page and distinct physical LED colors:0 green headlight,21 blue microphone,42 red left-bottom flag,60 yellow right-top flag. Synthetic D3D11/D3D12 renderer tests and Electron/native-host/SimHub-loopback tests passed."
+  }
+}

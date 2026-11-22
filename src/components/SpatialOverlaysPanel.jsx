@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { api, isBrowserPreview } from "../api.mjs";
 import {
-  spatialDefaults, recenterKeys, wheelModels, hasWheelScreen,
+  spatialDefaults, recenterKeys, wheelModels, hasWheelScreen, hasWheelLights, wheelLightDevice,
   createSpatialOverlay,
   createQuickMenuOverlay,
   occupiedShortcuts,
@@ -648,16 +648,20 @@ export default function SpatialOverlaysPanel({
                 <Range label="Scene lighting on wheel" value={selected.wheelAmbientLight ?? 0}
                   onChange={wheelAmbientLight => edit({wheelAmbientLight})}
                   hint="Track light affects the wheel body in VR. The display and SimHub LEDs keep their colors. Save before starting VR." />
-                {!wheelModels.some(w=>w.id===selected.wheelModel) && <div className="select-field">
+                <Toggle label="3D model without occlusion" checked={selected.cockpitOcclusion !== true}
+                  onChange={withoutOcclusion => edit({cockpitOcclusion: !withoutOcclusion})}
+                  description="Keep the wheel visible in front of cockpit surfaces. Skips cockpit-depth capture and masking unless another overlay needs them." />
+                {!hasWheelLights(selected.wheelModel) && <Note>This model has no mapped LEDs.</Note>}
+                {hasWheelLights(selected.wheelModel) && !wheelModels.some(w=>w.id===selected.wheelModel) && <div className="select-field">
                   <label htmlFor="wheel-device">SimHub LED device</label>
                   <select id="wheel-device" value={selected.wheelDevice || 0} onChange={e=>edit({wheelDevice:Number(e.target.value),wheelLights:Number(e.target.value)>0})}>
-                    <option value={0}>None</option>{wheelModels.map((w,i)=><option key={w.id} value={i+1}>{w.name}</option>)}
+                    <option value={0}>None</option>{wheelModels.filter(w=>hasWheelLights(w.id)).map(w=><option key={w.id} value={wheelLightDevice(w.id)}>{w.name}</option>)}
                   </select>
                 </div>}
-                {(wheelModels.some(w=>w.id===selected.wheelModel) || !!selected.wheelDevice) && <Toggle
+                {hasWheelLights(selected.wheelModel) && (wheelModels.some(w=>w.id===selected.wheelModel) || !!selected.wheelDevice) && <Toggle
                   label="Mirror SimHub LEDs" checked={selected.wheelLights===true} onChange={wheelLights=>edit({wheelLights})}
                   description="Use the matching physical wheel’s colors from the SimHub lights observer."/>}
-                {selected.wheelLights && <>
+                {hasWheelLights(selected.wheelModel) && selected.wheelLights && <>
                   <p className="selection-hint" role="status">{selectedStatus?.ledConnected ? "Receiving SimHub LED colors" : (selectedStatus?.ledError || "Waiting for the wheel and SimHub lights observer")}</p>
                   <details>
                     <summary>Set up SimHub wheel lights</summary>
@@ -815,17 +819,17 @@ export default function SpatialOverlaysPanel({
               )}
               {selected.kind === "url" && <>
                 <SourceSummary source={currentSource} kind={selected.kind} />
-                <Toggle
+                {!selected.wheelModel && <Toggle
                   label="Cockpit occlusion"
                   checked={selected.cockpitOcclusion === true}
                   onChange={(cockpitOcclusion) => edit({ cockpitOcclusion })}
                   description="Let nearer cockpit surfaces cover this dashboard in VR and Clean Output when the sim provides stereo depth."
-                />
-                <Note tone="warning">We recommend leaving cockpit occlusion off. It can significantly increase CPU frametime in some sims, including Le Mans Ultimate. To check your setup, benchmark the same scene with occlusion off and on.</Note>
+                />}
+                {!selected.wheelModel && <Note tone="warning">We recommend leaving cockpit occlusion off. It can significantly increase CPU frametime in some sims, including Le Mans Ultimate. To check your setup, benchmark the same scene with occlusion off and on.</Note>}
                 {selected.cockpitOcclusion && statusMatchesSource && currentSource?.displaying &&
                   typeof selectedStatus.cockpitDepthActive === "boolean" &&
                   <p className="selection-hint" role="status">
-                    {selectedStatus.cockpitDepthActive ? "Cockpit occlusion active" : "Showing the ordinary dashboard · cockpit occlusion unavailable"}
+                    {selectedStatus.cockpitDepthActive ? "Cockpit occlusion active" : `${selected.wheelModel ? "Showing the 3D wheel" : "Showing the ordinary dashboard"} · cockpit occlusion unavailable`}
                   </p>}
               </>}
               <div className="panel-divider" />

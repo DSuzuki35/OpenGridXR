@@ -1,11 +1,10 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron}=require('playwright-core');const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 (async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-full-visor-ui-'));const env={...process.env,OPENGRIDXR_DATA_DIR:dir,OPENGRIDXR_TEST_MODE:'1'};delete env.ELECTRON_RUN_AS_NODE;let app;
  try{
   app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});
   await app.evaluate(({ipcMain})=>{global.templateCalls=[];ipcMain.removeHandler('opengrid:downloadVisorTemplate');ipcMain.handle('opengrid:downloadVisorTemplate',(_,request)=>{global.templateCalls.push(request);return {saved:true,fileName:'Fixture template.'+request.format};});ipcMain.removeHandler('opengrid:listSystemFonts');ipcMain.handle('opengrid:listSystemFonts',()=>({available:true,families:['Arial','Comic Sans MS','Segoe UI'],error:''}));});
-  const page=await app.firstWindow(); await revealAppearance(page);page.setDefaultTimeout(5000);
+  const page=await app.firstWindow();page.setDefaultTimeout(5000);
   await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
   await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Graphic',exact:true}).click();
   const area=page.getByRole('group',{name:'Graphic layout',exact:true});await area.getByRole('button',{name:'Custom',exact:true}).click();
@@ -39,7 +38,7 @@ const {_electron}=require('playwright-core');const fs=require('node:fs/promises'
   assert.equal(p.helmet.visor.artworkOffsetX,2.5);assert.equal(p.helmet.visor.artworkOffsetY,-3.5);
   const {parseProfile}=await import('../src/model.mjs');
   assert.deepEqual(parseProfile(JSON.stringify({version:1,profile:p})),p,'4K artwork survives profile exchange');
-  await page.reload(); await revealAppearance(page);await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Sunstrip',exact:true}).click();
+  await page.reload();await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Sunstrip',exact:true}).click();
   assert.equal(await page.getByLabel('Letter font',{exact:true}).inputValue(),'custom');assert.equal(await page.getByLabel('System font',{exact:true}).inputValue(),'Comic Sans MS');
   await page.getByRole('group',{name:'Helmet editor section'}).getByRole('button',{name:'Graphic',exact:true}).click();assert.equal(await area.getByRole('button',{name:'Custom',exact:true}).getAttribute('aria-pressed'),'true');
   page.setDefaultTimeout(30000);

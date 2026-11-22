@@ -16,6 +16,7 @@
 #include "wheel_model.hpp"
 #include "../wheels/mesh_renderer.h"
 #include "windows_memory.hpp"
+#include "wheel_projection.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -156,6 +157,9 @@ struct RuntimeSlot {
 struct MaskSlot {
     RuntimeSlot surface, rightWheel;
     std::array<XrCompositionLayerQuad, 2> eyes{};
+    std::array<XrCompositionLayerProjectionView, 2> wheelViews{};
+    XrCompositionLayerProjection wheelProjection{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+    bool wheelUsesProjection{};
     ComPtr<ID3D11Texture2D> page;
     ComPtr<ID3D11ShaderResourceView> pageView;
     uint64_t frame{}, generation{}, retryAt{};
@@ -821,7 +825,7 @@ struct OverlayRenderer::Impl {
     }
     bool wheel(unsigned slotIndex,const OverlaySlot& config,const XrFrameEndInfo& info,
                const CockpitDepthFrame* depth, ID3D11ShaderResourceView* sceneProbe) {
-        if(config.wheelDevice>5) return false;
+        if(config.wheelDevice>6) return false;
         auto& file=wheelFiles[slotIndex];
         if(file.id!=config.wheelModel) {
             const auto end=std::find(config.wheelModel.begin(),config.wheelModel.end(),'\0');
@@ -865,16 +869,7 @@ struct OverlayRenderer::Impl {
         }
         if(!wheels->selectModel(device.Get(),slotIndex,file.path,file.kind,config.wheelDevice)) return false;
 
-        const XrCompositionLayerProjection* projection=nullptr;
-        for(unsigned n=0;n<info.layerCount;n++) {
-            auto layer=info.layers[n];
-            if(layer && layer->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
-                auto candidate=reinterpret_cast<const XrCompositionLayerProjection*>(layer);
-                if((candidate->viewCount==2 || candidate->viewCount==4) && candidate->views) {
-                    projection=candidate; break;
-                }
-            }
-        }
+        const auto* projection=wheel_projection_source(info);
         if(!projection && !depth) return false;
         auto& plain=slots[slotIndex].quad;
         auto pose=plain.pose;
@@ -895,6 +890,10 @@ struct OverlayRenderer::Impl {
         };
         ovrlay::MeshEyeParameters params[2]{};
         auto& mask=masks[slotIndex];
+        // Stereo projection layers carry one explicit subimage per eye, avoiding
+        // runtimes that ignore eyeVisibility on the two wheel quad layers.
+        // Keep the existing path when the session uses a four-view projection.
+        mask.wheelUsesProjection = projection && projection->viewCount == 2;
         const unsigned pixels=std::clamp(slots[slotIndex].width,256u,1024u);
         for(unsigned eye=0;eye<2;eye++) {
             const auto& eyePose=depth?depth->eyes[eye].pose:projection->views[eye].pose;
@@ -945,7 +944,19 @@ struct OverlayRenderer::Impl {
             const auto& a=params[eye].aperture;
             quad.pose=compose(plain.pose,{{0,0,0,1},{a[0],a[1],0}});
             quad.size={a[2],a[3]};
+            if (mask.wheelUsesProjection) {
+                const auto &p = params[eye];
+                const XrVector3f eyeLocal{p.eyeLocal[0], p.eyeLocal[1], p.eyeLocal[2]};
+                mask.wheelViews[eye] = wheel_projection_view(
+                    compose(plain.pose, {{0, 0, 0, 1}, eyeLocal}), eyeLocal,
+                    p.aperture, quad.subImage);
+            }
         }
+        mask.wheelProjection.space = plain.space;
+        mask.wheelProjection.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                                         XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+        mask.wheelProjection.viewCount = uint32_t(mask.wheelViews.size());
+        mask.wheelProjection.views = mask.wheelViews.data();
         return true;
     }
     bool maskDashboard(unsigned i, const CockpitDepthFrame &depth, XrTime time) {
@@ -1057,7 +1068,9 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         return;
     auto *d = p.channel->data();
     size_t visibleSlots = 0;
-    bool requested = false, wheelRequested=false;
+    const auto *projection = wheel_projection_source(info);
+    const bool stereoWheels = projection && projection->viewCount == 2;
+    bool requested = false, wheelRequested=false, projectionDepthRequested=false;
     const bool liveMetadata = p.channel->lock();
     auto canRetain = [&](const RuntimeSlot &s) {
         return s.ready && s.retainUntil > GetTickCount64() &&
@@ -1070,6 +1083,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
             if (canRetain(s)) {
                 ++visibleSlots;
                 requested |= s.retainedOcclusion;
+                projectionDepthRequested |= s.retainedOcclusion && s.retainedWheel && stereoWheels;
             }
         }
         if (!visibleSlots)
@@ -1092,6 +1106,8 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
                 ++visibleSlots;
                 wheelRequested|=config.wheelModel[0]!=0;
                 requested |= config.cockpitOcclusion && config.opacity > 0;
+                projectionDepthRequested |= config.cockpitOcclusion && config.opacity > 0 &&
+                                            config.wheelModel[0] && stereoWheels;
                 if (streamActive && config.webDashboard && config.showInStream &&
                     config.cockpitOcclusion && config.opacity > 0)
                     p.streamDepthUntil = now + 200;
@@ -1171,11 +1187,13 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         p.wheelPipelineFailed=false;
     }
     // Preserve the layer budget for ordinary dashboards before spending a second
-    // composition layer on either eye. Every masked pair counts as one extra layer.
+    // composition layer on either eye. Stereo projection wheels need only one layer.
     size_t spare =
         p.maxLayers > layers.size() + visibleSlots ? p.maxLayers - layers.size() - visibleSlots : 0;
     // Stream composition has its own render target and consumes no XR layers.
-    const bool demand = ((requested && spare) || GetTickCount64() < p.streamDepthUntil) && p.source11;
+    const bool demand = ((requested && spare) ||
+                         (projectionDepthRequested && layers.size() < p.maxLayers) ||
+                         GetTickCount64() < p.streamDepthUntil) && p.source11;
     CockpitDepthFrame nativeDepth{};
     std::array<ComPtr<ID3D11ShaderResourceView>, 2> nativeRefs;
     if (demand) {
@@ -1214,11 +1232,16 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
     for (unsigned i = 0; i < overlay_count; ++i) {
         auto &slot = p.slots[i];
         auto &mask = p.masks[i];
-        auto submit = [&](bool dashboard, bool stereo) {
+        auto submit = [&](bool dashboard, bool stereo, bool wheel) {
             if (stereo) {
-                for (auto &eye : mask.eyes)
-                    order.insert(layers, dashboard, eye);
-                --spare;
+                if (wheel && mask.wheelUsesProjection)
+                    order.insert(layers, dashboard,
+                        reinterpret_cast<const XrCompositionLayerBaseHeader *>(&mask.wheelProjection));
+                else {
+                    for (auto &eye : mask.eyes)
+                        order.insert(layers, dashboard, eye);
+                    --spare;
+                }
             } else {
                 order.insert(layers, dashboard, slot.quad);
             }
@@ -1230,12 +1253,13 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
             if (liveMetadata && p.channel->lock())
                 return true;
             if (!order.helmetAtLayerLimit && layers.size() < p.maxLayers && canRetain(slot)) {
-                if(slot.retainedWheel && (!spare || layers.size()+1>=p.maxLayers)) return false;
+                if(slot.retainedWheel && (mask.wheelUsesProjection != stereoWheels ||
+                   (!mask.wheelUsesProjection && (!spare || layers.size()+1>=p.maxLayers)))) return false;
                 const bool stereo = slot.retainedWheel || (preparedMask ? *preparedMask
                     : depth && spare && layers.size() + 1 < p.maxLayers &&
                           slot.retainedOcclusion && p.maskDashboard(i, *depth, info.displayTime));
                 if (canRetain(slot)) {
-                    submit(true, stereo);
+                    submit(true, stereo, slot.retainedWheel);
                     retainedDashboard = true;
                     admitted[i] = true;
                     opacities[i] = slot.opacity;
@@ -1362,7 +1386,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         sdata.pose.height = resolvedHeight;
         sdata.pose.pixelWidth = frame.width;
         sdata.pose.pixelHeight = frame.height;
-        if ((isWheel && (!spare || layers.size()+1>=p.maxLayers)) || layers.size() >= p.maxLayers || (config.webDashboard && order.helmetAtLayerLimit)) {
+        if ((isWheel && !stereoWheels && (!spare || layers.size()+1>=p.maxLayers)) || layers.size() >= p.maxLayers || (config.webDashboard && order.helmetAtLayerLimit)) {
             sdata.state = OverlayState::LayerLimit;
             p.channel->unlock();
             continue;
@@ -1390,8 +1414,10 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         }
         bool updated = slot.frame == frame.frameId && slot.lastGeneration == frame.generation &&
                        slot.opacity == config.opacity;
-        const bool applyDepth = depth && spare && layers.size() + 1 < p.maxLayers &&
-                                !p.maskShaderFailed && config.opacity > 0 && config.cockpitOcclusion;
+        const bool depthFits = isWheel && stereoWheels ? layers.size() < p.maxLayers
+                                                      : spare && layers.size() + 1 < p.maxLayers;
+        const bool applyDepth = depth && depthFits && (isWheel || !p.maskShaderFailed) &&
+                                config.opacity > 0 && config.cockpitOcclusion;
         const bool cachePage = (isWheel ? config.wheelScreen != 0 : applyDepth) && GetTickCount64() >= mask.retryAt &&
                                (mask.frame != frame.frameId || mask.generation != frame.generation);
         const auto &published = sdata.frames[buffer];
@@ -1477,7 +1503,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
             if (presentable && d->producerPid == p.producer && state.enabled &&
                 state.sourceRevision == config.sourceRevision && state.revision == config.revision &&
                 state.recenter == config.recenter && state.placementToken == config.placementToken) {
-                submit(config.webDashboard, masked);
+                submit(config.webDashboard, masked, isWheel);
                 slot.retainUntil = config.webDashboard && config.opacity > 0
                     ? std::min<uint64_t>(GetTickCount64() + 100, d->producerBeat + 3000) : 0;
                 slot.presentationEpoch = configEpoch;

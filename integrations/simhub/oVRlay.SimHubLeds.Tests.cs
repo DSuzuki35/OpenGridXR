@@ -93,7 +93,7 @@ internal static class LedTests
                 }
                 finally { release.Set(); first.Join(1000); second.Join(1000); }
             }
-            Console.WriteLine("PASS: packet layout, RGB ordering, 90 Hz limit, partial-frame rejection, provider/transport recovery, sequence carry, nonblocking overlap, independent five-model queues/counts/colors.");
+            Console.WriteLine("PASS: packet layout, RGB ordering, 90 Hz limit, partial-frame rejection, provider/transport recovery, sequence carry, nonblocking overlap, independent six-model queues/counts/colors.");
             return 0;
         }
         catch (Exception ex)
@@ -107,8 +107,8 @@ internal static class LedTests
     {
         long now=0;
         var queued=new LatestModelFrames();
-        int[] counts={88,86,62,76,66};
-        for(int model=1;model<=5;++model)
+        int[] counts={88,86,62,76,66,63};
+        for(int model=1;model<=counts.Length;++model)
         {
             int id=model,count=counts[model-1];
             var forwarder=new LedForwarder(delegate{return now;},9000,queued.Put,id,count);
@@ -119,7 +119,7 @@ internal static class LedTests
             colors[0]=Color.FromArgb(id,231,0);
             Check(forwarder.TryPublish(delegate{return colors;}),"Latest same-model snapshot replaces earlier output.");
         }
-        for(int model=1;model<=5;++model)
+        for(int model=1;model<=counts.Length;++model)
         {
             byte[] packet=queued.Take(model-1);
             Check(packet!=null && packet.Length==20+counts[model-1]*3,"Other model packets must not evict each other.");

@@ -4,13 +4,13 @@ const { pathToFileURL } = require("node:url");
 const { createOverlayHost } = require("./overlay-host.cjs");
 const { selectedForGame } = require("./runtime-config.cjs");
 const { createWheelLights } = require("./wheel-lights.cjs");
-const { stageWheel, builtin: wheelIds } = require("./wheel-import.cjs");
+const { stageWheel } = require("./wheel-import.cjs");
 const { randomUUID } = require('node:crypto');
 const { createQuickMenuGateway, menuActions } = require('./quick-menu.cjs');
 
 async function createSpatialOverlays({ electron, executable, getSessions, getCar, model, hostFactory = createOverlayHost, setTimer = setInterval, clearTimer = clearInterval, getMenuState, onMenuAction }) {
   const { BrowserWindow, desktopCapturer, session, screen } = electron;
-  const { effectiveOverlayRates, hasWheelScreen, spatialDefaults, overlayPlacement, steeringDefaults, spatialPositionLimits } = await import(pathToFileURL(path.join(__dirname, "../src/spatial-overlays.mjs")).href);
+  const { effectiveOverlayRates, hasWheelScreen, hasWheelLights, wheelLightDevice, spatialDefaults, overlayPlacement, steeringDefaults, spatialPositionLimits } = await import(pathToFileURL(path.join(__dirname, "../src/spatial-overlays.mjs")).href);
   const games = new Map(), selections = new Map(), titles = new Map();
   let document = null, closed = false, syncing = false, syncAgain = false, generation = 0, timer = null;
   let placementRequest = 0;
@@ -333,9 +333,9 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
           const pose = overlayPlacement(item, g.car?.id);
           const configuration = { op: "configure", slot, ...(uiToken?{uiToken}:{}), enabled: item.kind !== "desktop" || !!desktop, anchor: pose.anchor, x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll, widthMeters: pose.widthMeters, opacity: item.opacity / 100,
             ...(item.kind === "url" ? Object.fromEntries(Object.entries(steeringDefaults).map(([key, fallback]) => [key, pose[key] ?? fallback])) : {}),
-            ...(item.kind==="url" && item.wheelModel ? {wheelModel:item.wheelModel,wheelLights:item.wheelLights===true,
+            ...(item.kind==="url" && item.wheelModel ? {wheelModel:item.wheelModel,wheelLights:hasWheelLights(item.wheelModel) && item.wheelLights===true,
               wheelAmbientLight:item.wheelAmbientLight ?? 0,
-              wheelDevice:wheelIds.indexOf(item.wheelModel)+1 || item.wheelDevice || 0,wheelScreen:!!dashboardUrl(item)} : {}),
+              wheelDevice:wheelLightDevice(item.wheelModel, item.wheelDevice || 0),wheelScreen:!!dashboardUrl(item)} : {}),
             sourceKind: item.kind, cockpitOcclusion: item.kind === "url" && item.cockpitOcclusion === true,
             showInStream: streamEnabled(item), desktopMode: item.kind==='menu'?2:desktop && item.interaction === "head" ? 1 : 0,
             desktopX: desktop?.x || 0, desktopY: desktop?.y || 0, desktopWidth: item.kind==='menu'?item.width:desktop?.width || 0, desktopHeight: item.kind==='menu'?item.height:desktop?.height || 0,

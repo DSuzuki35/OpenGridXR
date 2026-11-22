@@ -1,9 +1,8 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron}=require('playwright-core'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 (async()=>{
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-visor-export-')),env={...process.env,OPENGRIDXR_DATA_DIR:directory,OPENGRIDXR_TEST_MODE:'1'};delete env.ELECTRON_RUN_AS_NODE;let app;
  try{
-  app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});const page=await app.firstWindow(); await revealAppearance(page);
+  app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});const page=await app.firstWindow();
   await app.evaluate(({dialog},directory)=>{dialog.showSaveDialog=async(_window,options)=>({canceled:false,filePath:directory+'/'+options.defaultPath});},directory);
   for(const [style,format,filename]of [['gt','psd','visor-template-gt.psd'],['open','guide','visor-guide-open.png'],['formula','png','visor-template.png']]){
    const result=await page.evaluate(request=>window.openGrid.downloadVisorTemplate(request),{style,format});assert.equal(result.saved,true);assert.deepEqual(await fs.readFile(path.join(directory,filename)),await fs.readFile(path.resolve('public/templates/visor',filename)));

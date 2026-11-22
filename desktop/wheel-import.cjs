@@ -6,7 +6,7 @@ const { Worker, isMainThread, workerData, parentPort } = require("node:worker_th
 
 const maxBytes = 32 * 1024 * 1024;
 const maxTriangles = 250_000;
-const builtin = ["hyper-p1", "hyper-sl", "gxl", "gt-max", "fpe2"];
+const builtin = ["hyper-p1", "hyper-sl", "gxl", "gt-max", "fpe2", "ascher-artura"];
 const staged = new Map(), staging = new Map();
 const { createReadStream } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");

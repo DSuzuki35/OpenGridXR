@@ -2,8 +2,8 @@ const dgram = require('node:dgram');
 const { performance } = require('node:perf_hooks');
 
 // oVRlay's SimHub observer sends the final physical colors, independently per device.
-const models = new Map(['hyper-p1', 'hyper-sl', 'gxl', 'gt-max', 'fpe2'].map((name, i) => [name, i + 1]));
-const counts = [0, 88, 86, 62, 76, 66];
+const models = new Map(['hyper-p1', 'hyper-sl', 'gxl', 'gt-max', 'fpe2', 'ascher-artura'].map((name, i) => [name, i + 1]));
+const counts = [0, 88, 86, 62, 76, 66, 63];
 const staleMs = 1000;
 
 function decodeFrame(packet) {

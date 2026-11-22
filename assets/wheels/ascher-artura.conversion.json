@@ -1,0 +1,63 @@
+{
+  "format": "AGMESH1",
+  "version": 5,
+  "vertex_stride": 36,
+  "file": "ascher-artura.agm",
+  "sha256": "3db2b2353615a1d6ab182620c08285f0045b8c0686242a4fa27087a6e620a859",
+  "bytes": 22580496,
+  "vertices": 564102,
+  "indices": 564102,
+  "triangles": 188034,
+  "atlas": [
+    64,
+    64
+  ],
+  "width_m": 0.3,
+  "kind": 6,
+  "normalized_bounds": [
+    [
+      -0.5,
+      -0.26261118054389954,
+      -0.10304179042577744
+    ],
+    [
+      0.5,
+      0.26261118054389954,
+      0.2363751232624054
+    ]
+  ],
+  "normalization": {
+    "width": 1,
+    "origin": "Source bounding-box center, followed by supplied +Z translation",
+    "normalized_z_offset": 0.06666666666666667,
+    "driver_offset_at_300mm_m": 0.02
+  },
+  "display": {
+    "supported": true,
+    "source_body": "K\u00f6rper17",
+    "source_rectangle_mm": [
+      -43.3,
+      7.8,
+      43.3,
+      59.2
+    ],
+    "surface_separation_mm": 0.05,
+    "recommended_capture_size": [
+      1024,
+      608
+    ]
+  },
+  "led_mapping": {
+    "supported": true,
+    "physical_device": 6,
+    "physical_pixels": 63,
+    "mapped_controls": 35,
+    "mapping": "ascher-artura.mapping.json"
+  },
+  "materials": {
+    "type": "Diffuse RGBA atlas",
+    "count": 14,
+    "palette": "Supplied muted palette",
+    "source_report": "ascher-artura-source-report.json"
+  }
+}

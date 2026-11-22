@@ -3,10 +3,10 @@ import {Boxes} from "lucide-react";
 import {Button, Panel, Toggle, Note} from "./Controls.jsx";
 import {MODULES, moduleDefaults} from "../modules.mjs";
 
-export default function ModulesPanel({enabled, error, saving, blocked, onApply, showAppearance = false}) {
+export default function ModulesPanel({enabled, error, saving, blocked, onApply}) {
   const [draft, setDraft] = useState(enabled);
   useEffect(() => setDraft(enabled), [enabled]);
-  const changed = MODULES.some(({id}) => (showAppearance || id !== "helmet") && draft[id] !== enabled[id]);
+  const changed = MODULES.some(({id}) => draft[id] !== enabled[id]);
   function toggle(id, checked) {
     setDraft(current => {
       const next = {...current, [id]:checked};
@@ -16,7 +16,7 @@ export default function ModulesPanel({enabled, error, saving, blocked, onApply, 
     });
   }
   function preset(ids) {
-    setDraft(Object.fromEntries(MODULES.map(({id}) => [id,id === "helmet" && !showAppearance ? draft[id] : ids.includes(id)])));
+    setDraft(Object.fromEntries(MODULES.map(({id}) => [id,ids.includes(id)])));
   }
   return <Panel title="Modules" icon={Boxes} className="modules-panel">
     <p className="panel-description">Choose what this app loads and shows. Applies to all profiles; your saved feature settings stay intact.</p>
@@ -24,10 +24,10 @@ export default function ModulesPanel({enabled, error, saving, blocked, onApply, 
     <div className="module-presets">
       <Button disabled={saving} onClick={() => preset([])}>Core only</Button>
       <Button disabled={saving} onClick={() => preset(["helmet","overlay","bindings","sharpening"])}>Driving essentials</Button>
-      <Button disabled={saving} onClick={() => setDraft({...moduleDefaults(), ...(!showAppearance ? {helmet:draft.helmet} : {})})}>All modules</Button>
+      <Button disabled={saving} onClick={() => setDraft(moduleDefaults())}>All modules</Button>
     </div>
     <div className="module-grid">
-      {MODULES.filter(({id}) => showAppearance || id !== "helmet").map(({id,label,description}) => <div className="module-card" key={id}>
+      {MODULES.map(({id,label,description}) => <div className="module-card" key={id}>
         <Toggle label={label} description={description} checked={draft[id]} disabled={saving} onChange={checked => toggle(id,checked)} />
       </div>)}
     </div>

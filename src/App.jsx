@@ -138,7 +138,6 @@ export default function App() {
   });
   const [backups, setBackups] = useState([]);
   const [viewSection, setViewSection] = useState("crop");
-  const [showAppearance, setShowAppearance] = useState(false);
   const [tab, setTab] = useState("view");
   const [focusSection, setFocusSection] = useState("");
   const [loading, setLoading] = useState(true);
@@ -147,18 +146,6 @@ export default function App() {
   const [modules, setModules] = useState(moduleDefaults);
   const [moduleError, setModuleError] = useState("");
   const [moduleSaving, setModuleSaving] = useState(false);
-  useEffect(() => {
-    const toggleAppearance = event => {
-      if (event.code !== 'KeyH' || !event.ctrlKey || !event.altKey || !event.shiftKey || event.metaKey || event.repeat) return;
-      if (event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
-      if (helmetPreparing || moduleSaving) return;
-      event.preventDefault();
-      setShowAppearance(visible => !visible);
-      setViewSection('crop');
-    };
-    window.addEventListener('keydown', toggleAppearance);
-    return () => window.removeEventListener('keydown', toggleAppearance);
-  }, [helmetPreparing, moduleSaving]);
 
   const [toast, setToast] = useState(null);
   const [dialog, setDialog] = useState(null);
@@ -321,7 +308,7 @@ export default function App() {
   function navigate(tabId, section = "") {
     if (helmetPreparing || moduleSaving) return;
     if (modules[tabId] === false || (section === "headset-sharpening" && !modules.sharpening)) {setTab("setup");return;}
-    if (tabId === "helmet") {setTab("view"); setViewSection(showAppearance ? "helmet" : "crop"); return;}
+    if (tabId === "helmet") {setTab("view"); setViewSection("helmet"); return;}
     if (tabId === "view") setViewSection("crop");
     setTab(tabId);
     setFocusSection(section);
@@ -736,8 +723,8 @@ export default function App() {
             </div>
 
             <Suspense fallback={<Note>Loading module…</Note>}>
-            {tab === "view" && showAppearance && modules.helmet && <div className="view-section-picker"><Segmented label="View & crop section" value={viewSection} onChange={setViewSection} options={[{value:"crop",label:"Crop"},{value:"helmet",label:"Helmet"}]} /></div>}
-            {tab === "view" && (viewSection !== "helmet" || !modules.helmet || !showAppearance) && (
+            {tab === "view" && modules.helmet && <div className="view-section-picker"><Segmented label="View & crop section" value={viewSection} onChange={setViewSection} options={[{value:"crop",label:"Crop"},{value:"helmet",label:"Helmet"}]} /></div>}
+            {tab === "view" && (viewSection !== "helmet" || !modules.helmet) && (
               <>
                 <div className="view-layout">
                   <div className="view-main">
@@ -1007,7 +994,7 @@ export default function App() {
             )}
 
             {tab === 'colorCorrection' && <ColorCorrectionPanel key={profile.id} profile={profile} onChange={patch=>changeGroup('colorCorrection',patch)} dirty={dirty} busy={!!busy}/>}
-            {tab === "view" && viewSection === "helmet" && showAppearance && modules.helmet && (
+            {tab === "view" && viewSection === "helmet" && modules.helmet && (
               <HelmetEditor profile={modules.colorCorrection === false ? {...viewProfile,colorCorrection:{...profile.colorCorrection,enabled:false}} : viewProfile}
                 onPreparingChange={setHelmetPreparing}
                 onOpeningCommit={(id, helmetPatch, result) => change(next => {
@@ -1022,7 +1009,7 @@ export default function App() {
             )}
             {tab === "stream" && <StreamPage profile={profile} dirty={dirty} busy={busy} launch={launch} changeGroup={changeGroup} change={change} displays={displays} displayError={displayError} setExtraSymmetric={setExtraSymmetric} changeExtraArea={changeExtraArea}
               importSteadyXr={importSteadyXr} importReport={streamImportReport?.profileId === profile.id ? streamImportReport : null}
-              dismissImportReport={() => setStreamImportReport(null)} showAppearance={showAppearance} helmetAvailable={modules.helmet !== false} colorCorrectionAvailable={modules.colorCorrection !== false} discardFraming={discardFraming} />}
+              dismissImportReport={() => setStreamImportReport(null)} helmetAvailable={modules.helmet !== false} colorCorrectionAvailable={modules.colorCorrection !== false} discardFraming={discardFraming} />}
 
             {tab === "profiles" && (
               <div className="profiles-layout">
@@ -1231,7 +1218,7 @@ export default function App() {
 
             </Suspense>
             <UpdatesPanel details={tab === "setup"} dirty={dirty} busy={busy} />
-            {tab === "setup" && <ModulesPanel showAppearance={showAppearance} enabled={modules} error={moduleError} saving={moduleSaving} blocked={dirty || !!busy || helmetPreparing} onApply={applyModules} />}
+            {tab === "setup" && <ModulesPanel enabled={modules} error={moduleError} saving={moduleSaving} blocked={dirty || !!busy || helmetPreparing} onApply={applyModules} />}
             {tab === "setup" && (
               <div className="setup-layout">
                 <Panel

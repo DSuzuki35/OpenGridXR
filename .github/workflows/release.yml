@@ -2,7 +2,7 @@ name: Build release installer
 on:
   push:
     # These installers are built on the signing PC.
-    tags: ['v*', '!v1.1.1', '!v1.1.2', '!v1.1.4', '!v1.1.5']
+    tags: ['v*', '!v1.1.1', '!v1.1.2', '!v1.1.4', '!v1.1.5', '!v1.2.0']
 # Building runs third-party install scripts (npm ci), so it gets a read-only
 # token. Only the small publish job below may write to the repository.
 permissions:
@@ -32,7 +32,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build native/build --config Release --parallel 4
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|swapchain-wait|output-framing|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
+          ctest --test-dir native/build -C Release --output-on-failure -R "^native-(wheel-projection|core|telemetry|control|input|helmet-math|stream-helmet|inactive-paths|swapchain-wait|output-framing|lmu|layer-registry|color-control|color-cli|desktop-interaction|overlay-protocol|internal-ui)"
           exit $LASTEXITCODE
       - run: npm run package:installer
       - name: Check packaged module settings and helmet visor states
@@ -41,6 +41,8 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           $env:OPENGRIDXR_TEST_EXE = (Resolve-Path "release/$version/win-unpacked/OpenGrid XR.exe").Path
           node tests/appearance-visibility-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/gsi-decal-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run test:modules-ui
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

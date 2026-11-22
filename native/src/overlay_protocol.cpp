@@ -172,7 +172,7 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
     if ((op=="configure" && out.values.count("wheelModel")) || op=="wheelLights") {
         auto name=out.text("wheelModel");
         auto device=out.number("wheelDevice",-1);
-        if(!wheel_model_id(name) || device<0 || device>5 || device!=std::floor(device)) {
+        if(!wheel_model_id(name) || device<0 || device>6 || device!=std::floor(device)) {
             error="Invalid wheel source"; return false;
         }
         if (out.values.count("wheelAmbientLight")) {

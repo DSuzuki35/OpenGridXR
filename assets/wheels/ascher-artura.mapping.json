@@ -1,0 +1,1335 @@
+{
+  "source_sha256": "80166eb4e005043ccae1b13372eaa282ed0a166e548590f299a0daa1941a0202",
+  "source_width_mm": 299.961552,
+  "source_center_mm": [
+    0,
+    -1.163336000000001,
+    -30.956719
+  ],
+  "screen": {
+    "source_body": "Körper17",
+    "source_material": "Opaque(64,64,64)",
+    "first_triangle": 95279,
+    "triangles": 14,
+    "source_rectangle_mm": [
+      -43.3,
+      7.8,
+      43.3,
+      59.2
+    ],
+    "surface_separation_mm": 0.05
+  },
+  "led_controls": [
+    {
+      "name": "Headlight",
+      "logical_name": "Button0",
+      "physical_index": 0,
+      "source_spans": [
+        {
+          "body": "Körper139",
+          "first_triangle": 171102,
+          "triangles": 152,
+          "source_bounds_mm": [
+            [
+              -114,
+              63.517392,
+              6.906
+            ],
+            [
+              -109.057789,
+              68.482608,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper140",
+          "first_triangle": 171254,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              -108.5,
+              65.7,
+              6.906
+            ],
+            [
+              -105.4,
+              66.3,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper141",
+          "first_triangle": 171306,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              -108.615152,
+              66.85,
+              6.906
+            ],
+            [
+              -105.4,
+              67.45,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper142",
+          "first_triangle": 171358,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              -108.975528,
+              68,
+              6.906
+            ],
+            [
+              -105.4,
+              68.6,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper143",
+          "first_triangle": 171410,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              -108.975528,
+              63.4,
+              6.906
+            ],
+            [
+              -105.4,
+              64,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper144",
+          "first_triangle": 171462,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              -108.615152,
+              64.55,
+              6.906
+            ],
+            [
+              -105.4,
+              65.15,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pit limiter",
+      "logical_name": "Button1",
+      "physical_index": 1,
+      "source_spans": [
+        {
+          "body": "Körper169",
+          "first_triangle": 173422,
+          "triangles": 20,
+          "source_bounds_mm": [
+            [
+              -93.55,
+              59,
+              6.906
+            ],
+            [
+              -91.85,
+              61.7,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper170",
+          "first_triangle": 173442,
+          "triangles": 12,
+          "source_bounds_mm": [
+            [
+              -91.25,
+              59,
+              6.906
+            ],
+            [
+              -90.75,
+              61.7,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper171",
+          "first_triangle": 173454,
+          "triangles": 48,
+          "source_bounds_mm": [
+            [
+              -90.15,
+              59,
+              6.906
+            ],
+            [
+              -87.45,
+              61.7,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper172",
+          "first_triangle": 173502,
+          "triangles": 72,
+          "source_bounds_mm": [
+            [
+              -93.852992,
+              62.10074,
+              6.906
+            ],
+            [
+              -89.609968,
+              64.621165,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper173",
+          "first_triangle": 173574,
+          "triangles": 316,
+          "source_bounds_mm": [
+            [
+              -95.247106,
+              60.791812,
+              6.906
+            ],
+            [
+              -85.752894,
+              67.75,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Stopwatch",
+      "logical_name": "Button2",
+      "physical_index": 2,
+      "source_spans": [
+        {
+          "body": "Körper156",
+          "first_triangle": 172442,
+          "triangles": 168,
+          "source_bounds_mm": [
+            [
+              -75.492172,
+              53.595351,
+              6.906
+            ],
+            [
+              -68.507828,
+              61.65,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper157",
+          "first_triangle": 172610,
+          "triangles": 20,
+          "source_bounds_mm": [
+            [
+              -72,
+              55.95,
+              6.906
+            ],
+            [
+              -69.9,
+              59.1,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Brake balance minus",
+      "logical_name": "Button3",
+      "physical_index": 3,
+      "source_spans": [
+        {
+          "body": "Körper133",
+          "first_triangle": 170534,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              -70.2,
+              22.1,
+              6.906
+            ],
+            [
+              -67.310488,
+              26.9,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper134",
+          "first_triangle": 170662,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              -66.8,
+              22.1,
+              6.906
+            ],
+            [
+              -63.910488,
+              26.9,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper135",
+          "first_triangle": 170790,
+          "triangles": 12,
+          "source_bounds_mm": [
+            [
+              -63.55,
+              24.15,
+              6.906
+            ],
+            [
+              -61.25,
+              24.85,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Left arrow",
+      "logical_name": "Button4",
+      "physical_index": 4,
+      "source_spans": [
+        {
+          "body": "Körper150",
+          "first_triangle": 171850,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              -60.660601,
+              -17.899409,
+              6.906
+            ],
+            [
+              -54.5,
+              -12.100591,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper151",
+          "first_triangle": 171978,
+          "triangles": 84,
+          "source_bounds_mm": [
+            [
+              -62.160618,
+              -17.895947,
+              6.906
+            ],
+            [
+              -59.424416,
+              -12.104053,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper152",
+          "first_triangle": 172062,
+          "triangles": 84,
+          "source_bounds_mm": [
+            [
+              -63.727106,
+              -17.895947,
+              6.906
+            ],
+            [
+              -60.990904,
+              -12.104053,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Minus",
+      "logical_name": "Button5",
+      "physical_index": 5,
+      "source_spans": [
+        {
+          "body": "Körper161",
+          "first_triangle": 172878,
+          "triangles": 12,
+          "source_bounds_mm": [
+            [
+              -71.25,
+              -33.75,
+              6.906
+            ],
+            [
+              -64.75,
+              -32.25,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Speaker",
+      "logical_name": "Button6",
+      "physical_index": 6,
+      "source_spans": [
+        {
+          "body": "Körper158",
+          "first_triangle": 172630,
+          "triangles": 76,
+          "source_bounds_mm": [
+            [
+              -68.729442,
+              -55.232718,
+              6.906
+            ],
+            [
+              -67.05,
+              -50.767282,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper159",
+          "first_triangle": 172706,
+          "triangles": 80,
+          "source_bounds_mm": [
+            [
+              -67.983793,
+              -56.297616,
+              6.906
+            ],
+            [
+              -65.822573,
+              -49.702384,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper160",
+          "first_triangle": 172786,
+          "triangles": 92,
+          "source_bounds_mm": [
+            [
+              -73.8,
+              -56.242352,
+              6.906
+            ],
+            [
+              -69.3,
+              -49.757648,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Microphone",
+      "logical_name": "Button7",
+      "physical_index": 21,
+      "source_spans": [
+        {
+          "body": "Körper163",
+          "first_triangle": 172934,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              108.4,
+              65.4,
+              6.906
+            ],
+            [
+              110.6,
+              70.2,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper164",
+          "first_triangle": 172986,
+          "triangles": 160,
+          "source_bounds_mm": [
+            [
+              107,
+              62.1,
+              6.906
+            ],
+            [
+              112,
+              66.85,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Power",
+      "logical_name": "Button8",
+      "physical_index": 22,
+      "source_spans": [
+        {
+          "body": "Körper145",
+          "first_triangle": 171514,
+          "triangles": 132,
+          "source_bounds_mm": [
+            [
+              86.560769,
+              59,
+              6.906
+            ],
+            [
+              94.439231,
+              66.531089,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper146",
+          "first_triangle": 171646,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              90,
+              63.5,
+              6.906
+            ],
+            [
+              91,
+              67.5,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mute microphone",
+      "logical_name": "Button9",
+      "physical_index": 23,
+      "source_spans": [
+        {
+          "body": "Körper165",
+          "first_triangle": 173146,
+          "triangles": 44,
+          "source_bounds_mm": [
+            [
+              70.9,
+              57.054785,
+              6.906
+            ],
+            [
+              73.1,
+              61.2,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper166",
+          "first_triangle": 173190,
+          "triangles": 48,
+          "source_bounds_mm": [
+            [
+              73.521867,
+              56.034932,
+              6.906
+            ],
+            [
+              74.5,
+              57.85,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper167",
+          "first_triangle": 173238,
+          "triangles": 132,
+          "source_bounds_mm": [
+            [
+              69.5,
+              53.1,
+              6.906
+            ],
+            [
+              73.75,
+              57.85,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper168",
+          "first_triangle": 173370,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              68.939565,
+              53.939565,
+              6.906
+            ],
+            [
+              75.060435,
+              60.060435,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Brake balance plus",
+      "logical_name": "Button10",
+      "physical_index": 24,
+      "source_spans": [
+        {
+          "body": "Körper136",
+          "first_triangle": 170802,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              61.8,
+              22.1,
+              6.906
+            ],
+            [
+              64.689512,
+              26.9,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper137",
+          "first_triangle": 170930,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              65.2,
+              22.1,
+              6.906
+            ],
+            [
+              68.089512,
+              26.9,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper138",
+          "first_triangle": 171058,
+          "triangles": 44,
+          "source_bounds_mm": [
+            [
+              68.45,
+              23.35,
+              6.906
+            ],
+            [
+              70.75,
+              25.65,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Right arrow",
+      "logical_name": "Button11",
+      "physical_index": 25,
+      "source_spans": [
+        {
+          "body": "Körper153",
+          "first_triangle": 172146,
+          "triangles": 128,
+          "source_bounds_mm": [
+            [
+              54.5,
+              -17.899409,
+              6.906
+            ],
+            [
+              60.660601,
+              -12.100591,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper154",
+          "first_triangle": 172274,
+          "triangles": 84,
+          "source_bounds_mm": [
+            [
+              59.424416,
+              -17.895947,
+              6.906
+            ],
+            [
+              62.160618,
+              -12.104053,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper155",
+          "first_triangle": 172358,
+          "triangles": 84,
+          "source_bounds_mm": [
+            [
+              60.990904,
+              -17.895947,
+              6.906
+            ],
+            [
+              63.727106,
+              -12.104053,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Plus",
+      "logical_name": "Button12",
+      "physical_index": 26,
+      "source_spans": [
+        {
+          "body": "Körper162",
+          "first_triangle": 172890,
+          "triangles": 44,
+          "source_bounds_mm": [
+            [
+              64.75,
+              -36.25,
+              6.906
+            ],
+            [
+              71.25,
+              -29.75,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mute speaker",
+      "logical_name": "Button13",
+      "physical_index": 27,
+      "source_spans": [
+        {
+          "body": "Körper147",
+          "first_triangle": 171698,
+          "triangles": 68,
+          "source_bounds_mm": [
+            [
+              67,
+              -56.242352,
+              6.906
+            ],
+            [
+              71.5,
+              -51.5,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper148",
+          "first_triangle": 171766,
+          "triangles": 32,
+          "source_bounds_mm": [
+            [
+              69.276131,
+              -53.43934,
+              6.906
+            ],
+            [
+              71.5,
+              -49.757648,
+              6.916
+            ]
+          ]
+        },
+        {
+          "body": "Körper149",
+          "first_triangle": 171798,
+          "triangles": 52,
+          "source_bounds_mm": [
+            [
+              66.939565,
+              -56.060435,
+              6.906
+            ],
+            [
+              73.060435,
+              -49.939565,
+              6.916
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Left flag 1",
+      "logical_name": "Led0",
+      "physical_index": 42,
+      "source_spans": [
+        {
+          "body": "Körper18",
+          "first_triangle": 95634,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -55.499304,
+              43.500696,
+              1.8
+            ],
+            [
+              -50.500696,
+              48.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Left flag 2",
+      "logical_name": "Led1",
+      "physical_index": 43,
+      "source_spans": [
+        {
+          "body": "Körper19",
+          "first_triangle": 95760,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -55.499304,
+              49.500696,
+              1.8
+            ],
+            [
+              -50.500696,
+              54.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Left flag 3",
+      "logical_name": "Led2",
+      "physical_index": 44,
+      "source_spans": [
+        {
+          "body": "Körper20",
+          "first_triangle": 95886,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -55.499304,
+              55.500696,
+              1.8
+            ],
+            [
+              -50.500696,
+              60.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 1",
+      "logical_name": "Led3",
+      "physical_index": 45,
+      "source_spans": [
+        {
+          "body": "Körper21",
+          "first_triangle": 96012,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -44.499304,
+              63.000696,
+              1.8
+            ],
+            [
+              -39.500696,
+              67.999304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 2",
+      "logical_name": "Led4",
+      "physical_index": 46,
+      "source_spans": [
+        {
+          "body": "Körper22",
+          "first_triangle": 96138,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -38.499304,
+              63.266113,
+              1.8
+            ],
+            [
+              -33.500696,
+              68.264721,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 3",
+      "logical_name": "Led5",
+      "physical_index": 47,
+      "source_spans": [
+        {
+          "body": "Körper23",
+          "first_triangle": 96264,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -32.499304,
+              63.490634,
+              1.8
+            ],
+            [
+              -27.500696,
+              68.489241,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 4",
+      "logical_name": "Led6",
+      "physical_index": 48,
+      "source_spans": [
+        {
+          "body": "Körper24",
+          "first_triangle": 96390,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -26.499304,
+              63.67429,
+              1.8
+            ],
+            [
+              -21.500696,
+              68.672898,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 5",
+      "logical_name": "Led7",
+      "physical_index": 49,
+      "source_spans": [
+        {
+          "body": "Körper25",
+          "first_triangle": 96516,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -20.499304,
+              63.817108,
+              1.8
+            ],
+            [
+              -15.500696,
+              68.815715,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 6",
+      "logical_name": "Led8",
+      "physical_index": 50,
+      "source_spans": [
+        {
+          "body": "Körper26",
+          "first_triangle": 96642,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -14.499304,
+              63.919106,
+              1.8
+            ],
+            [
+              -9.500696,
+              68.917714,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 7",
+      "logical_name": "Led9",
+      "physical_index": 51,
+      "source_spans": [
+        {
+          "body": "Körper27",
+          "first_triangle": 96768,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -8.499304,
+              63.980299,
+              1.8
+            ],
+            [
+              -3.500696,
+              68.978907,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 8",
+      "logical_name": "Led10",
+      "physical_index": 52,
+      "source_spans": [
+        {
+          "body": "Körper28",
+          "first_triangle": 96894,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              -2.499304,
+              64.000696,
+              1.8
+            ],
+            [
+              2.499304,
+              68.999304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 9",
+      "logical_name": "Led11",
+      "physical_index": 53,
+      "source_spans": [
+        {
+          "body": "Körper29",
+          "first_triangle": 97020,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              3.500696,
+              63.980299,
+              1.8
+            ],
+            [
+              8.499304,
+              68.978907,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 10",
+      "logical_name": "Led12",
+      "physical_index": 54,
+      "source_spans": [
+        {
+          "body": "Körper30",
+          "first_triangle": 97146,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              9.500696,
+              63.919106,
+              1.8
+            ],
+            [
+              14.499304,
+              68.917714,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 11",
+      "logical_name": "Led13",
+      "physical_index": 55,
+      "source_spans": [
+        {
+          "body": "Körper31",
+          "first_triangle": 97272,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              15.500696,
+              63.817108,
+              1.8
+            ],
+            [
+              20.499304,
+              68.815715,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 12",
+      "logical_name": "Led14",
+      "physical_index": 56,
+      "source_spans": [
+        {
+          "body": "Körper32",
+          "first_triangle": 97398,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              21.500696,
+              63.67429,
+              1.8
+            ],
+            [
+              26.499304,
+              68.672898,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 13",
+      "logical_name": "Led15",
+      "physical_index": 57,
+      "source_spans": [
+        {
+          "body": "Körper33",
+          "first_triangle": 97524,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              27.500696,
+              63.490634,
+              1.8
+            ],
+            [
+              32.499304,
+              68.489241,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 14",
+      "logical_name": "Led16",
+      "physical_index": 58,
+      "source_spans": [
+        {
+          "body": "Körper34",
+          "first_triangle": 97650,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              33.500696,
+              63.266113,
+              1.8
+            ],
+            [
+              38.499304,
+              68.264721,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top shift 15",
+      "logical_name": "Led17",
+      "physical_index": 59,
+      "source_spans": [
+        {
+          "body": "Körper35",
+          "first_triangle": 97776,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              39.500696,
+              63.000696,
+              1.8
+            ],
+            [
+              44.499304,
+              67.999304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Right flag 1",
+      "logical_name": "Led18",
+      "physical_index": 60,
+      "source_spans": [
+        {
+          "body": "Körper36",
+          "first_triangle": 97902,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              50.500696,
+              55.500696,
+              1.8
+            ],
+            [
+              55.499304,
+              60.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Right flag 2",
+      "logical_name": "Led19",
+      "physical_index": 61,
+      "source_spans": [
+        {
+          "body": "Körper37",
+          "first_triangle": 98028,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              50.500696,
+              49.500696,
+              1.8
+            ],
+            [
+              55.499304,
+              54.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Right flag 3",
+      "logical_name": "Led20",
+      "physical_index": 62,
+      "source_spans": [
+        {
+          "body": "Körper38",
+          "first_triangle": 98154,
+          "triangles": 126,
+          "source_bounds_mm": [
+            [
+              50.500696,
+              43.500696,
+              1.8
+            ],
+            [
+              55.499304,
+              48.499304,
+              6.07
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "evidence": {
+    "physical_mapper": "SimHub GetAscherRacingMcLarenArturaUltimateMapper: Button0..6 physical0..6, Button7..13 physical21..27, Led0..20 physical42..62; unused channels retained.",
+    "button_order": "Installed SimHub Artura DefaultColorsEditor numbered button positions matched against source CAD symbols. SetContext assigns logical Button0..13 by the observed child order; source body bounds and logical names record the match.",
+    "shift_order": "Installed Artura .shdevice default LED profile: positions 1..3 left flags,4..18 top RPM,19..21 right flags (one-based). DRS positions3 and19 identify the top side lights. CAD bodies18..38 follow left bottom-to-top, top left-to-right, right top-to-bottom.",
+    "device_type_id": "FB95779F-C045-42C0-9D04-C1B3861796EB",
+    "local_reference_sha256": {
+      "SimHub.Plugins.dll": "8a556ddb6480ea8b614f4cff8395b4d54d0bd2dd45d640e927cfac42bd5477e2",
+      "BA63Driver.dll": "21c6e8ff5139b410bd4d0065c01316914f33937e3eeef4ceec2c2a446de7b2ea",
+      "DevicesDefaults/FB95779F-C045-42C0-9D04-C1B3861796EB.shdevice": "a217265e2c91c2c9d4674cf243bd9f0518d72992f1b15dda62368d22218230c8"
+    },
+    "inspection": "Read-only installed device definition and WPF child layout inspection; no hardware output or driver startup."
+  }
+}

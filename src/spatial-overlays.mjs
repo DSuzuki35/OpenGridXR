@@ -1,12 +1,20 @@
 export const wheelModels = Object.freeze([
-  {id:"hyper-p1", name:"GSI Hyper P1", width:.30, screenHeight:620},
-  {id:"hyper-sl", name:"GSI Hyper SL", width:.30, screenHeight:0},
-  {id:"gxl", name:"GSI GXL V2", width:.30, screenHeight:0},
-  {id:"gt-max", name:"GSI GT-MAX 32", width:.32, screenHeight:576},
-  {id:"fpe2", name:"GSI FPE2", width:.30, screenHeight:604},
+  {id:"hyper-p1", name:"GSI Hyper P1", width:.30, screenHeight:620, ledDevice:1},
+  {id:"hyper-sl", name:"GSI Hyper SL", width:.30, screenHeight:0, ledDevice:2},
+  {id:"gxl", name:"GSI GXL V2", width:.30, screenHeight:0, ledDevice:3},
+  {id:"gt-max", name:"GSI GT-MAX 32", width:.32, screenHeight:576, ledDevice:4},
+  {id:"fpe2", name:"GSI FPE2", width:.30, screenHeight:604, ledDevice:5},
+  {id:"ascher-artura", name:"Ascher Artura Ultimate", width:.30, screenHeight:608, ledDevice:6},
 ]);
 export function hasWheelScreen(modelId) {
   return !wheelModels.some(model => model.id === modelId && model.screenHeight === 0);
+}
+export function hasWheelLights(modelId) {
+  return !wheelModels.some(model => model.id === modelId && model.leds === false);
+}
+export function wheelLightDevice(modelId, customDevice = 0) {
+  const model = wheelModels.find(model => model.id === modelId);
+  return model ? model.ledDevice || 0 : customDevice;
 }
 export const recenterKeys = [
   ...Array.from({length:12}, (_,i) => 'F' + (i+1)),
@@ -103,7 +111,7 @@ export function validateSpatialOverlays(s) {
         (o.kind !== "url" || (!wheelModels.some(model=>model.id===o.wheelModel) && !/^[a-f0-9]{64}$/.test(o.wheelModel)))))) fail();
     if (o.wheelLights !== undefined && typeof o.wheelLights !== "boolean") fail();
     if (o.wheelAmbientLight !== undefined && !range(o.wheelAmbientLight, 0, 100)) fail();
-    if (o.wheelDevice !== undefined && !range(o.wheelDevice,0,5,true)) fail();
+    if (o.wheelDevice !== undefined && !range(o.wheelDevice,0,6,true)) fail();
     if (o.wheelName !== undefined && (typeof o.wheelName !== "string" || o.wheelName.length>80 || /[\x00-\x1f]/.test(o.wheelName))) fail();
     if (o.showInStream !== undefined && typeof o.showInStream !== "boolean") fail();
     if (o.cockpitOcclusion !== undefined && typeof o.cockpitOcclusion !== "boolean") fail();

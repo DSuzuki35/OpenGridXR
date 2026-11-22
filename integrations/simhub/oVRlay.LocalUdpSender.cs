@@ -44,7 +44,7 @@ namespace oVRlay.SimHubLeds
                 {
                     ready.WaitOne(250);
                     if (stopping) break;
-                    for(int model=0;model<5 && !stopping;++model)
+                    for(int model=0;model<6 && !stopping;++model)
                     {
                         byte[] packet = pending.Take(model);
                         if (packet == null) continue;

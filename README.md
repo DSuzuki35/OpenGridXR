@@ -12,14 +12,15 @@ A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**. Place a wheel
 
 If you run into an issue, feel free to clone or fork the repository, open it with your favorite AI coding tool, and ask it to investigate and fix the problem. Review and test the changes, then submit a pull request with a short explanation and your test results. See [Contributing](CONTRIBUTING.md) for build instructions. A reply or merge is not guaranteed.
 
-## Version 1.1.5
+## Version 1.2.0
 
-The first release in this restarted public repository includes the full toolkit and these improvements:
+The latest release adds:
 
-- **Streamlined app:** cleaned up unnecessary menu entries and features to keep the app lean and easy to use.
-- **Clean Output:** separate horizontal/vertical smoothing and camera presets, plus idle behavior that can close, become transparent or show a selected monitor. Monitor capture stops when XR output resumes.
-- **LMU QVFR & VRS:** per-eye MVR recovery improvements informed by Williem3’s Sim-QVFR, with a link to the standalone alternative. Compare frametimes on your system.
-- **Spatial overlays:** an explicit warning about the potential CPU cost of occlusion, especially in LMU.
+- **Ascher Artura Ultimate:** a 3D wheel with a fitted SimHub display, 21 shift lights and 14 illuminated button symbols. Thanks to Martin Ascher for providing the model.
+- **Pimax stereo wheels:** a stereo projection fix contributed by Rak3tenmann addresses duplicated wheels. Four-view sessions retain the existing submission path.
+- **Optional wheel occlusion:** choose **3D model without occlusion** to skip cockpit-depth processing for that wheel. Other overlays keep their own settings.
+
+The app retains the cleanup of unnecessary menu entries and features to keep it lean. [Wheel setup and SimHub observer update](docs/steering-wheels.md)
 
 **LMU multi-view rendering.** In **LMU QVFR & VRS**, enable **Multi-view rendering (experimental)**. OpenGrid adds a Direct3D 11 instancing path for compatible hardware alongside the NVIDIA path. After restarting LMU, open **Actual rendered views** to check which rendering path ran and how many focus passes each eye reused. The shader conversion and LMU focus work build on Williem3's Sim-QVFR. [MVR setup and screenshot](docs/lmu-rendering.md#try-multi-view-rendering-in-110) · [Sim-QVFR](https://github.com/Williem3/Sim-QVFR)
 
@@ -89,6 +90,6 @@ Developed by **Dan Suzuki and contributors**, with assistance from OpenAI Codex 
 
 Original work from 0.3.12 uses [PolyForm Noncommercial 1.0.0](LICENSE); dependencies retain their own terms. Earlier license grants remain valid. No expiry, account or paid feature gates. [Credits and license details](docs/credits.md) · [Third-party notices and corresponding source](THIRD-PARTY-NOTICES.md)
 
-OpenGrid builds on DienerTech’s VectorXR, LMU Quad View Mod, Quad-Views-Foveated, Horizonlock VR / SteadyXR, SweetFX/LumaSharpen, AMD FidelityFX CAS and telemetry references. Williem3’s Sim-QVFR supplies shader conversion code for LMU multi-view rendering. The wheel models come from GSI, with the renderer and SimHub observer adapted from oVRlay. [Credits](docs/credits.md)
+OpenGrid builds on DienerTech’s VectorXR, LMU Quad View Mod, Quad-Views-Foveated, Horizonlock VR / SteadyXR, SweetFX/LumaSharpen, AMD FidelityFX CAS and telemetry references. Williem3’s Sim-QVFR supplies shader conversion code for LMU multi-view rendering. The wheel library includes GSI models and the Ascher Artura, with thanks to **Martin Ascher** for providing the Artura model. The renderer and SimHub observer are adapted from oVRlay; **Rak3tenmann** contributed the stereo projection fix for Pimax wheels. [Credits](docs/credits.md)
 
 Optional financial contributions: [Buy me a coffee](https://buymeacoffee.com/dansuzuki) · [Affiliate discounts](https://dansuzuki.com/discounts/). Affiliate purchases may earn Dan a commission. Contributions do not unlock features or include technical support.

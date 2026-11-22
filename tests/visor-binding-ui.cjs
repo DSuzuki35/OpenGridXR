@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron}=require('playwright-core'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 (async()=>{
  const root=path.resolve('.'),directory=await fs.mkdtemp(path.join(os.tmpdir(),'opengrid-visor-binding-'));
@@ -8,7 +7,7 @@ const {_electron}=require('playwright-core'),fs=require('node:fs/promises'),path
  const env={...process.env,OPENGRIDXR_DATA_DIR:directory,OPENGRIDXR_TEST_MODE:'1',OPENGRIDXR_INPUT_TEST_FIXTURE:'1'};delete env.ELECTRON_RUN_AS_NODE;let app;
  try{
   app=await _electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[root],env,timeout:60000});
-  const page=await app.firstWindow(); await revealAppearance(page);page.setDefaultTimeout(15000);
+  const page=await app.firstWindow();page.setDefaultTimeout(15000);
   await app.evaluate((_,directory)=>{
    const fs=process.getBuiltinModule('node:fs'),path=process.getBuiltinModule('node:path'),root=path.join(directory,'runtime','enhancements-data','runtime');
    const session=process.pid+'-'+Date.now()+'-visor-fixture',statusFile=path.join(root,'status',session+'.json'),commandFile=path.join(root,'control',session+'.json');
@@ -31,7 +30,7 @@ const {_electron}=require('playwright-core'),fs=require('node:fs/promises'),path
   assert.equal((await app.evaluate(()=>globalThis.visorCommands[0])).drivingAction,'helmet.visor-cycle');
   await page.waitForFunction(async()=>!(await window.openGrid.inputStatus()).paused);
   const after=await page.evaluate(()=>window.openGrid.load());assert.equal(after.revision,saved.revision);assert.equal(after.document.profiles[0].helmet.visorPosition,saved.document.profiles[0].helmet.visorPosition);
-  await page.reload(); await revealAppearance(page);await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
+  await page.reload();await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
   assert.match(await page.getByRole('button',{name:'Bind controller: Cycle visor position',exact:true}).getAttribute('title'),/Button 13/);
   await page.getByLabel('Sunstrip text',{exact:true}).fill('UNSAVED');await page.waitForFunction(async()=>(await window.openGrid.inputStatus()).paused);
   await press();await new Promise(resolve=>setTimeout(resolve,100));assert.equal(await app.evaluate(()=>globalThis.visorCommands.length),1);

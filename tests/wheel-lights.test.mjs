@@ -32,11 +32,17 @@ test('SimHub loopback receiver isolates models, validates frames, handles sequen
   await send(1, 1, 7, 88, true);
   await send(1, 1, 7, 87);
   await send(4, 2, 9, 76);
+  await send(6, 1, 11, 63);
+  await send(6, 2, 12, 35);
+  await send(7, 1, 13, 63);
   assert.deepEqual(lights.sample('hyper-p1'), Buffer.alloc(264, 8));
   assert.deepEqual(lights.sample(4), Buffer.alloc(228, 9));
+  assert.deepEqual(lights.sample('ascher-artura'), Buffer.alloc(189, 11));
+  assert.equal(lights.sample(7), null);
   assert.equal(lights.sample(2), null);
   clock = 1001;
   assert.equal(lights.sample(1), null);
+  assert.equal(lights.sample(6), null);
   await send(1, 0, 2, 88, true);
   assert.deepEqual(lights.sample(1), Buffer.alloc(264, 2));
   lights.setEnabled(false);

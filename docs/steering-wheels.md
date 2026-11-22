@@ -4,7 +4,7 @@
 
 *GSI Hyper P1 rendered by OpenGrid XR’s D3D11 wheel renderer with sample dashboard values and LED colors. Model by Gomez Sim Industries, prepared for oVRlay. [Model provenance](../assets/wheels/hyper-p1-provenance.json).*
 
-In **Spatial overlays**, add a source and choose **3D wheel**. Select a GSI model or choose **Import OBJ or binary STL**. Enable the overlay and save the profile. Start a supported iRacing or Le Mans Ultimate OpenXR session, with the Spatial overlays module enabled.
+In **Spatial overlays**, add a source and choose **3D wheel**. Select a bundled GSI or Ascher Artura model, or choose **Import OBJ or binary STL**. Enable the overlay and save the profile. Start a supported iRacing or Le Mans Ultimate OpenXR session, with the Spatial overlays module enabled.
 
 ![OpenGrid wheel source and SimHub settings](images/screenshots/steering-wheel-source.png)
 
@@ -15,12 +15,15 @@ In **Spatial overlays**, add a source and choose **3D wheel**. Select a GSI mode
 | GSI GXL V2 | 300 mm | — |
 | GSI GT-MAX 32 | 320 mm | Yes |
 | GSI FPE2 | 300 mm | Yes |
+| Ascher Artura Ultimate | 300 mm | Yes |
+
+The Ascher Artura model was provided by Martin Ascher. It includes the supplied muted materials and shaft offset, a fitted SimHub display, 21 shift lights and 14 illuminated button symbols. Light colors follow SimHub’s Artura Ultimate device output.
 
 ## Place the wheel
 
 Center your physical wheel. Use **Place in front of me** or the position and rotation fields to align the shaft and rim. The width field controls physical wheel width in meters. **Follow steering wheel** rotates the model with the sim’s steering telemetry. The GSI meshes use their shaft origin as the pivot. For an imported model the pivot starts at its bounding-box center. Adjust the pivot offsets and steering axis tilt if necessary. Save the profile. To keep an alignment for a particular car, enable **Remember placement for this car**. [Dashboard placement controls](spatial-overlays.md#place-a-web-dashboard)
 
-The renderer draws each eye from its own viewpoint, including the back of the rim, paddles, buttons and display. A wheel requires two available OpenXR composition layers. Lower the source width to reduce the wheel render resolution. The renderer caps each eye at 1024 pixels per side. **Cockpit occlusion** uses the sim’s stereo depth when available. **Show in stream** sends the flat dashboard feed to Clean Output at the overlay’s placement. The headset receives the 3D mesh.
+The renderer draws each eye from its own viewpoint, including the back of the rim, paddles, buttons and display. In a stereo session, a wheel uses one stereo projection layer. Four-view sessions keep the pair of eye-specific quad layers. Lower the source width to reduce the wheel render resolution. The renderer caps each eye at 1024 pixels per side. Enable **3D model without occlusion** to draw that wheel without testing against the game’s cockpit depth. Hands and cockpit parts will no longer hide it. This also removes its depth-processing demand; another overlay with occlusion enabled can still require that work. With the option off, the wheel uses the sim’s stereo depth when available. Benchmark both settings on your system. **Show in stream** sends the flat dashboard feed to Clean Output at the overlay’s placement. The headset receives the 3D mesh.
 
 Multiple overlays using the same wheel share its geometry on the GPU. OpenGrid loads meshes and compiles shaders in the background. Disabling an overlay lets pending work finish in the background. Closing the OpenXR session joins outstanding workers before the layer releases its graphics device.
 
@@ -30,9 +33,9 @@ Multiple overlays using the same wheel share its geometry on the GPU. OpenGrid l
 
 For a wheel-mounted dashboard, use **Play space** and **Follow steering wheel**. This follows steering and lets you look around naturally. Game-generated cockpit camera shake is not tracked. If the dashboard drifts on bumps, reduce in-game cockpit camera motion. **Head-locked** attaches the dashboard to your headset, including when you look away.
 
-In SimHub Dash Studio, open your dashboard’s browser display and copy its HTTP or HTTPS URL. Paste it into **Wheel display URL (optional)** and save. Localhost URLs work. On the Hyper P1, GT-MAX 32 and FPE2, OpenGrid fits this page to the model’s display surface. Hyper SL and GXL V2 have no display.
+In SimHub Dash Studio, open your dashboard’s browser display and copy its HTTP or HTTPS URL. Paste it into **Wheel display URL (optional)** and save. Localhost URLs work. On the Hyper P1, GT-MAX 32, FPE2 and Artura Ultimate, OpenGrid fits this page to the model’s display surface. Hyper SL and GXL V2 have no display.
 
-To mirror the physical device’s lights, enable **Mirror SimHub LEDs** and install or enable the SimHub observer. The source panel reports when colors arrive. Each GSI model uses its own physical LED layout. The dashboard and LED observer run independently. [SimHub observer setup](simhub-wheel-lights.md)
+To mirror the physical device’s lights, enable **Mirror SimHub LEDs** and install or enable the SimHub observer. The source panel reports when colors arrive. Each model uses its own physical LED layout. For the Artura, use an observer build that supports **Ascher Artura Ultimate**; an older observer will not forward its colors. The dashboard and LED observer run independently. [SimHub observer setup](simhub-wheel-lights.md)
 
 ## Import a wheel
 

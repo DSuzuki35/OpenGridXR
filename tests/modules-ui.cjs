@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const { _electron: electron } = require('playwright-core');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -35,7 +34,7 @@ const { pathToFileURL } = require('node:url');
       args: process.env.OPENGRIDXR_TEST_EXE ? [] : [path.resolve('.')],
       env, timeout: 60000,
     });
-    const page = await app.firstWindow(), errors = []; await revealAppearance(page);
+    const page = await app.firstWindow(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
     await nav.getByRole('button', { name: 'View & crop', exact: true }).waitFor();

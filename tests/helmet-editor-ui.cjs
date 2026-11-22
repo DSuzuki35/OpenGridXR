@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const { _electron: electron } = require('playwright-core');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -11,7 +10,7 @@ const assert = require('node:assert/strict');
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ executablePath: process.env.OPENGRIDXR_TEST_EXE || require('electron'), args: process.env.OPENGRIDXR_TEST_EXE ? [] : [path.resolve('.')], env });
   try {
-    const page = await app.firstWindow(), errors = []; await revealAppearance(page);
+    const page = await app.firstWindow(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const ready = () => page.waitForFunction(() => document.querySelector('.helmet-render')?.dataset.rendering === 'false' && document.querySelector('.helmet-render > img')?.complete);
     await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
@@ -88,7 +87,7 @@ const assert = require('node:assert/strict');
     assert.equal(saved.helmet.visor.graphicX, 10);
     assert.equal(saved.view.crop.left, 0, 'Graphic edits refit the visible aperture and preserve full-width projection');
     assert.match(saved.helmet.visor.graphic, /^data:image\/png;base64,/);
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
     await ready();
     assert.equal(await page.getByRole('textbox', { name: 'Sunstrip text', exact: true }).inputValue(), 'GRID RACING');

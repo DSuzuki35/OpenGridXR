@@ -5,6 +5,7 @@ const os = require("node:os");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 (async () => {
+  const { hasWheelLights, hasWheelScreen, wheelLightDevice, wheelModels } = await import("../src/spatial-overlays.mjs");
   const { build } = await import("vite");
   const fixtureId = path.resolve("tests/__desktop_fixture__.jsx").replaceAll("\\", "/");
   const bundle = await build({ logLevel: "error", plugins: [{ name: "desktop-fixture", resolveId(id) { if (id === "virtual:desktop-fixture") return fixtureId; }, load(id) {
@@ -185,12 +186,28 @@ const assert = require("node:assert/strict");
     await page.getByRole("button", { name: "Web URL", exact: true }).click();
     assert.equal(await occlusion.getAttribute("aria-checked"), "false");
     await page.getByRole("button",{name:"3D wheel",exact:true}).click();
+    const unoccludedWheel=page.getByRole("switch",{name:"3D model without occlusion",exact:true});
+    assert.equal(await occlusion.count(),0,"wheel has a single explicit depth control");
+    assert.equal(await unoccludedWheel.getAttribute("aria-checked"),"true");
+    await unoccludedWheel.click();
+    assert.equal((await state()).spatialOverlays.items[0].cockpitOcclusion,true);
     const modelPicker=page.getByLabel("Steering wheel model");
     assert.equal(await modelPicker.inputValue(),"hyper-p1");
     await modelPicker.selectOption("hyper-sl");
-    assert.equal(await page.getByLabel("Wheel display URL (optional)").count(),0);
+    assert.equal(await unoccludedWheel.getAttribute("aria-checked"),"false","model changes preserve occlusion preference");
+    await unoccludedWheel.click();
+    assert.equal((await state()).spatialOverlays.items[0].cockpitOcclusion,false);
+    await modelPicker.selectOption("ascher-artura");
+    assert.equal(await page.getByRole("switch",{name:"Mirror SimHub LEDs",exact:true}).count(),hasWheelLights("ascher-artura")?1:0);
+    assert.equal(await page.getByLabel("SimHub LED device").count(),0);
+    assert.equal(await page.getByText("This model has no mapped LEDs.",{exact:true}).count(),hasWheelLights("ascher-artura")?0:1);
+    assert.equal(await unoccludedWheel.getAttribute("aria-checked"),"true");
+    assert.equal(await page.getByLabel("Wheel display URL (optional)").count(),hasWheelScreen("ascher-artura")?1:0);
     await page.getByRole("button",{name:"Import OBJ or binary STL"}).click();
     assert.equal(await modelPicker.inputValue(),"f".repeat(64));
+    assert.deepEqual(await page.getByLabel("SimHub LED device").locator('option').evaluateAll(options=>options.map(option=>Number(option.value))),
+      [0,...wheelModels.filter(w=>hasWheelLights(w.id)).map(w=>wheelLightDevice(w.id))],
+      "the physical LED picker offers only mapped devices with their protocol IDs");
     await page.getByLabel("Wheel display URL (optional)").fill("http://localhost:8888/dash");
     await page.getByLabel("SimHub LED device").selectOption("5");
     await page.getByRole("spinbutton",{name:"Scene lighting on wheel value"}).fill("65");

@@ -204,11 +204,36 @@ uint32_t pixel(const RuntimeImage &image, int sampleX = -1) {
     read->Unmap(0, nullptr);
     return value;
 }
+// Optional visual evidence from the production renderer in the synthetic runtime.
+// Never used by normal tests or the application; no desktop/window capture.
+void captureWheel(const RuntimeImage& image, const std::filesystem::path& path) {
+    check(!d12 && image.texture11, "wheel capture requires D3D11");
+    D3D11_TEXTURE2D_DESC desc{};
+    image.texture11->GetDesc(&desc);
+    desc.Usage = D3D11_USAGE_STAGING; desc.BindFlags = 0;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    ComPtr<ID3D11Texture2D> read;
+    check(SUCCEEDED(device11->CreateTexture2D(&desc, nullptr, &read)), "wheel capture allocation");
+    context11->CopyResource(read.Get(), image.texture11.Get());
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    check(SUCCEEDED(context11->Map(read.Get(), 0, D3D11_MAP_READ, 0, &mapped)), "wheel capture map");
+    std::ofstream file(path, std::ios::binary);
+    file << "P6\n" << image.width << ' ' << image.height << "\n255\n";
+    for (unsigned y = 0; y < image.height; ++y) {
+        const auto* row = static_cast<const char*>(mapped.pData) + y * mapped.RowPitch;
+        for (unsigned x = 0; x < image.width; ++x) file.write(row + x * 4, 3);
+    }
+    context11->Unmap(read.Get(), 0);
+    check(file.good(), "wheel capture write");
+}
 int main(int argc, char **argv) {
     try {
         bool listen = false;
         unsigned seconds = 60;
         std::string wanted;
+        std::filesystem::path wheelCaptureDirectory;
+        unsigned arturaCaptureFrames = 0;
+        bool arturaCaptured = false;
         for (int i = 1; i < argc; ++i) {
             std::string arg = argv[i];
             if (arg == "--listen")
@@ -219,6 +244,8 @@ int main(int argc, char **argv) {
                 wanted = argv[++i];
             else if (arg == "--seconds" && i + 1 < argc)
                 seconds = std::clamp(unsigned(std::stoul(argv[++i])), 1u, 600u);
+            else if (arg == "--capture-wheel-dir" && i + 1 < argc)
+                wheelCaptureDirectory = argv[++i];
         }
         ComPtr<IDXGIFactory1> factory;
         CreateDXGIFactory1(IID_PPV_ARGS(&factory));
@@ -267,8 +294,9 @@ int main(int argc, char **argv) {
         og::OverlayChannel channel;
         check(channel.open("test"), "fixture channel");
         auto sharedBridge=std::make_shared<og::SessionD3D11On12>();
+        uint32_t layerLimit=listen ? 32 : 4;
         auto initialize = [&]{return renderer.initialize(reinterpret_cast<XrSession>(10),
-            d12 ? static_cast<void *>(&b12) : static_cast<void *>(&b11),listen ? 32 : 4,api,"test",sharedBridge);};
+            d12 ? static_cast<void *>(&b12) : static_cast<void *>(&b11),layerLimit,api,"test",sharedBridge);};
         if (!listen) {
             check(channel.lock(), "hold overlay startup handshake");
             auto starting=std::async(std::launch::async,initialize);
@@ -405,6 +433,27 @@ int main(int argc, char **argv) {
             if (!listen && f == 6)
                 info.layerCount = 0;
             renderer.append(info, true, listen || (f != 5 && f != 9), layers);
+            if (listen && !wheelCaptureDirectory.empty() && !d12 && channel.lock()) {
+                const auto& selected = channel.data()->slots[0];
+                const bool artura = std::string_view(selected.wheelModel.data()) == "ascher-artura";
+                channel.unlock();
+                arturaCaptureFrames = artura ? arturaCaptureFrames + 1 : 0;
+                if (!artura) arturaCaptured = false;
+                if (!arturaCaptured && arturaCaptureFrames >= 45 && layers.size() > 2 && layers[2]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
+                    std::filesystem::create_directories(wheelCaptureDirectory);
+                    const auto* wheel = reinterpret_cast<const XrCompositionLayerProjection*>(layers[2]);
+                    for (unsigned eye = 0; eye < wheel->viewCount; ++eye) {
+                        captureWheel(images.at(wheel->views[eye].subImage.swapchain),
+                            wheelCaptureDirectory / (eye ? "ascher-artura-right.ppm" : "ascher-artura-left.ppm"));
+                        const auto& fov = wheel->views[eye].fov;
+                        std::ofstream metadata(wheelCaptureDirectory / (eye ? "ascher-artura-right.json" : "ascher-artura-left.json"));
+                        metadata << "{\"projection_aspect\":" <<
+                            (std::tan(fov.angleRight)-std::tan(fov.angleLeft)) /
+                            (std::tan(fov.angleUp)-std::tan(fov.angleDown)) << "}\n";
+                    }
+                    arturaCaptured = true;
+                }
+            }
             info.layerCount = normalLayerCount;
             if (!listen && (f == 5 || f == 6)) {
                 check(layers.size() == 2 && images.size() == 2,
@@ -579,8 +628,10 @@ int main(int argc, char **argv) {
             if (listen && f % 30 == 0) {
                 std::cout << "{\"op\":\"fixture-frame\",\"active\":" << layers.size() - 2;
                 if (layers.size() > 2) {
-                    auto *q = reinterpret_cast<const XrCompositionLayerQuad *>(layers[2]);
-                    std::cout << ",\"pixel\":" << pixel(images.at(q->subImage.swapchain));
+                    auto image = layers[2]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION
+                        ? reinterpret_cast<const XrCompositionLayerProjection *>(layers[2])->views[0].subImage
+                        : reinterpret_cast<const XrCompositionLayerQuad *>(layers[2])->subImage;
+                    std::cout << ",\"pixel\":" << pixel(images.at(image.swapchain));
                 }
                 std::cout << "}" << std::endl;
             }
@@ -877,24 +928,42 @@ int main(int argc, char **argv) {
             std::copy(id.begin(),id.end(),wheel.wheelModel.begin());
             wheel.frames[0]={900,reinterpret_cast<uint64_t>(handles[0]),910,32,16,DXGI_FORMAT_R8G8B8A8_UNORM};
             channel.data()->producerPid=GetCurrentProcessId();channel.unlock();
-            auto renderWheel=[&](bool fresh,ID3D11ShaderResourceView* probe=nullptr,float ambientLight=0.f) {
+            auto renderWheel=[&](bool fresh,ID3D11ShaderResourceView* probe=nullptr,float ambientLight=0.f,
+                                 bool tightBudget=false,og::CockpitDepthFrame* depth=nullptr) {
                 check(channel.lock(),"wheel heartbeat");
                 channel.data()->producerBeat=GetTickCount64();
                 wheel.wheelLightTick=fresh?GetTickCount64():0;
                 wheel.wheelAmbientLight=ambientLight;
                 channel.unlock();
                 std::vector<const XrCompositionLayerBaseHeader*> stack{base[0],base[1]};
+                if(tightBudget) stack.push_back(base[1]);
                 ++info.displayTime;
-                renderer.append(info,true,true,stack,nullptr,{},probe);
+                if(depth) depth->time=info.displayTime;
+                renderer.append(info,true,true,stack,depth,{},probe);
                 return stack;
             };
             auto stack=renderWheel(true);
-            for(unsigned i=0;stack.size()!=4 && i<300;i++){Sleep(10);stack=renderWheel(true);}
-            check(stack.size()==4,"native wheel publishes both eye images");
-            auto left=reinterpret_cast<const XrCompositionLayerQuad*>(stack[2]);
-            auto right=reinterpret_cast<const XrCompositionLayerQuad*>(stack[3]);
-            check(left->eyeVisibility==XR_EYE_VISIBILITY_LEFT && right->eyeVisibility==XR_EYE_VISIBILITY_RIGHT &&
-                  left->subImage.swapchain!=right->subImage.swapchain && left->pose.position.x!=right->pose.position.x,
+            for(unsigned i=0;stack.size()!=3 && i<300;i++){Sleep(10);stack=renderWheel(true);}
+            check(stack.size()==3 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                  "native wheel publishes one stereo projection layer without eyeVisibility quads");
+            check(!renderer.wantsCockpitDepth(), "3D wheel without occlusion never requests cockpit depth");
+            auto tight=renderWheel(true,nullptr,0,true);
+            check(tight.size()==4 && tight[3]->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                  "stereo wheel fits a single remaining composition layer");
+            check(channel.lock(),"enable wheel depth");wheel.cockpitOcclusion=1;channel.unlock();
+            renderWheel(true,nullptr,0,true);
+            check(d12 || renderer.wantsCockpitDepth(),"one-layer stereo wheel can request occlusion depth");
+            check(channel.lock(),"disable wheel depth");wheel.cockpitOcclusion=0;channel.unlock();
+            renderWheel(true);
+            check(!renderer.wantsCockpitDepth(),"disabling wheel occlusion clears capture demand immediately");
+            auto wheelLayer=reinterpret_cast<const XrCompositionLayerProjection*>(stack[2]);
+            check(wheelLayer->viewCount==2 && wheelLayer->views &&
+                  (wheelLayer->layerFlags & XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT) &&
+                  (wheelLayer->layerFlags & XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT),
+                  "stereo wheel retains both views and straight-alpha blending");
+            auto left=&wheelLayer->views[0];
+            auto right=&wheelLayer->views[1];
+            check(left->subImage.swapchain!=right->subImage.swapchain && left->pose.position.x!=right->pose.position.x,
                   "wheel uses distinct viewpoints with geometric parallax");
             const auto& leftImage=images.at(left->subImage.swapchain);
             constexpr uint32_t screenColor=0xff000080, ledColor=0xff008000;
@@ -951,10 +1020,62 @@ int main(int argc, char **argv) {
                 }
                 stack=renderWheel(false,probe.Get(),100);
                 const auto& staleImage=images.at(right->subImage.swapchain);
-                check(stack.size()==4 && pixel(staleImage,staleImage.width*5/8)==0xff000000,
+                check(stack.size()==3 && pixel(staleImage,staleImage.width*5/8)==0xff000000,
                       "stale LED frame stays dark on a scene-lit wheel");
                 renderWheel(true,nullptr,100);
                 check(pixel(leftImage,leftImage.width/8)==baseCase,"losing the probe restores the original casing");
+            }
+            check(channel.lock(),"select Artura physical device");wheel.wheelDevice=6;channel.unlock();
+            stack=renderWheel(true);
+            check(stack.size()==3 && pixel(leftImage,leftImage.width*5/8)==ledColor,
+                  "Artura device six renders direct physical LED groups without GSI ring indexing");
+            std::array<XrCompositionLayerProjectionView,4> quadViews{views[0],views[1],views[0],views[1]};
+            app.viewCount=4;app.views=quadViews.data();
+            stack=renderWheel(true);
+            check(stack.size()==4 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_QUAD &&
+                  stack[3]->type==XR_TYPE_COMPOSITION_LAYER_QUAD,
+                  "four-view sessions retain the existing pair of eye-specific quads");
+            check(renderWheel(true,nullptr,0,true).size()==3,
+                  "four-view wheel does not exceed a single remaining composition layer");
+            app.viewCount=2;app.views=views;
+            stack=renderWheel(true);
+            check(stack.size()==3 && stack[2]->type==XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                  "returning to stereo restores the single projection layer");
+            if(!d12) {
+                renderer.reset();layerLimit=6;check(initialize(),"restart mixed wheel/dashboard fixture");
+                for(auto& key:keys) {
+                    if(key->AcquireSync(0,0)!=S_OK) check(key->AcquireSync(1,0)==S_OK,"reclaim mixed source");
+                    key->ReleaseSync(1);
+                }
+                check(channel.lock(),"configure independent dashboard depth");
+                auto& dashboard=channel.data()->slots[1];
+                dashboard=wheel;dashboard.wheelModel.fill(0);dashboard.cockpitOcclusion=1;
+                dashboard.frames[0]={901,reinterpret_cast<uint64_t>(handles[1]),911,32,16,DXGI_FORMAT_R8G8B8A8_UNORM};
+                channel.unlock();
+                D3D11_TEXTURE2D_DESC desc{};
+                desc.Width=desc.Height=desc.MipLevels=desc.SampleDesc.Count=1;desc.ArraySize=2;
+                desc.Format=DXGI_FORMAT_R32_FLOAT;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+                const float nearDepth=0;
+                D3D11_SUBRESOURCE_DATA samples[2]{{&nearDepth,4,4},{&nearDepth,4,4}};
+                ComPtr<ID3D11Texture2D> texture;ComPtr<ID3D11ShaderResourceView> depthView;
+                check(SUCCEEDED(device11->CreateTexture2D(&desc,samples,&texture)) &&
+                      SUCCEEDED(device11->CreateShaderResourceView(texture.Get(),nullptr,&depthView)),"mixed depth texture");
+                og::CockpitDepthFrame depth{};depth.space=app.space;
+                for(unsigned i=0;i<2;++i) {
+                    auto& eye=depth.eyes[i];eye.view=depthView.Get();eye.pose=views[i].pose;
+                    eye.fov={-.7f,.7f,.7f,-.7f};eye.rect.extent={1,1};eye.slice=i;eye.invNear=2;eye.invFar=.1f;
+                }
+                stack=renderWheel(true,nullptr,0,false,&depth);
+                for(unsigned i=0;stack.size()!=5 && i<300;++i) {Sleep(10);stack=renderWheel(true,nullptr,0,false,&depth);}
+                check(stack.size()==5 && renderer.wantsCockpitDepth() && dashboard.cockpitDepthActive && !wheel.cockpitDepthActive,
+                      "dashboard keeps its own depth capture and masking beside an unoccluded 3D wheel");
+                auto* wheelLayer=reinterpret_cast<const XrCompositionLayerProjection*>(stack[2]);
+                auto& wheelImage=images.at(wheelLayer->views[0].subImage.swapchain);
+                check(pixel(wheelImage,wheelImage.width*3/8)==screenColor,
+                      "another dashboard's foreground depth cannot mask a wheel with occlusion off");
+                check(channel.lock(),"disable final depth consumer");dashboard.cockpitOcclusion=0;channel.unlock();
+                renderWheel(true,nullptr,0,false,&depth);
+                check(!renderer.wantsCockpitDepth(),"last occlusion consumer releases capture demand while 3D rendering continues");
             }
         }
         renderer.reset();

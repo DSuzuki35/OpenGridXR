@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron:electron}=require('playwright-core');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url');
@@ -12,7 +11,7 @@ const {pathToFileURL}=require('node:url');
   const env={...process.env,OPENGRIDXR_DATA_DIR:dir,OPENGRIDXR_TEST_MODE:'1'};delete env.ELECTRON_RUN_AS_NODE;
   const app=await electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});
   try {
-    const page=await app.firstWindow(),errors=[]; await revealAppearance(page);page.on('pageerror',e=>errors.push(e.message));
+    const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();
     const ready=()=>page.waitForFunction(()=>document.querySelector('.helmet-render')?.dataset.rendering==='false'&&document.querySelector('.helmet-render > img')?.complete);
     const settled=async()=>{await page.getByText('Opening and crop updated together. Save to apply in the headset.',{exact:true}).waitFor();await ready();};
@@ -50,7 +49,7 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await page.getByRole('spinbutton',{name:/^(Head|Vehicle) movement response value$/}).count(),0);
     await page.getByRole('group',{name:'Helmet texture detail'}).getByRole('button',{name:'Detail · 4096',exact:true}).click();
     const saved=await save();assert.equal(saved.helmet.ambientLight,65);assert.equal(saved.helmet.detail,'detail');
-    await page.reload(); await revealAppearance(page);await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();await ready();
+    await page.reload();await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button', {name:'View & crop', exact:true}).click(); await page.getByRole('group', {name:'View & crop section'}).getByRole('button', {name:'Helmet', exact:true}).click();await ready();
     assert.equal(await page.getByRole('switch',{name:'Switch visor while driving',exact:true}).getAttribute('aria-checked'),'true');
     assert.deepEqual(errors,[]);console.log('PASS: visor positions, live-safe crop, lighting, detail, persistence and visible credit');
   } finally {await app.evaluate(({BrowserWindow})=>{for(const win of BrowserWindow.getAllWindows())win.destroy();}).catch(()=>{});await app.close();}

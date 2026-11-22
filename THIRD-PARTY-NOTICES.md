@@ -14,6 +14,14 @@ The Hyper P1, Hyper SL, GXL V2, GT-MAX 32 and FPE2 models from oVRlay originate 
 
 OpenGrid includes oVRlay’s optional SimHub observer, using its existing plugin name and packet format. The observer was built against locally installed SimHub assemblies. [Observer source](integrations/simhub) · [Setup and build instructions](docs/simhub-wheel-lights.md)
 
+## Ascher Artura model
+
+With thanks to Martin Ascher for providing the Ascher Artura steering wheel model. The supplied model, materials and converter retain their separate provenance and license information. OpenGrid’s code license does not grant independent rights to the model. [Model provenance and mapping](assets/wheels/ascher-artura-provenance.json) · [Converter license](assets/wheels/ASCHER-CONVERTER-LICENSE.txt)
+
+## GSI logo
+
+The GSI logo belongs to Gomez Sim Industries and is included with authorization from the project owner, a GSI co-owner. The asset was obtained from the official [Gomez Sim Industries website](https://gomezsimindustries.com/). OpenGrid’s code license does not grant rights to the logo or trademark. The original SVG and its raster version are included in `src/assets/sponsors`.
+
 ## Sim-QVFR
 
 Williem3’s Sim-QVFR inspired optional appearance controls and scene-reactive lighting, independently implemented with original artwork. Separately, the LMU multi-view renderer incorporates Sim-QVFR’s DXBC shader conversion code under PolyForm Noncommercial 1.0.0 and adapts its LMU focus-rendering work. [Imported converter and license](native/third_party/lmu_quadview/mod/vendor/sim_qvfr) · [Sim-QVFR LMU source](https://github.com/Williem3/Sim-QVFR/tree/c7846d385c9fc5b7802299fd29a9a4f48c0df6bd/src/games/lmu)

@@ -96,6 +96,14 @@ int main() {
               "complete physical LED array accepted");
         for(const auto& value:{std::string(87*6,'a'),std::string(88*6,'g'),std::string(97*6,'0')})
             check(!og::parse_overlay_command(lights+value+R"("})",c,error),"invalid LED payload rejected");
+        const std::string arturaLights=R"({"op":"wheelLights","slot":0,"wheelModel":"ascher-artura","wheelDevice":6,"rgb":")";
+        check(og::parse_overlay_command(arturaLights+std::string(63*6,'a')+R"("})",c,error),
+              "Artura accepts all 63 physical mapper channels including unused slots");
+        for(unsigned count:{35u,62u,64u})
+            check(!og::parse_overlay_command(arturaLights+std::string(count*6,'a')+R"("})",c,error),
+                  "Artura rejects logical-only and incomplete physical arrays");
+        check(!og::parse_overlay_command(R"({"op":"configure","slot":0,"wheelModel":"ascher-artura","wheelDevice":7})",c,error),
+              "unknown wheel device remains rejected");
         check(!og::parse_overlay_command(R"({"op":"configure","slot":0,"wheelModel":"../bad","wheelDevice":1})",c,error),
               "model key cannot escape the cache");
         for (const auto value : {"-1", "100.01", "\"50\"", "true"})

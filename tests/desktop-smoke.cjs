@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const { _electron: electron } = require("playwright-core");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -22,7 +21,7 @@ const assert = require("node:assert/strict");
   });
   const errors = [];
   try {
-    const page = await app.firstWindow(); await revealAppearance(page);
+    const page = await app.firstWindow();
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("img", {name:"Rectangular crop preview"}).waitFor({timeout:20000});
     assert.equal(await page.getByRole("button",{name:/Contour point/}).count(),0);
@@ -131,7 +130,7 @@ const assert = require("node:assert/strict");
       streamSaved.document.profiles[0].stream.displayId,
       displays[0].id,
     );
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page.getByRole("button", { name: "Stream", exact: true }).click();
     assert.equal(
       await symmetric.getAttribute("aria-checked"),
@@ -187,7 +186,7 @@ const assert = require("node:assert/strict");
     await page
       .getByRole("button", { name: "Profile saved", exact: true })
       .waitFor();
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page
       .getByRole("button", { name: "Performance HUD", exact: true })
       .click();
@@ -244,7 +243,7 @@ const assert = require("node:assert/strict");
     await page
       .getByRole("button", { name: "Profile saved", exact: true })
       .waitFor();
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page.getByRole("button", { name: "Telemetry", exact: true }).click();
     assert.equal(
       await page
@@ -507,7 +506,7 @@ const assert = require("node:assert/strict");
     await page
       .getByRole("button", { name: "Profile saved", exact: true })
       .waitFor();
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page
       .getByRole("img", { name: "Rectangular crop preview", exact: true })
       .waitFor();
@@ -730,7 +729,7 @@ const assert = require("node:assert/strict");
       }
     });
     assert.ok(blocked, "Tests cannot modify registration");
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page
       .getByRole("img", { name: "Rectangular crop preview", exact: true })
       .waitFor();
@@ -754,7 +753,7 @@ const assert = require("node:assert/strict");
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0]?.show(),
       );
-      const page = await app.firstWindow(); await revealAppearance(page);
+      const page = await app.firstWindow();
       await page.screenshot({ path: path.join(results, "failure.png") });
       console.error((await page.locator("body").innerText()).slice(0, 6000));
     } catch {}

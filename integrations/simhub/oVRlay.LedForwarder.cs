@@ -21,7 +21,7 @@ namespace oVRlay.SimHubLeds
 
         public LedForwarder(Func<long> clock, long frequency, Action<byte[]> sink, int modelId, int ledCount)
         {
-            if(modelId<0 || modelId>5 || ledCount<1 || ledCount>96 || (modelId==0 && ledCount!=88))
+            if(modelId<0 || modelId>6 || ledCount<1 || ledCount>96 || (modelId==0 && ledCount!=88))
                 throw new ArgumentException("Unsupported LED model/count.");
             this.clock = clock;
             this.sink = sink;
@@ -84,7 +84,7 @@ namespace oVRlay.SimHubLeds
 
     internal sealed class LatestModelFrames
     {
-        private readonly byte[][] pending=new byte[5][];
+        private readonly byte[][] pending=new byte[6][];
         public void Put(byte[] packet)
         {
             if(packet==null || packet.Length<20) throw new ArgumentException("Invalid LED packet.");
@@ -92,11 +92,11 @@ namespace oVRlay.SimHubLeds
             bool routed=packet[0]==79 && packet[1]==86 && packet[2]==82 && packet[3]==76 && packet[4]==69 && packet[5]==68 && packet[6]==48 && packet[7]==50;
             uint id=legacy?1:BitConverter.ToUInt32(packet,16);
             uint count=BitConverter.ToUInt32(packet,12);
-            if((!legacy && !routed) || id<1 || id>5 || count<1 || count>96 || packet.Length!=(legacy?16:20)+count*3)
+            if((!legacy && !routed) || id<1 || id>6 || count<1 || count>96 || packet.Length!=(legacy?16:20)+count*3)
                 throw new ArgumentException("Invalid model LED packet.");
             Interlocked.Exchange(ref pending[id-1],packet);
         }
         public byte[] Take(int index) { return Interlocked.Exchange(ref pending[index],null); }
-        public void Clear() { for(int i=0;i<5;++i) Interlocked.Exchange(ref pending[i],null); }
+        public void Clear() { for(int i=0;i<pending.Length;++i) Interlocked.Exchange(ref pending[i],null); }
     }
 }

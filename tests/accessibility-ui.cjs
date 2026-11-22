@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
@@ -24,7 +23,7 @@ const { _electron } = require('playwright-core');
       args: process.env.OPENGRIDXR_TEST_EXE ? [] : [path.resolve('.')],
       env,
     });
-    const page = await app.firstWindow(); await revealAppearance(page);
+    const page = await app.firstWindow();
     await page.locator('.nav-item').first().waitFor();
     await page.getByRole('button', { name: 'Profile saved', exact: true }).waitFor();
     await page.evaluate(await fs.readFile(require.resolve('axe-core/axe.min.js'), 'utf8'));

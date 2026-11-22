@@ -28,3 +28,5 @@ The QVFR source includes dependency subsets from fmt, the OpenXR SDK, OpenXR-Mix
 OpenGrid’s LMU integration adds host crop, snapshot and image-ownership callbacks, bounded waits and startup reporting. The cache-core scheduling algorithm remains upstream code and defaults off in OpenGrid. [Modification provenance](../native/third_party/lmu_quadview/OPENGRID-PROVENANCE.md)
 
 LMU MVR recovery draws on [Williem3’s Sim-QVFR](https://github.com/Williem3/Sim-QVFR). See the [implementation comparison](research/sim-qvfr-1.1.1.md). Stream camera presets and independent horizontal and vertical smoothing follow [Dan Suzuki’s steadyXR 1.0.2](https://github.com/DSuzuki35/steadyXR/releases/tag/v1.0.2), which credits Coltangent for requesting the axis controls.
+
+**Martin Ascher** provided the Ascher Artura model included in the wheel library. **Rak3tenmann** contributed the stereo projection fix for duplicated Pimax OpenXR wheels in [PR #1](https://github.com/DSuzuki35/OpenGridXR/pull/1).

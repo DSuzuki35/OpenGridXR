@@ -8,7 +8,7 @@ import SceneColorFilter from "./SceneColorFilter.jsx";
 import {colorPresetIsIdentity, resolvedColorPreset} from "../color-correction.mjs";
 import {api, isBrowserPreview} from "../api.mjs";
 import {StreamHelmetPreview, StreamHelmetControls} from './StreamHelmet.jsx';
-export default function StreamPage({profile,dirty,busy,launch,changeGroup,change,displays,displayError,setExtraSymmetric,changeExtraArea,importSteadyXr,importReport,dismissImportReport,showAppearance=false,helmetAvailable,colorCorrectionAvailable,discardFraming}) {
+export default function StreamPage({profile,dirty,busy,launch,changeGroup,change,displays,displayError,setExtraSymmetric,changeExtraArea,importSteadyXr,importReport,dismissImportReport,helmetAvailable,colorCorrectionAvailable,discardFraming}) {
   const followSession = !dirty && !isBrowserPreview && (helmetAvailable && profile.stream.helmet?.enabled || colorCorrectionAvailable && profile.colorCorrection?.enabled);
   const [session, setSession] = useState(null);
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function StreamPage({profile,dirty,busy,launch,changeGroup,change
                       </Button>
                     </div>
                   </Panel>
-                  {showAppearance && <StreamHelmetControls profile={profile} changeGroup={changeGroup} available={helmetAvailable} />}
+                  <StreamHelmetControls profile={profile} changeGroup={changeGroup} available={helmetAvailable} />
                   <div className="stream-bottom-grid">
                     <Panel title="Frame & output" icon={ScanLine}>
                       <div className="select-field">

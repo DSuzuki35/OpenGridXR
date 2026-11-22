@@ -11,6 +11,7 @@
 #include <vector>
 #include "mesh_post_shader.h"
 #include "led_color.h"
+#include "../include/wheel_model.hpp"
 
 namespace ovrlay {
 namespace {
@@ -277,7 +278,7 @@ bool MeshAsset::initialize(ID3D11Device* device,const wchar_t* path,uint32_t kin
             {-.01335391f,.10472478f,.12867644f,.34169041f,.20149369f}};
         Screen scr{};
         if(kind>=1 && kind<=5) scr=screens[kind-1];
-        else if(std::none_of(v.begin(),v.end(),[](const auto& vertex){return vertex.lightGroup==200;})) {
+        else if(kind==0 && std::none_of(v.begin(),v.end(),[](const auto& vertex){return vertex.lightGroup==200;})) {
             const auto h=maximum[1]-minimum[1];
             scr={0,minimum[1]+.65f*h,maximum[2],.32f,std::min(.18f,h*.4f)};
         }
@@ -387,7 +388,7 @@ bool MeshRenderer::initializePipeline(ID3D11Device* device) noexcept {
 
 
 bool MeshRenderer::selectModel(ID3D11Device* device,unsigned slot,const std::wstring& path,unsigned kind,unsigned deviceKind) noexcept {
-    if(slot>=15 || deviceKind>5 || kind>5 || !pipelineReady) return false;
+    if(slot>=15 || deviceKind>6 || kind>og::wheel_names.size() || !pipelineReady) return false;
     try {
         active=models.select(slot,path,[&] {
             return std::async(std::launch::async,[retained=Microsoft::WRL::ComPtr<ID3D11Device>(device),path,kind] {
@@ -399,7 +400,9 @@ bool MeshRenderer::selectModel(ID3D11Device* device,unsigned slot,const std::wst
     } catch(...) {active=nullptr;}
     if(!active)return false;
     std::memcpy(lights.centers,active->centers,sizeof(lights.centers));
-    kind=deviceKind?deviceKind:1;
+    // Artura uses individually tagged physical pixels (groups 201+), so it
+    // never reads the GSI rotary-ring allocation table.
+    kind=deviceKind && deviceKind<=kWheelModels?deviceKind:1;
     uint32_t first=0;
     for(uint32_t ring=0;ring<kRingCount;++ring) {lights.centers[ring][2]=float(first);lights.centers[ring][3]=float(physicalRingCounts[kind-1][ring]);first+=physicalRingCounts[kind-1][ring];}
     lights.options[2]=float(first);

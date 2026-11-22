@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron:electron}=require('playwright-core');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 (async()=>{
@@ -13,7 +12,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
       ipcMain.handle('opengrid:colorCorrectionStatus',async()=>{global.colorPolls++;global.colorActivePolls++;global.colorMaxPolls=Math.max(global.colorMaxPolls,global.colorActivePolls);const snapshot=status();await new Promise(resolve=>setTimeout(resolve,global.colorPollDelay));global.colorActivePolls--;return snapshot;});
       ipcMain.handle('opengrid:cycleColorCorrection',async()=>{await new Promise(resolve=>setTimeout(resolve,global.colorCycleDelay));global.colorPreset='night';return status();});
     });
-    const page=await app.firstWindow(),errors=[]; await revealAppearance(page);page.on('pageerror',e=>errors.push(e.message));
+    const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.getByRole('button',{name:'Color correction',exact:true}).click();
     assert.equal(await page.getByRole('switch',{name:'Enable VR color correction',exact:true}).getAttribute('aria-checked'),'false');
     assert.equal(await page.getByLabel('Startup preset',{exact:true}).inputValue(),'neutral');

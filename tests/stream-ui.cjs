@@ -1,4 +1,3 @@
-const {revealAppearance} = require('./appearance-access.cjs');
 const {_electron:electron}=require('playwright-core');
 const fs=require('node:fs/promises'), path=require('node:path'), os=require('node:os'), assert=require('node:assert/strict');
 (async()=>{
@@ -17,7 +16,7 @@ const fs=require('node:fs/promises'), path=require('node:path'), os=require('nod
   let app;
   try{
     app=await electron.launch({executablePath:process.env.OPENGRIDXR_TEST_EXE||require('electron'),args:process.env.OPENGRIDXR_TEST_EXE?[]:[path.resolve('.')],env,timeout:60000});
-    const page=await app.firstWindow(); await revealAppearance(page);page.setDefaultTimeout(20000);
+    const page=await app.firstWindow();page.setDefaultTimeout(20000);
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Stream',exact:true}).click();
     assert.equal(await page.getByRole('group',{name:'Profile mode',exact:true}).count(),0);
@@ -127,7 +126,7 @@ const fs=require('node:fs/promises'), path=require('node:path'), os=require('nod
     assert.equal(headsetManifest.enabled,false);
     await fs.mkdir(path.resolve('test-results'),{recursive:true});
     await page.screenshot({path:path.resolve('test-results/stream-controls.png'),fullPage:true});
-    await page.reload(); await revealAppearance(page);
+    await page.reload();
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Stream',exact:true}).click();
     assert.equal(await number('Stream helmet size').inputValue(),'175');
     await page.getByRole('switch',{name:'Show helmet in stream',exact:true}).click();
