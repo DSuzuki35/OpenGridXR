@@ -341,7 +341,7 @@ else {
           };
         });
       function handle(name, fn) {
-        const mutations = new Set(['setLmuPreferences', 'setModuleSettings', 'save', 'restoreBackup', 'installRuntime', 'removeRuntime', 'launchOutput', 'benchmarkStart', 'benchmarkStop', 'launchLmuOffline', 'chooseLmuExecutable', 'chooseLmuProvider', 'triggerLmuCapture', 'previewLmuLaunch', 'layersSetEnabled', 'layersRestore']);
+        const mutations = new Set(['setLmuPreferences', 'setModuleSettings', 'save', 'restoreBackup', 'installRuntime', 'removeRuntime', 'launchOutput', 'benchmarkStart', 'benchmarkStop', 'launchLmuOffline', 'chooseLmuExecutable', 'chooseLmuProvider', 'triggerLmuCapture', 'previewLmuLaunch', 'layersSetEnabled', 'layersRestore', 'installSimHubBridge', 'chooseSimHubFolder']);
         ipcMain.handle(`opengrid:${name}`, async (event, ...args) => {
           if (
             !win ||
@@ -631,11 +631,24 @@ else {
         return runtime.launch(state.document, profile, displays());
       });
       handle("openDataFolder", () => shell.openPath(data));
+      const simHubPluginFolder = () => app.isPackaged
+        ? path.join(path.dirname(app.getPath('exe')), 'simhub')
+        : path.join(app.getAppPath(), 'integrations', 'simhub');
+      let simHubBridge;
+      const bridge = () => simHubBridge ||= require('./simhub-bridge.cjs').createSimHubBridge({
+        sourceFile: path.join(simHubPluginFolder(), 'oVRlay.SimHubLeds.dll'),
+        dataDirectory: data,
+        ...(process.env.OPENGRIDXR_TEST_MODE === '1' ? {platform:'unsupported'} : {}),
+        chooseDirectory: async () => {
+          const selection = await dialog.showOpenDialog(win, {title:'Choose your SimHub installation folder', properties:['openDirectory']});
+          return selection.canceled ? null : selection.filePaths[0] || null;
+        },
+      });
+      handle('simHubBridgeStatus', () => bridge().status());
+      handle('installSimHubBridge', () => bridge().install());
+      handle('chooseSimHubFolder', () => bridge().choose());
       handle("openSimHubPluginFolder", async () => {
-        const folder = app.isPackaged
-          ? path.join(path.dirname(app.getPath("exe")), "simhub")
-          : path.join(app.getAppPath(), "integrations", "simhub");
-        const error = await shell.openPath(folder);
+        const error = await shell.openPath(simHubPluginFolder());
         if (error) throw new Error(error);
       });
       handle("openSteadyTutorial", () => shell.openExternal("https://youtu.be/kNgVMJ82mQU"));

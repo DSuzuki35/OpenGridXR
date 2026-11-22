@@ -57,6 +57,7 @@ const LayersPage = lazy(() => import('./components/LayersPage.jsx'));
 const TelemetryPanel = lazy(() => import("./components/TelemetryPanel.jsx"));
 const BenchmarkPanel = lazy(() => import("./components/BenchmarkPanel.jsx"));
 const SpatialOverlaysPanel = lazy(() => import("./components/SpatialOverlaysPanel.jsx"));
+const SimHubBridgePanel = lazy(() => import('./components/SimHubBridgePanel.jsx'));
 import UpdatesPanel from "./components/UpdatesPanel.jsx";
 import SupportPanel from "./components/SupportPanel.jsx";
 import packageMetadata from "../package.json";
@@ -1343,6 +1344,7 @@ export default function App() {
                   </Note>
                 </Panel>
                 <div className="settings-stack">
+                  <SimHubBridgePanel disabled={!!busy} />
                   <Panel title="LMU offline test" icon={Gamepad2}>
                     <p className="panel-description">
                       Test unsigned OpenGrid XR DLLs in an offline Race Weekend.

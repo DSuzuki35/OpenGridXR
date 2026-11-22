@@ -44,6 +44,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/gsi-decal-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/simhub-bridge-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run test:modules-ui
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run test:visor-ui

@@ -39,6 +39,10 @@ function download(value, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const preview = {
+  async simHubBridgeStatus() { return {directory:'',available:false,installed:false,current:false,running:null,message:'SimHub bridge installation requires the Windows app.'}; },
+  async installSimHubBridge() { throw new Error('SimHub bridge installation requires the Windows app.'); },
+  async chooseSimHubFolder() { throw new Error('Folder selection requires the Windows app.'); },
+  async openSimHubPluginFolder() { throw new Error('Bridge files are included with the Windows app.'); },
   async listSystemFonts(){return {available:false,families:[],error:'Installed font selection requires the Windows app.'};},
   async downloadVisorTemplate(request){
     const format=visorTemplates.formats[request?.format];

@@ -2,8 +2,8 @@
 
 Use this optional observer to copy your physical wheel’s RPM, flags and button colors to its virtual counterpart. A dashboard URL alone needs only SimHub’s web server.
 
-1. Close SimHub. Open the `simhub` folder beside the installed OpenGrid XR app.
-2. Copy `oVRlay.SimHubLeds.dll` into the SimHub installation folder beside `SimHub.Plugins.dll`. Artura support requires observer version 1.2 or newer, included with this release.
+1. Close SimHub. In OpenGrid, open **Setup → SimHub bridge**.
+2. Check the detected folder, or use **Choose SimHub folder**. Click **Install SimHub bridge** (or **Update SimHub bridge**). The app copies only its bundled plugin and preserves the previous copy as a backup. Artura support requires observer version 1.2 or newer, included with this release.
 3. Start SimHub and enable **oVRlay lights** in its plugin list. On its settings page, enable **Mirror my wheel lights in oVRlay**.
 4. In SimHub Devices, connect and enable the physical wheel. Select the matching virtual model in OpenGrid and enable its SimHub lights. Use a SimHub LED test effect to check the result.
 
@@ -14,6 +14,8 @@ The Artura model mirrors its 21 shift/flag lights and 14 illuminated button symb
 The Artura mapping was checked against the installed SimHub device definition, physical mapper and button editor, then matched to the supplied CAD bodies. See `assets/wheels/ascher-artura.mapping.json` for the independently derived channel assignments. The integration has automated packet and renderer coverage; a connected Artura hardware comparison remains to be performed.
 
 **If the lights stay off**, check the observer’s device status and close any other receiver using local UDP port 29543, including a running oVRlay lights receiver. The observer sends only to the same PC. To uninstall it, close SimHub and remove the observer DLL.
+
+**Manual installation:** expand **Supported wheels and manual installation** in Setup and select **Open bridge files**. Copy `oVRlay.SimHubLeds.dll` into the SimHub folder beside `SimHub.Plugins.dll`. This also works for restricted installation folders that require Windows administrator permission. OpenGrid does not change SimHub profiles, dashboard URLs or device settings.
 
 ### Build the observer from source
 

@@ -45,6 +45,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/gsi-decal-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/simhub-bridge-ui.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/accessibility-ui.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/modal-dialog-ui.cjs
