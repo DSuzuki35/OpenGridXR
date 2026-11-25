@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld(
     updateStatus: () => invoke("updateStatus"),
     setUpdateChannel: channel => invoke("setUpdateChannel", channel),
     checkUpdates: () => invoke("checkUpdates"),
+    openUpdateChangelog: () => invoke("openUpdateChangelog"),
     updateChoice: (choice) => invoke("updateChoice", choice),
     installUpdate: () => invoke("installUpdate"),
     onUpdateStatus: (callback) => {

@@ -469,6 +469,9 @@ else {
       handle("updateStatus", () => updates.status());
       handle("setUpdateChannel", channel => updates.setChannel(channel));
       handle("checkUpdates", () => updates.check(true));
+      handle("openUpdateChangelog", () => shell.openExternal(
+        "https://github.com/DSuzuki35/OpenGridXR/releases/tag/v" +
+        encodeURIComponent(updates.status().version || app.getVersion())));
       handle("updateChoice", choice => updates.decide(choice));
       handle("installUpdate", () => updates.install());
       const idleInput = () => ({active:false,running:false,available:false,devices:[],paused:true,captureState:'idle',message:enabled('bindings')?'No active input bindings.':'Input bindings are disabled in Settings.'});

@@ -2,6 +2,7 @@
 
 ## 1.2.1
 
+- Added a **Changelog** button to update notifications and Application updates, opening the offered release's notes or the installed version's notes when no update is offered.
 - Added an optional virtual driver for all six built-in wheels: GSI Hyper P1, Hyper SL, GXL V2, GT-MAX 32, FPE2 and Ascher Artura Ultimate.
 - Added independently selectable glove and suit colors, textured sleeves, steering and regripping poses, and optional torso and legs. Enable **Driver (experimental)** in Spatial overlays after selecting a 3D wheel.
 - Driver assets load in the background and share cached resources across the GSI models. Higher-resolution driver targets are allocated only when needed and released when no driver uses them.

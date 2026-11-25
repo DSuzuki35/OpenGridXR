@@ -90,6 +90,7 @@ const preview = {
   async updateStatus() { return { phase: "unsupported", channel: "stable", currentVersion: "Browser preview", prompt: false, message: "Install the Windows setup package to enable updates." }; },
   async setUpdateChannel() { throw new Error("Update preferences require the Windows app."); },
   async checkUpdates() { return this.updateStatus(); },
+  async openUpdateChangelog() { window.open("https://github.com/DSuzuki35/OpenGridXR/releases/latest", "_blank", "noopener,noreferrer"); },
   async updateChoice() { throw new Error("Updates require the installed Windows app."); },
   async installUpdate() { throw new Error("Updates require the installed Windows app."); },
   onUpdateStatus() { return () => {}; },

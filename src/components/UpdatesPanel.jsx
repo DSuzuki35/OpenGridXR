@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { api, isBrowserPreview } from "../api.mjs";
 import { Button, Panel } from "./Controls.jsx";
 
@@ -38,6 +38,8 @@ export default function UpdatesPanel({ details, dirty, busy }) {
       {error && <p role="alert">{error}</p>}
       {state?.phase === "downloading" && <progress aria-label="Update download" value={state.percent} max="100" />}
       <div className="runtime-actions">
+        <Button icon={ExternalLink} title={`Read what's new${state?.version || state?.currentVersion ? ` in ${state.version || state.currentVersion}` : ""} on GitHub (opens your browser)`}
+          onClick={() => { setError(""); api.openUpdateChangelog().catch(e => setError(e.message)); }}>Changelog</Button>
         {state?.phase === "available" && <>
           <Button variant="primary" icon={Download} disabled={disabled} onClick={() => run(() => api.updateChoice("download"))}>Download update</Button>
           <Button disabled={disabled} onClick={() => run(() => api.updateChoice("later"))}>Later</Button>
