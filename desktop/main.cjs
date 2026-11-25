@@ -327,7 +327,7 @@ else {
           for (const game of ['iracing', 'lmu']) { const found = spatial.editTargets(game); if (found) return found; }
           return null;
         },
-        preview: (game, poses, selected, phase) => services.peek('spatial')?.editPreview(game, poses, selected, phase),
+        preview: (game, poses, selected, phase, mode) => services.peek('spatial')?.editPreview(game, poses, selected, phase, mode),
         save: saveEditedPlacements,
         beep: kind => {
           const count = { rotate: 2, confirm: 2, cancelled: 3, error: 3 }[kind] || 1;

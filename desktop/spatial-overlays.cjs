@@ -268,6 +268,19 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
     if (pose) for (const key of EDIT_KEYS) if (Number.isFinite(pose[key])) next[key] = pose[key];
     return next;
   }
+  function setEditFrame(source, frame) {
+    source.editFrame = frame;
+    const contents = source.window && !source.window.isDestroyed() ? source.window.webContents : null;
+    if (!contents?.insertCSS) return;
+    const old = source.editFrameKey; source.editFrameKey = null;
+    if (old) contents.removeInsertedCSS(old).catch(() => {});
+    if (!frame) { contents.invalidate?.(); return; }
+    contents.insertCSS(`html::after{content:"";position:fixed;inset:0;border:max(6px,1.2vmin) ${frame};border-radius:max(6px,1.2vmin);` +
+      `box-sizing:border-box;pointer-events:none;z-index:2147483647}`, { cssOrigin: "user" })
+      .then(key => { if (source.editFrame === frame && !source.window?.isDestroyed()) source.editFrameKey = key; else contents.removeInsertedCSS(key).catch(() => {}); })
+      .catch(() => {});
+    contents.invalidate?.();
+  }
   async function sync() {
     if (closed || !document) return;
     if (syncing) { syncAgain = true; return; }
@@ -485,10 +498,16 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
       });
       return items.length ? { game, profileId: profile.id, carId: g.car?.id || null, items } : null;
     },
-    // Show edit poses live (phase "edit" | "confirm"), or end the preview (phase null).
-    editPreview(game, poses, selected, phase) {
+    // Show edit poses live (phase "edit" | "confirm"), or end the preview (phase null). Like RaceLab, the selected
+    // web overlay gets a blue frame while moving and an orange one while rotating (dashed when asking to save).
+    editPreview(game, poses, selected, phase, mode = "move") {
       const g = gameFor(game);
       g.edit = phase ? { poses: new Map(poses), selected, phase } : null;
+      for (const [id, source] of g.sources) {
+        const color = mode === "rotate" ? "#ff8a1f" : "#2f8cff";
+        const frame = phase && id === selected ? `${phase === "confirm" ? "dashed" : "solid"} ${color}` : "";
+        if ((source.editFrame || "") !== frame) setEditFrame(source, frame);
+      }
       if (!g.host) return;
       for (const [id, source] of g.sources) {
         if (source.stopped || !source.baseConfiguration) continue;

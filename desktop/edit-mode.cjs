@@ -1,9 +1,9 @@
 "use strict";
 // RaceLab-style overlay editing in the headset, driven by the OpenGridXR-EditInput helper.
-//   Tab          start editing (the first overlay is selected, the others dim)
+//   Tab          start editing (the first overlay is selected with a blue frame, the others dim)
 //   Space        next overlay
 //   Mouse        move: left/right/up/down; wheel or right-drag: nearer/farther
-//   M            switch between moving and rotating; rotating: mouse turns and tilts, right-drag leans, wheel resizes
+//   M            switch between moving (blue frame) and rotating (orange frame); rotating: mouse turns and tilts, right-drag leans, wheel resizes
 //   Shift        fine steps
 //   Esc (or Tab) finish: then Enter saves, Esc cancels and puts everything back
 const { spawn: defaultSpawn } = require("node:child_process");
@@ -34,7 +34,8 @@ function applyMouse(pose, mode, { dx = 0, dy = 0, wheel = 0, right = false, shif
 }
 
 // targets(): null, or { game, carId, items: [{ id, name, pose }] } for the overlays showing in the headset now.
-// preview(game, poses /* Map id -> pose */, selectedId, phase): show poses live; phase "edit" | "confirm" | null (end).
+// preview(game, poses /* Map id -> pose */, selectedId, phase, mode): show poses live; phase "edit" | "confirm" | null (end),
+// mode "move" (blue frame) | "rotate" (orange frame).
 // save(game, carId, edits /* [{ id, pose }] */): store the poses in the profile.
 function createEditMode({ executable, targets, preview, save, beep = () => {}, onStatus = () => {}, spawn = defaultSpawn,
   ranges = DEFAULT_RANGES, setInterval: every = setInterval, clearInterval: stopEvery = clearInterval, setTimeout: later = setTimeout } = {}) {
@@ -87,7 +88,7 @@ function createEditMode({ executable, targets, preview, save, beep = () => {}, o
       show();
     }
   }
-  function show() { if (session) preview(session.game, session.poses, session.order[session.index], session.phase); }
+  function show() { if (session) preview(session.game, session.poses, session.order[session.index], session.phase, session.mode); }
   function begin() {
     const t = targets();
     if (!t || !t.items.length) { beep("unavailable"); return; }

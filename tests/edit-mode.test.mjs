@@ -20,7 +20,7 @@ function harness({ items = [{ id: "a", name: "Dash", pose: pose(0) }, { id: "b",
   const mode = createEditMode({
     executable: "edit.exe", spawn,
     targets: () => (showing.length ? { game: "iracing", carId: null, items: showing } : null),
-    preview: (game, poses, selected, phase) => previews.push({ game, poses: new Map(poses), selected, phase }),
+    preview: (game, poses, selected, phase, mode) => previews.push({ game, poses: new Map(poses), selected, phase, mode }),
     save: save || (async (game, carId, edits) => { saves.push({ game, carId, edits }); }),
     beep: (k) => beeps.push(k),
     setInterval: (fn) => { tick = fn; return { unref() {} }; }, clearInterval: () => {}, setTimeout: (fn) => ({ unref() {} }),
@@ -54,7 +54,9 @@ test("Tab, mouse, Space, M, then Esc and Enter save only what moved", async () =
   assert.equal(h.previews.at(-1).selected, "b");
   p.record({ op: "key", key: "space" });
   assert.equal(h.previews.at(-1).selected, "a");                    // wraps around
+  assert.equal(h.previews.at(-1).mode, "move");
   p.record({ op: "key", key: "m" });
+  assert.equal(h.previews.at(-1).mode, "rotate");
   p.record({ op: "mouse", dx: 100, dy: -50, wheel: 0, right: false, shift: false });
   a = h.previews.at(-1).poses.get("a");
   assert.equal(a.yaw, 10); assert.equal(a.pitch, 5);
