@@ -6,7 +6,7 @@
 #include <windows.h>
 namespace og {
 constexpr unsigned overlay_count = 15;
-constexpr std::uint32_t overlay_transport_version = 12;
+constexpr std::uint32_t overlay_transport_version = 13;
 enum class OverlayState : std::uint32_t {
     Waiting,
     Ready,
@@ -60,6 +60,8 @@ struct OverlaySlot {
     float wheelAmbientLight{};
     std::uint64_t wheelLightTick{};
     std::array<std::uint8_t,96*3> wheelRgb{};
+    std::uint32_t driverEnabled{}, driverGloveTheme{}, driverSuitTheme{}, driverTorso{}, driverLegs{};
+    std::uint32_t driverState{}; // 0 off, 1 loading, 2 ready, 3 asset failed
 };
 struct OverlayShared {
     std::uint32_t magic{0x564f474f}, version{overlay_transport_version}, bytes{sizeof(OverlayShared)}, producerPid{},

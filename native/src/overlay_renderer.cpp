@@ -208,8 +208,8 @@ struct OverlayRenderer::Impl {
     std::wstring wheelDirectory;
     struct WheelFile {
         std::array<char,65> id{};
-        std::wstring path;
-        unsigned kind{};
+        std::wstring path,driverPath;
+        unsigned kind{},driverState{};
     };
     std::array<WheelFile,overlay_count> wheelFiles;
     bool wheelPipelineFailed{};
@@ -824,7 +824,7 @@ struct OverlayRenderer::Impl {
         return releaseTarget(s);
     }
     bool wheel(unsigned slotIndex,const OverlaySlot& config,const XrFrameEndInfo& info,
-               const CockpitDepthFrame* depth, ID3D11ShaderResourceView* sceneProbe) {
+               const CockpitDepthFrame* depth, ID3D11ShaderResourceView* sceneProbe,float steeringRadians) {
         if(config.wheelDevice>6) return false;
         auto& file=wheelFiles[slotIndex];
         if(file.id!=config.wheelModel) {
@@ -839,6 +839,8 @@ struct OverlayRenderer::Impl {
             }
             file.path=wheelDirectory;
             file.path.append(id.begin(),id.end());
+            const auto driverModel=wheel_driver_model(id);
+            file.driverPath=driverModel.empty()?L"":wheelDirectory+std::wstring(driverModel.begin(),driverModel.end())+L".agd";
             file.path+=L".agm";
             file.kind=wheel_kind(id);
             file.id=config.wheelModel;
@@ -888,13 +890,31 @@ struct OverlayRenderer::Impl {
             transform.position=spatial_rotate(transform.orientation,{-v.x,-v.y,-v.z});
             return transform;
         };
+        const bool driverRequested=config.driverEnabled && !file.driverPath.empty() &&
+            config.pivotX*config.pivotX+config.pivotY*config.pivotY+config.pivotZ*config.pivotZ<=.00250001f &&
+            std::abs(config.steeringTilt)<=10.f;
+        file.driverState=0;
+        if(driverRequested) {
+            const XrPosef identity{{0,0,0,1},{0,0,0}};
+            const auto back=inverse(steered_dashboard(identity,{config.pivotX,config.pivotY,config.pivotZ},
+                                                       config.steeringTilt,steeringRadians));
+            const auto x=spatial_rotate(back.orientation,{1,0,0}),y=spatial_rotate(back.orientation,{0,1,0}),
+                       z=spatial_rotate(back.orientation,{0,0,1});
+            const float rows[]={x.x,y.x,z.x,back.position.x,x.y,y.y,z.y,back.position.y,x.z,y.z,z.z,back.position.z};
+            const bool ready=wheels->selectDriver(device.Get(),slotIndex,file.driverPath,steeringRadians,rows,config.driverGloveTheme,
+                                 config.driverSuitTheme,config.driverTorso!=0,config.driverLegs!=0);
+            file.driverState=ready?2u:wheels->driverFailed(slotIndex)?3u:1u;
+        } else wheels->forgetDriver(slotIndex);
         ovrlay::MeshEyeParameters params[2]{};
         auto& mask=masks[slotIndex];
         // Stereo projection layers carry one explicit subimage per eye, avoiding
         // runtimes that ignore eyeVisibility on the two wheel quad layers.
         // Keep the existing path when the session uses a four-view projection.
         mask.wheelUsesProjection = projection && projection->viewCount == 2;
-        const unsigned pixels=std::clamp(slots[slotIndex].width,256u,1024u);
+        // Hands and arms cover more of the eye than the wheel alone. Keep a
+        // bounded texel budget without shrinking the controls to a few pixels.
+        const bool driverReady=file.driverState==2u;
+        const unsigned pixels=driverReady?1536u:std::clamp(slots[slotIndex].width,256u,1024u);
         for(unsigned eye=0;eye<2;eye++) {
             const auto& eyePose=depth?depth->eyes[eye].pose:projection->views[eye].pose;
             if(!usablePose(eyePose))return false;
@@ -918,7 +938,27 @@ struct OverlayRenderer::Impl {
                               x.z,y.z,z.z,modelToEye.position.z};
                 std::copy_n(rows,12,p.modelToEye);
             }
-            if(!wheels->aperture(p)) return false;
+            float visiblePlane[]={-4,-4,4,4};
+            if(driverReady) {
+                const auto& fov=depth?depth->eyes[eye].fov:projection->views[eye].fov;
+                const auto rotation=inverse(modelToEye).orientation;
+                float lo[]={4.f,4.f},hi[]={-4.f,-4.f};bool bounded=true;
+                for(float x:{std::tan(fov.angleLeft),std::tan(fov.angleRight)})
+                    for(float y:{std::tan(fov.angleDown),std::tan(fov.angleUp)}) {
+                        const auto ray=spatial_rotate(rotation,{x,y,-1});
+                        if(ray.z>=-.001f){bounded=false;continue;}
+                        const float t=-eyeLocal.z/ray.z;
+                        const float q[]={eyeLocal.x+t*ray.x,eyeLocal.y+t*ray.y};
+                        for(unsigned a=0;a<2;a++) {
+                            lo[a]=std::min(lo[a],q[a]);hi[a]=std::max(hi[a],q[a]);
+                        }
+                    }
+                if(bounded)for(unsigned a=0;a<2;a++){
+                    visiblePlane[a]=std::clamp(lo[a],-4.f,4.f);
+                    visiblePlane[a+2]=std::clamp(hi[a],-4.f,4.f);
+                }
+            }
+            if(!wheels->aperture(p,visiblePlane)) return false;
             auto& surface=eye?mask.rightWheel:mask.surface;
             if((!surface.swap || surface.width!=pixels || surface.height!=pixels) && !create(surface,pixels,pixels))return false;
         }
@@ -1456,7 +1496,8 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         slot.quad.space = panelSpace;
         slot.quad.pose = pose;
         slot.quad.size = {resolvedWidth, resolvedHeight};
-        const bool masked = isWheel ? p.wheel(i,config,info,applyDepth?depth:nullptr,sceneProbe)
+        const bool masked = isWheel ? p.wheel(i,config,info,applyDepth?depth:nullptr,sceneProbe,
+            config.steeringFollow?float(wheelAngle.value_or(0)):0.f)
                                     : applyDepth && p.maskDashboard(i, *depth, info.displayTime);
         if(isWheel && !masked) {
             slot.retainUntil=0;
@@ -1510,6 +1551,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
                 slot.retainedWheel = isWheel;
                 slot.retainedOcclusion = config.cockpitOcclusion;
                 state.cockpitDepthActive = masked && applyDepth ? 1u : 0u;
+                state.driverState=isWheel?p.wheelFiles[i].driverState:0u;
                 admitted[i] = true;
                 rays[i] = pointerRay;
                 opacities[i] = config.opacity;

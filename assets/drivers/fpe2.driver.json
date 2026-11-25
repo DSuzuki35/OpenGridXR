@@ -1,0 +1,49 @@
+{
+  "file": "fpe2.agd",
+  "bytes": 24586696,
+  "sha256": "646a4e7b25ba0f3c6ea2d411cc66aee20c41471c5535c1d78b7bc0325f7f28c6",
+  "format": 4,
+  "vertices": 81354,
+  "triangles": 101093,
+  "joints": 90,
+  "frames": 241,
+  "releaseAngleDegrees": 70,
+  "takeoverAngleDegrees": 90,
+  "parts": [
+    {
+      "name": "Arms - visibility independent",
+      "part": 1,
+      "firstIndex": 0,
+      "indexCount": 61824
+    },
+    {
+      "name": "Left racing glove - Valve BSD3 source",
+      "part": 0,
+      "firstIndex": 61824,
+      "indexCount": 88182
+    },
+    {
+      "name": "Legs - visibility independent",
+      "part": 3,
+      "firstIndex": 150006,
+      "indexCount": 49014
+    },
+    {
+      "name": "Right racing glove - Valve BSD3 source",
+      "part": 0,
+      "firstIndex": 199020,
+      "indexCount": 88182
+    },
+    {
+      "name": "Torso - visibility independent",
+      "part": 2,
+      "firstIndex": 287202,
+      "indexCount": 16077
+    }
+  ],
+  "maxReachExcessMm": 0,
+  "maxWristFlexDegrees": 44.961424343806854,
+  "maxNeighbourElbowStepMm": 60.20501180573219,
+  "palmAnchorRootRollLimitDegrees": 24,
+  "freeHandRootRollLimitDegrees": 35
+}

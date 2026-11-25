@@ -19,11 +19,16 @@ void wheelResourceLifetimes() {
     unsigned loads=0;
     auto start=[&]{++loads;return loaded.get_future();};
     check(!cache.select(0,L"same",start) && !cache.select(1,L"same",start),"two slots join the pending model");
+    check(!cache.hasAssets(),"pending model does not allocate driver render targets");
     cache.forget(0);
     loaded.set_value(std::make_shared<int>(7));
     const auto* first=cache.select(1,L"same",start);
     const auto* second=cache.select(0,L"same",start);
     check(first && first==second && *first==7 && loads==1,"pending load survives its first slot and shares one asset");
+    cache.forget(0);
+    check(cache.hasAssets(),"shared driver targets survive while another slot needs them");
+    cache.forget(1);
+    check(!cache.hasAssets(),"last driver release permits reclaiming its render targets");
 
     using Cache=ovrlay::WheelMeshCache<int>;
     ovrlay::WheelResources<Cache> work;
@@ -126,9 +131,26 @@ int main() {
                  R"({"op":"place","slot":0,"mode":"reset","requestId":-1})"})
             check(!og::parse_overlay_command(line, c, error), "invalid dashboard gesture rejected");
         check(og::parse_overlay_command(
-            R"({"op":"configure","slot":4,"enabled":true,"anchor":"local","x":0,"y":-0.3,"z":-0.6,"yaw":0,"pitch":0,"roll":0,"widthMeters":0.4,"opacity":1,"sourceKind":"url","cockpitOcclusion":true,"steeringFollow":true,"pivotX":0,"pivotY":-0.12,"pivotZ":0,"steeringTilt":8,"showInStream":false,"desktopMode":0,"desktopX":0,"desktopY":0,"desktopWidth":0,"desktopHeight":0,"precisionScale":1.75,"precisionShortcut":"","wheelModel":"hyper-p1","wheelDevice":1,"wheelLights":true,"wheelScreen":true,"wheelAmbientLight":72.5})",
-            c,error) && c.number("wheelAmbientLight", -1) == 72.5,
-              "complete wheel and dashboard configuration fits the IPC key bound");
+            R"({"op":"configure","slot":4,"enabled":true,"anchor":"local","x":0,"y":-0.3,"z":-0.6,"yaw":0,"pitch":0,"roll":0,"widthMeters":0.4,"opacity":1,"sourceKind":"url","cockpitOcclusion":true,"steeringFollow":true,"pivotX":0,"pivotY":-0.12,"pivotZ":0,"steeringTilt":8,"showInStream":false,"desktopMode":0,"desktopX":0,"desktopY":0,"desktopWidth":0,"desktopHeight":0,"precisionScale":1.75,"precisionShortcut":"","wheelModel":"ascher-artura","wheelDevice":6,"wheelLights":true,"wheelScreen":true,"wheelAmbientLight":72.5,"driverEnabled":true,"driverGloveTheme":0,"driverSuitTheme":4,"driverTorso":false,"driverLegs":true})",
+            c,error) && c.number("wheelAmbientLight", -1) == 72.5 && c.boolean("driverEnabled") &&
+            c.number("driverSuitTheme", -1) == 4 && !c.boolean("driverTorso") && c.boolean("driverLegs"),
+              "complete wheel and driver configuration fits the IPC key bound");
+        const std::string driverConfig = R"({"op":"configure","sourceKind":"url","wheelModel":"fpe2","wheelDevice":5,)";
+        check(og::parse_overlay_command(driverConfig + R"("driverEnabled":false})", c, error), "FPE2 accepts driver configuration");
+        for (const auto model : {"hyper-p1", "hyper-sl", "gxl", "gt-max", "fpe2", "ascher-artura"})
+            for (const auto enabled : {"true", "false"})
+                check(og::parse_overlay_command(std::string(R"({"op":"configure","sourceKind":"url","wheelModel":")") +
+                    model + R"(","wheelDevice":0,"driverEnabled":)" + enabled +
+                    R"(,"driverGloveTheme":2,"driverSuitTheme":4,"driverTorso":false,"driverLegs":true})", c, error),
+                    "every built-in wheel accepts enabled and disabled driver configuration");
+        for (const auto invalid : {R"("driverEnabled":"true"})", R"("driverTorso":1})", R"("driverLegs":0})",
+                 R"("driverGloveTheme":5})", R"("driverGloveTheme":-1})", R"("driverGloveTheme":1.5})",
+                 R"("driverSuitTheme":"2"})", R"("driverSuitTheme":false})"})
+            check(!og::parse_overlay_command(driverConfig + invalid, c, error), "invalid driver setting rejected");
+        for (const auto invalid : {R"({"op":"configure","driverEnabled":true})",
+                 R"({"op":"configure","sourceKind":"url","wheelModel":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","wheelDevice":0,"driverEnabled":true})",
+                 R"({"op":"configure","sourceKind":"desktop","wheelModel":"fpe2","wheelDevice":5,"driverEnabled":true})"})
+            check(!og::parse_overlay_command(invalid, c, error), "ineligible driver source rejected");
         check(og::parse_overlay_command(R"({"op":"precision","slot":0,"held":true,"pressId":1})", c, error), "precision hold parses");
         check(og::parse_overlay_command(R"({"op":"precision","slot":14,"held":false,"pressId":9007199254740991})", c, error), "release and maximum safe press id parse");
         for (auto invalid : {R"({"op":"precision","slot":0,"held":1,"pressId":1})", R"({"op":"precision","slot":0,"held":"true","pressId":1})", R"({"op":"precision","slot":0,"held":true,"pressId":0})", R"({"op":"precision","slot":0,"held":false,"pressId":1.5})", R"({"op":"precision","slot":0,"held":true,"pressId":9007199254740992})", R"({"op":"precision","slot":15,"held":true,"pressId":1})"})

@@ -146,17 +146,20 @@ async function publishFile(temp,dest) {
     }
   }
 }
-async function stageBuiltin(id,directory,builtinDirectory) {
-  const filename=id+".agm",dest=path.join(directory,filename);
-  const source=path.join(builtinDirectory,filename), stat=await fs.stat(source);
+async function stageVerifiedAsset(filename, manifestName, directory, sourceDirectory, label) {
+  const dest=path.join(directory,filename);
+  const source=path.join(sourceDirectory,filename), stat=await fs.stat(source);
+  const manifestPath=path.join(sourceDirectory,manifestName), manifestStat=await fs.stat(manifestPath);
   const cached=staged.get(dest);
   const existing=await fs.stat(dest).catch(error=>{if(error.code!=="ENOENT")throw error;});
   if(cached && cached.source===source && cached.mtime===stat.mtimeMs && cached.size===stat.size &&
+     cached.manifestMtime===manifestStat.mtimeMs && cached.manifestSize===manifestStat.size &&
      existing?.size===cached.size && existing.mtimeMs===cached.destMtime)return;
-  const manifest=JSON.parse(await fs.readFile(path.join(builtinDirectory,id+".conversion.json"),"utf8"));
+  const manifest=JSON.parse(await fs.readFile(manifestPath,"utf8"));
   if(manifest.file!==filename || manifest.bytes!==stat.size || !/^[a-f0-9]{64}$/.test(manifest.sha256))
-    bad("Bundled wheel manifest does not match the model.");
-  const remember=destStat=>staged.set(dest,{source,mtime:stat.mtimeMs,size:stat.size,destMtime:destStat.mtimeMs});
+    bad(`Bundled ${label} manifest does not match the model.`);
+  const remember=destStat=>staged.set(dest,{source,mtime:stat.mtimeMs,size:stat.size,destMtime:destStat.mtimeMs,
+    manifestMtime:manifestStat.mtimeMs,manifestSize:manifestStat.size});
   if(existing?.size===manifest.bytes && await fileHash(dest)===manifest.sha256) {
     remember(existing);
     return;
@@ -165,7 +168,7 @@ async function stageBuiltin(id,directory,builtinDirectory) {
   const temp=path.join(directory,randomUUID()+".tmp");
   try {
     await fs.copyFile(source,temp);
-    if(await fileHash(temp)!==manifest.sha256)bad("Bundled wheel failed its integrity check.");
+    if(await fileHash(temp)!==manifest.sha256)bad(`Bundled ${label} failed its integrity check.`);
     await publishFile(temp,dest);
     remember(await fs.stat(dest));
   } finally {await fs.rm(temp,{force:true});}
@@ -178,9 +181,9 @@ async function stageWheel(id,builtinDirectory) {
     return;
   }
   if(staging.has(dest))return staging.get(dest);
-  const task=stageBuiltin(id,directory,builtinDirectory);
+  const task=stageVerifiedAsset(id+".agm",id+".conversion.json",directory,builtinDirectory,"wheel");
   staging.set(dest,task);
   try {await task;} finally {staging.delete(dest);}
 }
 if(!isMainThread && workerData) importWheelFile(workerData).then(wheel=>parentPort.postMessage({wheel}),e=>parentPort.postMessage({error:e.message}));
-module.exports={convertWheel,importWheelFile,importInWorker,stageWheel,builtin};
+module.exports={convertWheel,importWheelFile,importInWorker,stageWheel,stageVerifiedAsset,builtin};

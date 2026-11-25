@@ -74,3 +74,11 @@ MinHook 1.3.4 retains its BSD 2-Clause and HDE notices, the LMU OpenXR headers r
 OpenGrid bundles a Windows x64 build of **Quad-Views-Foveated 1.1.4** by Matthieu Bucchianeri, based on commit `79855a001302472a0f6c0703567dfe8ebfa6f988`. Copyright (c) 2022–2023 Matthieu Bucchianeri. The provider is MIT licensed. Local changes build it for OpenGrid’s private provider directory and use wide Windows paths for its configuration and logs. [Provider source](native/third_party/quad-views-foveated) · [MIT license](native/third_party/quad-views-foveated/LICENSE) · [Provenance and dependency revisions](native/third_party/quad-views-foveated/NOTICE-LMU.md)
 
 The provider includes fmt, OpenXR-MixedReality utilities, FidelityFX CAS and WIL under MIT, OpenXR SDK headers under Apache-2.0 / MIT, and OpenXR SDK Source registry and generator files under Apache-2.0. Each subset retains its license and attribution. [Dependency sources and licenses](native/third_party/quad-views-foveated/external) · [Provider third-party notices](native/third_party/quad-views-foveated/THIRD_PARTY)
+# Experimental virtual driver
+
+Glove models and authored finger poses are derived from Valve's SteamVR Unity
+Plugin (BSD three-clause). The racing suit is by Elvaerwyn (Creative Commons
+Attribution); the graphical rig foundation is from MakeHuman (CC0). Credits,
+source revisions, modifications and licenses are included in
+[`assets/drivers/NOTICE.md`](assets/drivers/NOTICE.md) and the packaged `drivers`
+resource directory.

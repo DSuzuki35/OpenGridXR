@@ -12,14 +12,14 @@ A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**. Place a wheel
 
 If you run into an issue, feel free to clone or fork the repository, open it with your favorite AI coding tool, and ask it to investigate and fix the problem. Review and test the changes, then submit a pull request with a short explanation and your test results. See [Contributing](CONTRIBUTING.md) for build instructions. A reply or merge is not guaranteed.
 
-## Version 1.2.0
+## Version 1.2.1
 
 The latest release adds:
 
-- **Ascher Artura Ultimate:** a 3D wheel with a fitted SimHub display, 21 shift lights and 14 illuminated button symbols. Thanks to Martin Ascher for providing the model.
-- **SimHub bridge setup:** install or update the wheel-light plugin directly from Setup, with automatic folder detection and a backup of the previous plugin.
-- **Pimax stereo wheels:** a stereo projection fix contributed by Rak3tenmann addresses duplicated wheels. Four-view sessions retain the existing submission path.
-- **Optional wheel occlusion:** choose **3D model without occlusion** to skip cockpit-depth processing for that wheel. Other overlays keep their own settings.
+- **Experimental virtual driver:** gloves and arms for all six built-in wheels, with steering and regripping animations.
+- **Choose your colors:** separate glove and suit themes, textured sleeves, and optional torso and legs.
+
+**Highly experimental — anatomy is still rather questionable.** Expect clipping and imperfect hand contact or elbows. Disabled by default; benchmark before keeping it on. [Driver setup, limitations and asset credits](docs/driver-test.md)
 
 The app retains the cleanup of unnecessary menu entries and features to keep it lean. [Wheel setup and SimHub observer update](docs/steering-wheels.md)
 

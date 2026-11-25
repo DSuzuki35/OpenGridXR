@@ -359,6 +359,7 @@ struct Host {
             slot.precisionActive = 0;
             slot.cockpitOcclusion = 0;
             slot.cockpitDepthActive = 0;
+            slot.driverState = 0;
             ++slot.sourceRevision;
             slot.state = og::OverlayState::Waiting;
         }
@@ -392,6 +393,7 @@ struct Host {
             slot.streamCurrent = 0;
             slot.pose = {};
             slot.cockpitDepthActive = 0;
+            slot.driverState = 0;
             ++slot.sourceRevision;
         }
         channel.unlock();
@@ -581,6 +583,8 @@ struct Host {
             auto &s = channel.data()->slots[slot];
             s.wheelModel.fill(0); s.wheelDevice=s.wheelLights=s.wheelScreen=0; s.wheelLightTick=0;
             s.wheelAmbientLight = 0;
+            s.driverEnabled = s.driverGloveTheme = s.driverSuitTheme = s.driverTorso = s.driverLegs = 0;
+            s.driverState = 0;
             s.placementMode = 0;
             placementRequests[slot] = 0;
             s.placementAhead = {};
@@ -642,12 +646,20 @@ struct Host {
                     s.wheelScreen=c.boolean("wheelScreen");
                     s.wheelLights=s.wheelDevice && c.boolean("wheelLights");
                     s.wheelAmbientLight = static_cast<float>(c.number("wheelAmbientLight", 0));
+                    s.driverEnabled = c.boolean("driverEnabled");
+                    s.driverGloveTheme = static_cast<std::uint32_t>(c.number("driverGloveTheme", 0));
+                    s.driverSuitTheme = static_cast<std::uint32_t>(c.number("driverSuitTheme", 0));
+                    s.driverTorso = c.boolean("driverTorso");
+                    s.driverLegs = c.boolean("driverLegs");
                 }
                 s.steeringFollow = s.webDashboard && c.boolean("steeringFollow");
                 s.pivotX = float(std::clamp(c.number("pivotX", 0), -5., 5.));
                 s.pivotY = float(std::clamp(c.number("pivotY", 0), -5., 5.));
                 s.pivotZ = float(std::clamp(c.number("pivotZ", 0), -5., 5.));
                 s.steeringTilt = float(std::clamp(c.number("steeringTilt", 0), -90., 90.));
+                s.driverEnabled = s.driverEnabled &&
+                    s.pivotX * s.pivotX + s.pivotY * s.pivotY + s.pivotZ * s.pivotZ <= 0.00250001f &&
+                    std::abs(s.steeringTilt) <= 10.0f;
                 s.cockpitOcclusion = s.webDashboard && !c.strings.count("cockpitOcclusion") &&
                                      c.boolean("cockpitOcclusion");
                 s.precisionScale = float(std::clamp(c.number("precisionScale", 1.75), 1., 3.));
@@ -949,6 +961,7 @@ struct Host {
                               << (ready && s.enabled && s.cockpitOcclusion && s.cockpitDepthActive
                                       ? "true"
                                       : "false")
+                              << ",\"driverState\":" << (ready && s.enabled && s.driverEnabled ? s.driverState : 0u)
                               << ",\"placementMode\":" << s.placementMode << ",\"placementRequest\":" << placementRequests[i]
                               << ",\"placementAhead\":";
                     const auto &placement = s.placementAhead;

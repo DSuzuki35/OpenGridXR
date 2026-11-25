@@ -8,3 +8,4 @@ test-results/
 .cache/
 *.log
 .local/
+__pycache__/

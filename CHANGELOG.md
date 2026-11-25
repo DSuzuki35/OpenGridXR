@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+- Added an optional virtual driver for all six built-in wheels: GSI Hyper P1, Hyper SL, GXL V2, GT-MAX 32, FPE2 and Ascher Artura Ultimate.
+- Added independently selectable glove and suit colors, textured sleeves, steering and regripping poses, and optional torso and legs. Enable **Driver (experimental)** in Spatial overlays after selecting a 3D wheel.
+- Driver assets load in the background and share cached resources across the GSI models. Higher-resolution driver targets are allocated only when needed and released when no driver uses them.
+
+**Highly experimental:** anatomy is still rather questionable! Hand contact, elbows and regripping need more work, and clipping can occur. This is an animated seated driver, not body or hand tracking. Live paddle-shift animation is not included. The feature starts off; compare your frametimes before keeping it enabled.
+
+Thanks to **Valve**, **Elvaerwyn** and the **MakeHuman community** for the source assets. See [driver credits and licenses](assets/drivers/NOTICE.md) and the [setup guide](docs/driver-test.md).
+
 ## 1.2.0
 
 - Added the Ascher Artura 3D steering wheel, with thanks to Martin Ascher for providing the model.

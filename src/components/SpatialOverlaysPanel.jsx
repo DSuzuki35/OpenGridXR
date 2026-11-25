@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { api, isBrowserPreview } from "../api.mjs";
 import {
-  spatialDefaults, recenterKeys, wheelModels, hasWheelScreen, hasWheelLights, wheelLightDevice,
+  spatialDefaults, recenterKeys, wheelModels, hasWheelScreen, hasWheelLights, hasWheelDriver, wheelLightDevice,
+  driverDefaults, driverThemes, centeredDriverAxis, supportsDriverAxis,
   createSpatialOverlay,
   createQuickMenuOverlay,
   occupiedShortcuts,
@@ -219,6 +220,7 @@ export default function SpatialOverlaysPanel({
   const status = snapshot?.game === profile.game ? snapshot.value : null;
   const car = status?.profileId === profile.id ? status.car : null;
   const pose = selected && overlayPlacement(selected, car?.id);
+  const driverAxisSupported = !!pose && supportsDriverAxis(pose);
   const hasCarPlacement = !!selected && pose !== selected;
   const mapItems = settings.items.map(item => ({ ...item, ...overlayPlacement(item, car?.id) }));
   const selectedStatus = status?.items?.find(
@@ -317,6 +319,7 @@ export default function SpatialOverlaysPanel({
     const builtIn=wheelModels.find(w=>w.id===model.id);
     edit({kind:"url", wheelModel:model.id, wheelName:model.name,
       widthMeters:builtIn?.width || .30, width:1024, height:builtIn?.screenHeight || 576,
+      ...(!hasWheelDriver(model.id) && { driverEnabled: false }),
       ...(selected.wheelModel ? {} : {anchor:"local",steeringFollow:true,carPlacements:[]})});
   };
   const chooseKind = (kind) => {
@@ -328,8 +331,8 @@ export default function SpatialOverlaysPanel({
       const reserved = spatialShortcutEntries(profile).filter(([id]) => id !== selected.id).map(([, , value]) => value);
       if (reserved.includes(defaults.shortcut)) defaults.shortcut = "";
       if (reserved.includes(defaults.selectShortcut)) defaults.selectShortcut = "";
-      edit({ ...defaults, resetShortcut:"", wheelModel:"",wheelName:"",wheelDevice:0,wheelLights:false, carPlacements: [], id: selected.id, name: /^Overlay \d+$/.test(selected.name) || selected.name === "New overlay" ? defaults.name : selected.name });
-    } else edit({ kind, ...(kind !== "url" && { resetShortcut: "" }), wheelModel:"",wheelName:"",wheelDevice:0,wheelLights:false, ...steeringDefaults, carPlacements: [], cockpitOcclusion: false, ...(selected.kind === "menu" ? { shortcut: "", selectShortcut: "", interaction: "mouse" } : {}) });
+      edit({ ...defaults, resetShortcut:"", wheelModel:"",wheelName:"",wheelDevice:0,wheelLights:false, driverEnabled:false, carPlacements: [], id: selected.id, name: /^Overlay \d+$/.test(selected.name) || selected.name === "New overlay" ? defaults.name : selected.name });
+    } else edit({ kind, ...(kind !== "url" && { resetShortcut: "" }), wheelModel:"",wheelName:"",wheelDevice:0,wheelLights:false, driverEnabled:false, ...steeringDefaults, carPlacements: [], cockpitOcclusion: false, ...(selected.kind === "menu" ? { shortcut: "", selectShortcut: "", interaction: "mouse" } : {}) });
   };
   const add = () => {
     if (settings.items.length >= 15) return;
@@ -648,6 +651,29 @@ export default function SpatialOverlaysPanel({
                 <Range label="Scene lighting on wheel" value={selected.wheelAmbientLight ?? 0}
                   onChange={wheelAmbientLight => edit({wheelAmbientLight})}
                   hint="Track light affects the wheel body in VR. The display and SimHub LEDs keep their colors. Save before starting VR." />
+                {hasWheelDriver(selected.wheelModel) && <>
+                  <Toggle label="Driver (experimental)" checked={selected.driverEnabled === true}
+                    onChange={driverEnabled => edit({ driverEnabled })}
+                    disabled={!driverAxisSupported && !selected.driverEnabled}
+                    description="Show gloved hands and arms at the wheel position. Hide the in-game hands and wheel." />
+                  {!driverAxisSupported && <>
+                    <Note tone="warning">The driver supports steering axis offsets up to 5 cm and tilt up to 10°. Center the axis for this placement to use the driver.</Note>
+                    <Button onClick={() => setPose(centeredDriverAxis)}>Use centered axis</Button>
+                  </>}
+                  {selected.driverEnabled && <>
+                    <Note tone="warning">Highly experimental: anatomy, hand contact and regripping are still approximate. Clipping can occur.</Note>
+                    {[["driverGloveTheme", "Glove color"], ["driverSuitTheme", "Suit color"]].map(([key, label]) =>
+                      <div className="select-field" key={key}>
+                        <label htmlFor={key}>{label}</label>
+                        <select id={key} value={selected[key] ?? driverDefaults[key]} onChange={event => edit({ [key]: Number(event.target.value) })}>
+                          {driverThemes.map((theme, index) => <option key={theme} value={index}>{theme}</option>)}
+                        </select>
+                      </div>)}
+                    <Toggle label="Show torso" checked={selected.driverTorso === true} onChange={driverTorso => edit({ driverTorso })} />
+                    <Toggle label="Show legs" checked={selected.driverLegs === true} onChange={driverLegs => edit({ driverLegs })} />
+                    {driverAxisSupported && selectedStatus?.driverError && <Note tone="warning">{selectedStatus.driverError}</Note>}
+                  </>}
+                </>}
                 <Toggle label="3D model without occlusion" checked={selected.cockpitOcclusion !== true}
                   onChange={withoutOcclusion => edit({cockpitOcclusion: !withoutOcclusion})}
                   description="Keep the wheel visible in front of cockpit surfaces. Skips cockpit-depth capture and masking unless another overlay needs them." />

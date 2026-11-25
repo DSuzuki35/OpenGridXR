@@ -12,6 +12,18 @@ export function hasWheelScreen(modelId) {
 export function hasWheelLights(modelId) {
   return !wheelModels.some(model => model.id === modelId && model.leds === false);
 }
+export function hasWheelDriver(modelId) {
+  return wheelModels.some(model => model.id === modelId);
+}
+export function wheelDriverAsset(modelId) {
+  return !hasWheelDriver(modelId) ? "" : modelId === "ascher-artura" ? "ascher-artura" : "fpe2";
+}
+export const driverThemes = Object.freeze(["Purple", "Black", "Red", "Blue", "White"]);
+export const driverDefaults = Object.freeze({ driverEnabled: false, driverGloveTheme: 0, driverSuitTheme: 0, driverTorso: false, driverLegs: false });
+export const centeredDriverAxis = Object.freeze({ pivotX: 0, pivotY: 0, pivotZ: 0, steeringTilt: 0 });
+export function supportsDriverAxis({ pivotX = 0, pivotY = 0, pivotZ = 0, steeringTilt = 0 }) {
+  return pivotX * pivotX + pivotY * pivotY + pivotZ * pivotZ <= 0.00250001 && Math.abs(steeringTilt) <= 10;
+}
 export function wheelLightDevice(modelId, customDevice = 0) {
   const model = wheelModels.find(model => model.id === modelId);
   return model ? model.ledDevice || 0 : customDevice;
@@ -113,6 +125,11 @@ export function validateSpatialOverlays(s) {
     if (o.wheelAmbientLight !== undefined && !range(o.wheelAmbientLight, 0, 100)) fail();
     if (o.wheelDevice !== undefined && !range(o.wheelDevice,0,6,true)) fail();
     if (o.wheelName !== undefined && (typeof o.wheelName !== "string" || o.wheelName.length>80 || /[\x00-\x1f]/.test(o.wheelName))) fail();
+    for (const [key, fallback] of Object.entries(driverDefaults)) {
+      const value = o[key];
+      if (value !== undefined && (typeof fallback === "boolean" ? typeof value !== "boolean" : !range(value, 0, driverThemes.length - 1, true))) fail();
+    }
+    if (o.driverEnabled && !hasWheelDriver(o.wheelModel)) fail();
     if (o.showInStream !== undefined && typeof o.showInStream !== "boolean") fail();
     if (o.cockpitOcclusion !== undefined && typeof o.cockpitOcclusion !== "boolean") fail();
     validatePlacement(o);

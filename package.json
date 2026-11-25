@@ -1,6 +1,6 @@
 {
   "name": "opengrid-xr",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "The source-available sim racing XR toolkit for noncommercial use by Dan Suzuki",
   "author": "Dan Suzuki",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -59,7 +59,20 @@
       {
         "from": "assets/wheels",
         "to": "wheels",
-        "filter": ["**/*", "!*-source.zip"]
+        "filter": [
+          "**/*",
+          "!*-source.zip"
+        ]
+      },
+      {
+        "from": "assets/drivers",
+        "to": "drivers",
+        "filter": [
+          "*.agd",
+          "*.driver.json",
+          "*LICENSE*",
+          "NOTICE.md"
+        ]
       },
       {
         "from": "native/build/Release",
@@ -99,6 +112,7 @@
         "to": "docs",
         "filter": [
           "**/*.md",
+          "!superpowers/**",
           "images/screenshots/*.png"
         ]
       },

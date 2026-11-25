@@ -18,10 +18,12 @@ public:
         return !pending.valid() || pending.wait_for(std::chrono::seconds(0))==std::future_status::ready;
     }
     bool failed(unsigned slot) const {return slots.at(slot).failed;}
+    bool hasAssets() const {
+        for(const auto& entry:slots)if(entry.asset)return true;
+        return false;
+    }
     void forget(unsigned slot) {slots.at(slot)={};}
-    template<class Load> Asset* select(unsigned slot,const std::wstring& path,Load&& load) {
-        auto& entry=slots.at(slot);
-        if(entry.path!=path) entry={path,nullptr,false};
+    void collect() {
         if(pending.valid() && idle()) {
             std::shared_ptr<Asset> asset;
             try {asset=pending.get();} catch(...) {}
@@ -30,6 +32,11 @@ public:
                 item.failed=!asset;
             }
         }
+    }
+    template<class Load> Asset* select(unsigned slot,const std::wstring& path,Load&& load) {
+        auto& entry=slots.at(slot);
+        if(entry.path!=path) entry={path,nullptr,false};
+        collect();
         if(!entry.asset && !entry.failed) {
             for(const auto& item:slots) if(item.path==path && item.asset) {
                 entry.asset=item.asset;

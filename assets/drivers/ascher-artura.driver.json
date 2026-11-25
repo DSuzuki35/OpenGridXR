@@ -1,0 +1,49 @@
+{
+  "file": "ascher-artura.agd",
+  "bytes": 24586696,
+  "sha256": "bd6c8cd1332b38d65ee4f1b655cedab591ee24b55af6691544ed9f6dcf064741",
+  "format": 4,
+  "vertices": 81354,
+  "triangles": 101093,
+  "joints": 90,
+  "frames": 241,
+  "releaseAngleDegrees": 70,
+  "takeoverAngleDegrees": 90,
+  "parts": [
+    {
+      "name": "Arms - visibility independent",
+      "part": 1,
+      "firstIndex": 0,
+      "indexCount": 61824
+    },
+    {
+      "name": "Left racing glove - Valve BSD3 source",
+      "part": 0,
+      "firstIndex": 61824,
+      "indexCount": 88182
+    },
+    {
+      "name": "Legs - visibility independent",
+      "part": 3,
+      "firstIndex": 150006,
+      "indexCount": 49014
+    },
+    {
+      "name": "Right racing glove - Valve BSD3 source",
+      "part": 0,
+      "firstIndex": 199020,
+      "indexCount": 88182
+    },
+    {
+      "name": "Torso - visibility independent",
+      "part": 2,
+      "firstIndex": 287202,
+      "indexCount": 16077
+    }
+  ],
+  "maxReachExcessMm": 0,
+  "maxWristFlexDegrees": 44.98120457164321,
+  "maxNeighbourElbowStepMm": 55.71078450946191,
+  "palmAnchorRootRollLimitDegrees": 24,
+  "freeHandRootRollLimitDegrees": 35
+}

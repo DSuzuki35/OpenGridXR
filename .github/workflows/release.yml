@@ -2,7 +2,7 @@ name: Build release installer
 on:
   push:
     # These installers are built on the signing PC.
-    tags: ['v*', '!v1.1.1', '!v1.1.2', '!v1.1.4', '!v1.1.5', '!v1.2.0']
+    tags: ['v*', '!v1.1.1', '!v1.1.2', '!v1.1.4', '!v1.1.5', '!v1.2.0', '!v1.2.1']
 # Building runs third-party install scripts (npm ci), so it gets a read-only
 # token. Only the small publish job below may write to the repository.
 permissions:

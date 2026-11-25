@@ -38,10 +38,17 @@ cbuffer Parameters : register(b0) {
 cbuffer Lights : register(b1) {
     float4 lightColors[96]; float4 ringCenters[17]; float4 lightOptions;
 };
+#ifdef DRIVER
+Texture2DArray<float4> atlas : register(t0);
+#else
 Texture2D<float4> atlas : register(t0);
+#endif
 Texture2D<float4> screenPage : register(t2);
 Texture2D<float4> sceneProbe : register(t3);
 Texture2DArray<float> sceneDepth : register(t1);
+#ifdef DRIVER
+Texture2DArray<float4> driverNormal : register(t4);
+#endif
 SamplerState linearSampler : register(s0);
 struct Input { float3 position : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float lightGroup : TEXCOORD1; };
 #ifndef SHADING_FREQUENCY
@@ -50,7 +57,11 @@ struct Input { float3 position : POSITION; float3 normal : NORMAL; float2 uv : T
 struct Varying { float4 position : SV_Position; SHADING_FREQUENCY float2 uv : TEXCOORD0;
                  SHADING_FREQUENCY float3 eye : TEXCOORD1; SHADING_FREQUENCY float3 normal : TEXCOORD2;
                  SHADING_FREQUENCY float2 localXY : TEXCOORD3; nointerpolation uint lightGroup : TEXCOORD4;
-                 SHADING_FREQUENCY float localDistance : TEXCOORD5; };
+                 SHADING_FREQUENCY float localDistance : TEXCOORD5;
+#ifdef DRIVER
+                 float3 driverPosition : TEXCOORD6; float3 driverView : TEXCOORD7;
+#endif
+};
 Varying vs(Input input) {
     Varying o;
     float3 p=input.position*model.x;
@@ -63,8 +74,76 @@ Varying vs(Input input) {
     o.uv=input.uv; o.normal=input.normal;
     o.localXY=input.position.xy; o.lightGroup=(uint)input.lightGroup;
     o.localDistance=w;
+#ifdef DRIVER
+    o.driverPosition=p; o.driverView=eyeLocal.xyz-p;
+#endif
     return o;
 }
+#ifdef DRIVER
+cbuffer DriverPose : register(b2) {
+    float4 jointRows[384];
+    float4 mount[3]; // neutral driver to the rotating wheel, translation in metres
+    float4 gripMount[3];
+    float4 gloveTint, suitTint;
+};
+struct SkinInput {
+    float3 position : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float part : TEXCOORD1;
+    uint4 joints : BLENDINDICES; float4 weights : BLENDWEIGHT; float followGrip : TEXCOORD2;
+};
+Varying skinVS(SkinInput input) {
+    float3 p=0,n=0;
+    [unroll] for(uint j=0;j<4;j++) {
+        uint row=input.joints[j]*3;
+        [unroll] for(uint axis=0;axis<3;axis++) {
+            float4 r=jointRows[row+axis];
+            p[axis]+=input.weights[j]*dot(r,float4(input.position,1));
+            n[axis]+=input.weights[j]*dot(r.xyz,input.normal);
+        }
+    }
+    Input v;
+    float4 m=float4(p*model.x,1);
+    float3 shoulder=float3(dot(mount[0],m),dot(mount[1],m),dot(mount[2],m));
+    float3 grip=float3(dot(gripMount[0],m),dot(gripMount[1],m),dot(gripMount[2],m));
+    v.position=lerp(shoulder,grip,input.followGrip)/model.x;
+    v.normal=n; // illumination is stationary in the driver's neutral frame
+    v.uv=input.uv; v.lightGroup=input.part;
+    Varying o=vs(v);
+    o.driverPosition=p*model.x;
+    float3 localEye=eyeLocal.xyz-float3(mount[0].w,mount[1].w,mount[2].w);
+    float3 neutralEye=localEye.x*mount[0].xyz+localEye.y*mount[1].xyz+localEye.z*mount[2].xyz;
+    o.driverView=neutralEye-o.driverPosition;
+    return o;
+}
+
+// Derivatives follow the deformed surface and reflected hand UVs. No tangent
+// stream, compute pass or extra geometry pass is needed.
+float3 driverTextureUv(Varying input) {
+    float cloth=input.lightGroup!=0?1:0;
+    return suitTint.w>.5?float3(input.uv.x*2-cloth,input.uv.y,cloth):float3(input.uv,0);
+}
+float3 detailNormal(Varying input,float3 n) {
+    float3 dx=ddx(input.driverPosition),dy=ddy(input.driverPosition);
+    float2 ux=ddx(input.uv),uy=ddy(input.uv);
+    float determinant=ux.x*uy.y-ux.y*uy.x;
+    float3 t=dx*uy.y-dy*ux.y,b=dy*ux.x-dx*uy.x;
+    float inv=rsqrt(max(max(dot(t,t),dot(b,b)),1e-16));
+    t*=inv*(determinant<0?-1:1);b*=inv*(determinant<0?-1:1);
+    // Atlas packing changes UV aspect ratio, not the surface's normal strength.
+    // Use an orthonormal frame so cloth/glove detail does not flatten on one axis.
+    t-=n*dot(n,t);t*=rsqrt(max(dot(t,t),1e-16));
+    float3 perpendicular=cross(n,t);
+    b=perpendicular*(dot(perpendicular,b)<0?-1:1);
+    float3 detail=driverNormal.Sample(linearSampler,driverTextureUv(input)).xyz*2-1;
+    if(input.lightGroup!=0 && suitTint.w<.5) {
+        // Fine woven fabric: fade subpixel threads to their mean in VR.
+        float2 thread=input.uv*900;
+        float fade=saturate(1-max(fwidth(thread.x),fwidth(thread.y)));
+        detail=normalize(float3(.12*sin(thread.x*6.2831853)*fade,
+                               .12*sin(thread.y*6.2831853)*fade,1));
+    }
+    return abs(determinant)>1e-12?normalize(t*detail.x+b*detail.y+n*detail.z):n;
+}
+#endif
 float3 bodyColor(float3 rgb) {
     if(any(body!=1)) {
         float3 srgb=lerp(1.055*pow(max(rgb,0),1/2.4)-.055,rgb*12.92,rgb<=.0031308);
@@ -92,14 +171,50 @@ float3 groupMean(uint ring) {
     return color/max(count,1);
 }
 float4 shaded(Varying input,out float3 emission) {
+#ifdef DRIVER
+    float4 rgba=atlas.Sample(linearSampler,driverTextureUv(input));
+#else
     float4 rgba=atlas.Sample(linearSampler,input.uv);
+#endif
     emission=0;
     // Display UVs address the dashboard page rather than the model atlas.
+#ifdef DRIVER
+    if(input.lightGroup==0) clip(rgba.a-.02);
+#else
     if(input.lightGroup!=200) clip(rgba.a-.02);
+#endif
     // Broad neutral cockpit illumination keeps controls legible without PBR.
     float3 n=normalize(input.normal);
     float lighting=.42+.43*saturate(dot(n,normalize(float3(-.3,.6,1))))
         +.15*saturate(dot(n,normalize(float3(.7,-.3,.4))));
+#ifdef DRIVER
+    n=detailNormal(input,n);
+    float3 view=normalize(input.driverView);
+    float3 key=normalize(float3(-.35,.65,1));
+    float diffuse=.24+.58*saturate(dot(n,key))+.18*saturate(dot(n,normalize(float3(.65,.2,.3))));
+    float sheen=pow(saturate(1-dot(n,view)),4);
+    if(input.lightGroup==0) {
+        float chroma=max(0,rgba.r-max(rgba.g,rgba.b));
+        rgba.rgb=saturate(rgba.rgb-float3(chroma,0,0)+gloveTint.rgb*chroma);
+        // Broad dielectric leather/textile highlight, never a glowing color.
+        float specular=.08*pow(saturate(dot(n,normalize(key+view))),24);
+        rgba.rgb=rgba.rgb*diffuse+specular+.018*sheen;
+    } else {
+        if(suitTint.w>.5) {
+            // Original neutral cloth atlas: RGB holds panels/weave/crease AO,
+            // alpha preserves the fine contrasting thread under every theme.
+            float chroma=max(suitTint.r,max(suitTint.g,suitTint.b))-min(suitTint.r,min(suitTint.g,suitTint.b));
+            float3 tint=lerp(suitTint.rgb+chroma*.10,1,rgba.a);
+            rgba=float4(rgba.rgb*tint*diffuse+.012*sheen,1);
+        } else {
+            float2 thread=input.uv*900;
+            float fade=saturate(1-max(fwidth(thread.x),fwidth(thread.y)));
+            float weave=1+.035*sin(thread.x*6.2831853)*sin(thread.y*6.2831853)*fade;
+            rgba=float4(suitTint.rgb*(.22*diffuse*weave+.018*sheen),1);
+        }
+    }
+    rgba.rgb=casingColor(rgba.rgb,input.localXY);
+#else
     if(input.lightGroup==200) {
         clip(clipping.w-.5);
         float4 page=screenPage.Sample(linearSampler,input.uv);
@@ -140,6 +255,7 @@ float4 shaded(Varying input,out float3 emission) {
         rgba.rgb=color*(input.lightGroup>=69 ? effects.w : effects.x);emission=rgba.rgb;
     } else if(input.lightGroup) rgba.rgb*=lighting;
     else rgba.rgb=casingColor(rgba.rgb*lighting,input.localXY);
+    #endif
     rgba.a*=model.y;
     emission*=rgba.a;
     if(clipping.z>.5) {
@@ -174,6 +290,8 @@ Emission psEmission(Varying input) {
 }
 )hlsl";
 }
+
+#include "driver_asset.inl"
 
 bool MeshTargets::prepare(ID3D11Device* device,uint32_t w,uint32_t h,bool bloom,bool masks,uint32_t sampleCount) noexcept {
     if(width!=w || height!=h || samples!=sampleCount) {
@@ -388,6 +506,7 @@ bool MeshRenderer::initializePipeline(ID3D11Device* device) noexcept {
 
 
 bool MeshRenderer::selectModel(ID3D11Device* device,unsigned slot,const std::wstring& path,unsigned kind,unsigned deviceKind) noexcept {
+    driver=nullptr;
     if(slot>=15 || deviceKind>6 || kind>og::wheel_names.size() || !pipelineReady) return false;
     try {
         active=models.select(slot,path,[&] {
@@ -427,7 +546,7 @@ void MeshRenderer::setLights(bool enabled,const ModelLightsFrame& frame,uint64_t
     }
 }
 
-bool MeshRenderer::aperture(MeshEyeParameters& p) const noexcept {
+bool MeshRenderer::aperture(MeshEyeParameters& p,const float* visiblePlane) const noexcept {
     if(!ready() || !std::isfinite(p.model[0]) || p.model[0]<.001f || p.model[0]>3) return false;
     for(float x:p.eyeLocal) if(!std::isfinite(x)) return false;
     float scale=p.model[0],eyeZ=p.eyeLocal[2];
@@ -443,11 +562,57 @@ bool MeshRenderer::aperture(MeshEyeParameters& p) const noexcept {
             lo[a]=std::min(lo[a],q); hi[a]=std::max(hi[a],q);
         }
     }
+    float farDistance=eyeZ-active->minimum[2]*scale;
+    if(driver) {
+        // Transform the pose bounds into the rotating wheel's frame before projecting.
+        // Clipping the twelve box edges handles shoulders that extend through the eye plane.
+        const auto& d=*driver;
+        auto includeBounds=[&](unsigned part,const float* transform) {
+            float corners[8][3]{};
+            for(unsigned c=0;c<8;c++) {
+                float point[3];
+                for(unsigned a=0;a<3;a++)point[a]=scale*d.currentBounds[part][a+((c>>a)&1)*3];
+                for(unsigned a=0;a<3;a++) {
+                    const float* r=transform+4*a;
+                    corners[c][a]=r[0]*point[0]+r[1]*point[1]+r[2]*point[2]+r[3];
+                }
+                farDistance=std::max(farDistance,eyeZ-corners[c][2]);
+            }
+            constexpr float nearDistance=.01f;
+            // Off-screen geometry need not consume pixels. If a view ray runs parallel
+            // to the mount, use the layer's finite four-metre peripheral limit.
+            constexpr float reach=4.f;
+            auto include=[&](const float* v) {
+                for(unsigned a=0;a<2;a++) {
+                    const float q=std::clamp((eyeZ*v[a]-p.eyeLocal[a]*v[2])/std::max(nearDistance,eyeZ-v[2]),
+                        visiblePlane?visiblePlane[a]:-reach,visiblePlane?visiblePlane[a+2]:reach);
+                    lo[a]=std::min(lo[a],q);hi[a]=std::max(hi[a],q);
+                }
+            };
+            for(unsigned c=0;c<8;c++) {
+                const float* v=corners[c];
+                if(eyeZ-v[2]>=nearDistance)include(v);
+                for(unsigned a=0;a<3;a++)if(!(c&(1<<a))) {
+                    const float* w=corners[c|(1<<a)];
+                    if((eyeZ-v[2]>=nearDistance)==(eyeZ-w[2]>=nearDistance))continue;
+                    const float t=(eyeZ-nearDistance-v[2])/(w[2]-v[2]);
+                    float hit[]={v[0]+t*(w[0]-v[0]),v[1]+t*(w[1]-v[1]),eyeZ-nearDistance};
+                    include(hit);
+                }
+            }
+        };
+        // Blended sleeve positions are inside the convex hull of both transforms.
+        for(unsigned part=0;part<4;part++) {
+            if(!d.counts[part] || (part==2 && !d.torso) || (part==3 && !d.legs))continue;
+            includeBounds(part,part==0?d.pose.gripMount:d.pose.mount);
+            if(part==1)includeBounds(part,d.pose.gripMount);
+        }
+    }
     for(int a=0;a<2;++a) {
         p.aperture[a]=(lo[a]+hi[a])*.5f; p.aperture[a+2]=(hi[a]-lo[a])*1.04f+.001f;
         if(p.aperture[a+2]<.001f || p.aperture[a+2]>10) return false;
     }
-    p.clip[0]=.001f; p.clip[1]=std::max(.1f,(eyeZ-active->minimum[2]*scale)*1.1f);
+    p.clip[0]=driver?.01f:.001f; p.clip[1]=std::max(.1f,farDistance*1.1f);
     return true;
 }
 
@@ -456,9 +621,11 @@ bool MeshRenderer::render(ID3D11Device* device,ID3D11DeviceContext* context,ID3D
                           ID3D11ShaderResourceView* sceneProbe,float ambientLight) noexcept {
     if(!ready() || !device || !context || !target || !output || eye>1 || (input.clip[2]>.5f && !depth)) return false;
     D3D11_TEXTURE2D_DESC td{}; target->GetDesc(&td);
-    if(!td.Width || !td.Height || td.Width>1024 || td.Height>1024 || td.ArraySize!=1 || td.SampleDesc.Count!=1) return false;
+    if(!td.Width || !td.Height || td.Width>2048 || td.Height>2048 || td.ArraySize!=1 || td.SampleDesc.Count!=1) return false;
     bool bloom=active->taggedLights && (input.effects[0]>0 || input.effects[3]>0) && input.effects[1]>0 && input.effects[2]>0 && lights.options[0]>.5f && coloredLights;
-    auto& cache=targets;
+    // A driver and an ordinary wheel can be visible together. Retain their
+    // different sized intermediates rather than reallocating on every slot.
+    auto& cache=driver?*driverTargets:targets;
     constexpr bool masks=false;
     if(!cache.prepare(device,td.Width,td.Height,bloom,masks,samples)) {
         if(samples==1 || !cache.prepare(device,td.Width,td.Height,bloom,masks,1)) return false;
@@ -509,6 +676,7 @@ bool MeshRenderer::render(ID3D11Device* device,ID3D11DeviceContext* context,ID3D
         deferred->PSSetShader(bloom?emissionPixel.get():pixel.get(),nullptr,0);
         deferred->DrawIndexed(indexCount-bodyIndexCount,bodyIndexCount,0);
     }
+    if(driver) driver->draw(deferred.get(),bloom);
     deferred->OMSetRenderTargets(0,nullptr,nullptr);
     if(cache.samples>1) {
         deferred->ResolveSubresource(cache.color.get(),0,cache.sampleColor.get(),0,DXGI_FORMAT_R16G16B16A16_FLOAT);

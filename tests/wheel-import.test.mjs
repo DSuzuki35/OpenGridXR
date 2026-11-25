@@ -5,7 +5,7 @@ import * as fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { convertWheel, stageWheel } from "../desktop/wheel-import.cjs";
-import { createSpatialOverlay, validateSpatialOverlays } from "../src/spatial-overlays.mjs";
+import { createSpatialOverlay, validateSpatialOverlays, wheelModels } from "../src/spatial-overlays.mjs";
 const obj = Buffer.from("v -3 0 0\nv 3 0 0\nv 0 2 1\nf -3 -2 -1\n");
 test("OBJ and binary STL become width-normalized native wheel triangles", () => {
   const stl = Buffer.alloc(134);
@@ -30,6 +30,58 @@ test("wheel profile references cannot name files or external URLs", () => {
   assert.throws(() => validate({...item,wheelLights:"true"}));
   for (const strength of [0, 42.5, 100]) validate({...item,wheelAmbientLight:strength});
   for (const strength of [-1, 101, NaN, "50"]) assert.throws(() => validate({...item,wheelAmbientLight:strength}));
+});
+
+test("experimental driver validates themes and only enables for supported wheels", () => {
+  const wheel = { ...createSpatialOverlay(), wheelModel: "ascher-artura" };
+  const validate = item => validateSpatialOverlays({ enabled: true, pixelBudgetMP: 60, items: [item] });
+  validate(wheel);
+  validate({ ...wheel, driverEnabled: true, driverGloveTheme: 0, driverSuitTheme: 4, driverTorso: true, driverLegs: false });
+  for (const model of wheelModels) validate({ ...wheel, wheelModel: model.id, driverEnabled: true });
+  for (const patch of [{ driverEnabled: 1 }, { driverGloveTheme: 1.5 }, { driverSuitTheme: "4" },
+    { driverSuitTheme: 5 }, { driverTorso: 0 }, { driverLegs: "false" }, { wheelModel: "a".repeat(64), driverEnabled: true }])
+    assert.throws(() => validate({ ...wheel, ...patch }));
+});
+
+test("all GSI wheels share one verified driver asset", async () => {
+  const { stageDriver } = await import("../desktop/driver-assets.cjs");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "driver-gsi-"));
+  try {
+    const source = path.resolve("assets/drivers");
+    await Promise.all(wheelModels.filter(m=>m.id!=="ascher-artura").map(m=>stageDriver(m.id,source,root)));
+    const folder=path.join(root,"OpenGridXR","wheels");
+    assert.deepEqual(await fs.readdir(folder),["fpe2.agd"]);
+    assert.deepEqual(await fs.readFile(path.join(folder,"fpe2.agd")),await fs.readFile(path.join(source,"fpe2.agd")));
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
+});
+
+test("stages verified driver assets beside wheels and preserves the cache on corrupt input", async () => {
+  const { stageDriver } = await import("../desktop/driver-assets.cjs");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "driver-stage-"));
+  const bundle = path.join(root, "bundle");
+  const name = "ascher-artura.agd";
+  const source = path.join(bundle, name), dest = path.join(root, "OpenGridXR", "wheels", name);
+  const manifest = path.join(bundle, "ascher-artura.driver.json");
+  const bytes = Buffer.from("verified driver asset"), corrupt = Buffer.alloc(bytes.length);
+  const stage = () => stageDriver("ascher-artura", bundle, root);
+  try {
+    await assert.rejects(() => stageDriver("../ascher-artura", bundle, root), /Unsupported/);
+    await assert.rejects(stage, /missing/i);
+    await fs.mkdir(bundle);
+    await fs.writeFile(source, bytes);
+    const metadata = { file: name, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+    await fs.writeFile(manifest, JSON.stringify(metadata));
+    await Promise.all([stage(), stage()]);
+    assert.deepEqual(await fs.readFile(dest), bytes);
+    await fs.writeFile(dest, corrupt);
+    await fs.utimes(dest, new Date(0), new Date(0));
+    await stage();
+    assert.deepEqual(await fs.readFile(dest), bytes);
+    await fs.writeFile(manifest, JSON.stringify({ ...metadata, sha256: "0".repeat(64) }));
+    await assert.rejects(stage, /integrity/);
+    assert.deepEqual(await fs.readFile(dest), bytes);
+    assert.deepEqual(await fs.readdir(path.dirname(dest)), [name]);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
 test("concurrent staging reuses a verified disk model and repairs same-size corruption", async () => {

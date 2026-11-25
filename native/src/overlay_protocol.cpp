@@ -94,7 +94,7 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
                 }
             }
         }
-        if (!out.values.emplace(key, value).second || out.values.size() > 32) {
+        if (!out.values.emplace(key, value).second || out.values.size() > 40) {
             error = "Duplicate or excess keys";
             return false;
         }
@@ -188,6 +188,26 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
                rgb.find_first_not_of("0123456789abcdef")!=std::string::npos) {
                 error="Invalid wheel LED frame"; return false;
             }
+        }
+    }
+    const auto model = out.text("wheelModel");
+    const bool driverSource = op == "configure" && out.strings.count("wheelModel") &&
+        out.strings.count("sourceKind") && out.text("sourceKind") == "url" &&
+        !wheel_driver_model(model).empty();
+    for (auto key : {"driverEnabled", "driverTorso", "driverLegs"}) {
+        if (!out.values.count(key)) continue;
+        const auto value = out.text(key);
+        if (!driverSource || out.strings.count(key) || (value != "true" && value != "false")) {
+            error = "Invalid driver visibility";
+            return false;
+        }
+    }
+    for (auto key : {"driverGloveTheme", "driverSuitTheme"}) {
+        if (!out.values.count(key)) continue;
+        const auto value = out.number(key, -1);
+        if (!driverSource || out.strings.count(key) || value < 0 || value > 4 || value != std::floor(value)) {
+            error = "Invalid driver theme";
+            return false;
         }
     }
     if (op == "precision") {

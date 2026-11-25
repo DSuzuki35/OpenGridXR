@@ -203,8 +203,55 @@ const assert = require("node:assert/strict");
     assert.equal(await page.getByText("This model has no mapped LEDs.",{exact:true}).count(),hasWheelLights("ascher-artura")?0:1);
     assert.equal(await unoccludedWheel.getAttribute("aria-checked"),"true");
     assert.equal(await page.getByLabel("Wheel display URL (optional)").count(),hasWheelScreen("ascher-artura")?1:0);
+    const driver = page.getByRole("switch", { name: "Driver (experimental)", exact: true });
+    const axisNote = page.getByText(/The driver supports steering axis offsets/);
+    await field("Pivot vertical value").fill("0.10");
+    await field("Pivot vertical value").press("Enter");
+    assert.equal(await axisNote.count(), 1);
+    assert.equal(await driver.isEnabled(), false);
+    await page.getByRole("button", { name: "Use centered axis", exact: true }).click();
+    assert.equal((await state()).spatialOverlays.items[0].pivotY, 0);
+    assert.equal(await axisNote.count(), 0);
+    assert.equal(await driver.isEnabled(), true);
+    assert.equal(await driver.getAttribute("aria-checked"), "false");
+    assert.equal(await page.getByLabel("Glove color").count(), 0);
+    await driver.click();
+    const gloves = page.getByLabel("Glove color"), suit = page.getByLabel("Suit color");
+    assert.equal(await gloves.inputValue(), "0");
+    assert.equal(await suit.inputValue(), "0");
+    assert.deepEqual(await suit.locator("option").allTextContents(), ["Purple", "Black", "Red", "Blue", "White"]);
+    await gloves.selectOption("2");
+    await suit.selectOption("4");
+    await page.getByRole("switch", { name: "Show torso", exact: true }).click();
+    await page.getByRole("switch", { name: "Show legs", exact: true }).click();
+    const driverItem = (await state()).spatialOverlays.items[0];
+    assert.deepEqual([driverItem.driverEnabled, driverItem.driverGloveTheme, driverItem.driverSuitTheme, driverItem.driverTorso, driverItem.driverLegs], [true, 2, 4, true, true]);
+    if (process.env.DRIVER_UI_SCREENSHOT) {
+      await page.setViewportSize({ width: 1100, height: 1100 });
+      await page.addStyleTag({ content: "body { margin: 20px; }" });
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 1200, deviceScaleFactor: 1, mobile: false });
+      const clip = await page.locator(".wheel-model-settings").evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const x = Math.max(0, rect.x + scrollX - 12);
+        const y = Math.max(0, rect.y + scrollY - 12);
+        const width = Math.max(rect.width, element.scrollWidth) + 32;
+        return { x, y, width, height: rect.height + 24, scale: 1 };
+      });
+      const capture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip });
+      await fs.writeFile(process.env.DRIVER_UI_SCREENSHOT, Buffer.from(capture.data, "base64"));
+      await cdp.detach();
+    }
+    for (const model of wheelModels) {
+      await modelPicker.selectOption(model.id);
+      assert.equal(await driver.getAttribute("aria-checked"), "true", `${model.name} supports the driver`);
+      assert.equal(await gloves.inputValue(), "2");
+      assert.equal(await suit.inputValue(), "4");
+    }
     await page.getByRole("button",{name:"Import OBJ or binary STL"}).click();
     assert.equal(await modelPicker.inputValue(),"f".repeat(64));
+    assert.equal(await driver.count(), 0);
+    assert.equal((await state()).spatialOverlays.items[0].driverEnabled, false);
     assert.deepEqual(await page.getByLabel("SimHub LED device").locator('option').evaluateAll(options=>options.map(option=>Number(option.value))),
       [0,...wheelModels.filter(w=>hasWheelLights(w.id)).map(w=>wheelLightDevice(w.id))],
       "the physical LED picker offers only mapped devices with their protocol IDs");

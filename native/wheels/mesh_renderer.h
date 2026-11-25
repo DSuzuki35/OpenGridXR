@@ -66,6 +66,7 @@ struct MeshAsset {
 
 // Shaders and per-slot targets are shared. Only requested immutable models get
 // GPU resources; one background load may be pending, never waited on a frame.
+struct DriverAsset;
 class MeshRenderer {
     Com<ID3D11DeviceContext> deferred;
     Com<ID3D11VertexShader> vertex,postVertex;
@@ -78,25 +79,35 @@ class MeshRenderer {
     Com<ID3D11DepthStencilState> depthState,noDepthState;
     uint32_t samples{1};
     MeshTargets targets;
+    std::unique_ptr<MeshTargets> driverTargets;
     bool coloredLights{},pipelineReady{},lightsNeedUpload{};
     MeshLightsParameters lights{};
     WheelMeshCache<MeshAsset> models;
     MeshAsset* active{};
+    WheelMeshCache<DriverAsset> drivers;
+    DriverAsset* driver{};
 public:
     bool initializePipeline(ID3D11Device*) noexcept;
     bool selectModel(ID3D11Device*,unsigned slot,const std::wstring& path,unsigned kind,unsigned deviceKind) noexcept;
+    bool selectDriver(ID3D11Device*,unsigned slot,const std::wstring& path,float radians,
+                      const float (&neutralToWheel)[12],unsigned glove,unsigned suit,bool torso,bool legs) noexcept;
+    void forgetDriver(unsigned slot) {
+        drivers.forget(slot);driver=nullptr;drivers.collect();
+        if(!drivers.hasAssets())driverTargets.reset();
+    }
+    bool driverFailed(unsigned slot) const {return drivers.failed(slot);}
     bool failed(unsigned slot) const {return models.failed(slot);}
-    void forgetModel(unsigned slot) {models.forget(slot);active=nullptr;}
+    void forgetModel(unsigned slot) {models.forget(slot);forgetDriver(slot);active=nullptr;}
     bool ready() const noexcept { return pipelineReady && active && active->indexCount && active->atlasView; }
     bool idle() const {
-        return models.idle();
+        return models.idle() && drivers.idle();
     }
     // Called per selected model/stereo pair. Both eyes use the same snapshot,
     // including when IPC is contended and the previous sample has expired.
     void setLights(bool enabled,const ModelLightsFrame&,uint64_t now) noexcept;
     // Derive the exact aperture for this eye from all eight model box corners.
     // Eye position, size and model transform must already be populated.
-    bool aperture(MeshEyeParameters&) const noexcept;
+    bool aperture(MeshEyeParameters&,const float* visiblePlane=nullptr) const noexcept;
     bool render(ID3D11Device*,ID3D11DeviceContext*,ID3D11Texture2D*,DXGI_FORMAT,
                 ID3D11ShaderResourceView* depth,const MeshEyeParameters&,ID3D11RenderTargetView*,
                 ID3D11ShaderResourceView* screen,uint32_t eye,
