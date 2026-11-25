@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased (rig-edit-mode)
+
+- Added a RaceLab-style edit mode for spatial overlays, used from the headset. With overlays showing in the game:
+  **Tab** starts editing (the selected overlay stays bright, the others dim), **Space** selects the next overlay,
+  the **mouse** moves it left, right, up and down, and the **wheel** or a **right-button drag** moves it nearer or farther.
+  **M** switches to rotating: the mouse turns and tilts, a right-button drag leans, and the wheel resizes. Hold **Shift**
+  for fine steps. **Esc** (or Tab) finishes: then **Enter** saves and **Esc** cancels and puts everything back. Beeps confirm
+  each step. While editing, those keys, the mouse and clicks don't reach the game; Alt+Tab always works. A car that already
+  has its own saved placement keeps it per car. The new OpenGridXR-EditInput helper only runs while overlays are showing.
+
 ## 1.2.0
 
 - Added the Ascher Artura 3D steering wheel, with thanks to Martin Ascher for providing the model.

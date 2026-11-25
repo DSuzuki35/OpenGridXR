@@ -72,6 +72,7 @@
           "OpenGridXR-Telemetry.exe",
           "OpenGridXR-OverlayHost.exe",
           "OpenGridXR-Control.exe",
+          "OpenGridXR-EditInput.exe",
           "OpenGridXR-Input.exe",
           "OpenGridXR-Layers.exe",
           "OpenGridXR-Connection.exe",

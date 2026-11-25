@@ -292,6 +292,48 @@ else {
         editorState: () => ({...editorStatus,busy:editorStatus.busy||modulesChanging}),
         applyAction: (profileId,actionId) => applyProfileAction(profileId,actionId,{requireBindings:false}),
       });
+      // RaceLab-style overlay editing in the headset (Tab, Space, mouse, M, Esc then Enter): see edit-mode.cjs.
+      async function saveEditedPlacements(game, carId, edits) {
+        return serialize(async () => {
+          if (modulesChanging || editorStatus.dirty || editorStatus.busy) throw new Error('Save or discard profile edits in OpenGrid first.');
+          const before = await store.load();
+          const next = structuredClone(before.document);
+          const profile = selectedForGame(next, game);
+          if (!profile?.spatialOverlays) throw new Error('The selected profile changed.');
+          for (const { id, pose } of edits) {
+            const index = profile.spatialOverlays.items.findIndex(o => o.id === id);
+            if (index < 0) continue;
+            const item = profile.spatialOverlays.items[index];
+            const patch = Object.fromEntries(['x','y','z','yaw','pitch','roll','widthMeters'].filter(key => Number.isFinite(pose[key])).map(key => [key, pose[key]]));
+            // A car that already has its own placement keeps it per car; otherwise the overlay's own placement changes.
+            profile.spatialOverlays.items[index] = carId && item.kind === 'url' && item.carPlacements?.some(entry => entry.carId === carId)
+              ? updateCarPlacement(item, carId, patch) : { ...item, ...patch };
+          }
+          model.validateDocument(next);
+          const state = await store.save(next, before.revision, { beforeReplace: () => {
+            if (editorStatus.dirty || editorStatus.busy || modulesChanging) throw new Error('The editor changed before the placement was saved.');
+          } });
+          telemetryDocument = state.document;
+          await synchronizeServices();
+          try { await runtime.writeConfig(state.document); } catch { /* the overlays are saved; the runtime picks it up next start */ }
+          if (win && !win.isDestroyed()) win.webContents.send("opengrid:inputProfile", state);
+        });
+      }
+      const editMode = testMode ? null : require('./edit-mode.cjs').createEditMode({
+        executable: path.join(helpersDir, 'OpenGridXR-EditInput.exe'),
+        targets: () => {
+          const spatial = enabled('spatial') ? services.peek('spatial') : null;
+          if (!spatial) return null;
+          for (const game of ['iracing', 'lmu']) { const found = spatial.editTargets(game); if (found) return found; }
+          return null;
+        },
+        preview: (game, poses, selected, phase) => services.peek('spatial')?.editPreview(game, poses, selected, phase),
+        save: saveEditedPlacements,
+        beep: kind => {
+          const count = { rotate: 2, confirm: 2, cancelled: 3, error: 3 }[kind] || 1;
+          for (let i = 0; i < count; i++) setTimeout(() => shell.beep(), i * 180);
+        },
+      });
       async function synchronizeServices() {
         const doc = effective(telemetryDocument);
         const selected = doc.profiles.find(p => p.id === doc.selectedProfileId);
@@ -321,7 +363,7 @@ else {
       app.on('before-quit', event => {
         if (closing) return;
         event.preventDefault(); closing = true;
-        desktopShortcuts.close(); desktopPrecision.close(); runtime.closeOutput();
+        desktopShortcuts.close(); desktopPrecision.close(); editMode?.close(); runtime.closeOutput();
         void services.closeAll().finally(() => app.quit());
       });
       const snapshot = async () => ({

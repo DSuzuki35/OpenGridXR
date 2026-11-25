@@ -259,6 +259,15 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
       failSource(g, record, error.message);
     });
   }
+  // Overlay edit mode (edit-mode.cjs): g.edit = { poses: Map id -> pose, selected, phase }.
+  const EDIT_KEYS = ["x", "y", "z", "yaw", "pitch", "roll", "widthMeters"];
+  function withEdit(g, id, base) {
+    if (!g.edit) return base;
+    const pose = g.edit.poses.get(id), dim = id === g.edit.selected ? (g.edit.phase === "confirm" ? 0.6 : 1) : 0.3;
+    const next = { ...base, opacity: Number((base.opacity * dim).toFixed(3)) };
+    if (pose) for (const key of EDIT_KEYS) if (Number.isFinite(pose[key])) next[key] = pose[key];
+    return next;
+  }
   async function sync() {
     if (closed || !document) return;
     if (syncing) { syncAgain = true; return; }
@@ -331,7 +340,7 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
           }
           const uiToken=item.kind==='menu'?(g.sources.get(item.id)?.uiToken||randomUUID()):undefined;
           const pose = overlayPlacement(item, g.car?.id);
-          const configuration = { op: "configure", slot, ...(uiToken?{uiToken}:{}), enabled: item.kind !== "desktop" || !!desktop, anchor: pose.anchor, x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll, widthMeters: pose.widthMeters, opacity: item.opacity / 100,
+          const baseConfiguration = { op: "configure", slot, ...(uiToken?{uiToken}:{}), enabled: item.kind !== "desktop" || !!desktop, anchor: pose.anchor, x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll, widthMeters: pose.widthMeters, opacity: item.opacity / 100,
             ...(item.kind === "url" ? Object.fromEntries(Object.entries(steeringDefaults).map(([key, fallback]) => [key, pose[key] ?? fallback])) : {}),
             ...(item.kind==="url" && item.wheelModel ? {wheelModel:item.wheelModel,wheelLights:hasWheelLights(item.wheelModel) && item.wheelLights===true,
               wheelAmbientLight:item.wheelAmbientLight ?? 0,
@@ -341,11 +350,13 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
             desktopX: desktop?.x || 0, desktopY: desktop?.y || 0, desktopWidth: item.kind==='menu'?item.width:desktop?.width || 0, desktopHeight: item.kind==='menu'?item.height:desktop?.height || 0,
             precisionScale: Number.isFinite(item.precisionScale) ? Math.min(3, Math.max(1, item.precisionScale)) : 1.75,
             precisionShortcut: typeof item.precisionShortcut === "string" && /^(?:Ctrl\+)?(?:Alt\+)?(?:Shift\+)?F(?:[1-9]|1[0-2])$/.test(item.precisionShortcut) ? item.precisionShortcut : "" };
+          // While the overlay edit mode is on, its poses and dimming replace the saved placement.
+          const configuration = withEdit(g, item.id, baseConfiguration);
           const configSignature = JSON.stringify(configuration);
           if (g.sources.get(item.id)?.configSignature !== configSignature) g.host.send(configuration);
           if (!g.sources.has(item.id)) await startSource(g, item, slot, rates[slot], expectedGeneration, desktop, uiToken);
           if (closed || expectedGeneration !== generation) return;
-          const current = g.sources.get(item.id); if (current) current.configSignature = configSignature;
+          const current = g.sources.get(item.id); if (current) { current.configSignature = configSignature; current.baseConfiguration = baseConfiguration; }
           if(item.wheelModel && current?.window && !current.stopped) {
             if(current.fps!==rates[slot]) {
               current.window.webContents.setFrameRate(rates[slot]);
@@ -462,6 +473,30 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
       if (!source) throw new Error("This window is no longer available.");
       selections.set(`${game}:${id}`, { kind: "window", id: source.id, name: source.name }); generation++; stopSource(g, id); void sync();
       return { id: source.id, name: source.name };
+    },
+    // Overlays the edit mode can move: the ones showing in the headset now, with their current poses.
+    editTargets(game) {
+      const g = gameFor(game), profile = selectedForGame(document || { profiles: [] }, game);
+      if (!g.host || !profile?.spatialOverlays?.enabled || g.profileId !== profile.id) return null;
+      const items = this.status(game).items.filter(entry => entry.source?.displaying).map(entry => {
+        const item = profile.spatialOverlays.items.find(o => o.id === entry.id);
+        const pose = g.edit?.poses.get(item.id) || overlayPlacement(item, g.car?.id);
+        return { id: item.id, name: item.name, pose: Object.fromEntries(EDIT_KEYS.map(key => [key, pose[key]])) };
+      });
+      return items.length ? { game, profileId: profile.id, carId: g.car?.id || null, items } : null;
+    },
+    // Show edit poses live (phase "edit" | "confirm"), or end the preview (phase null).
+    editPreview(game, poses, selected, phase) {
+      const g = gameFor(game);
+      g.edit = phase ? { poses: new Map(poses), selected, phase } : null;
+      if (!g.host) return;
+      for (const [id, source] of g.sources) {
+        if (source.stopped || !source.baseConfiguration) continue;
+        const configuration = withEdit(g, id, source.baseConfiguration);
+        const signature = JSON.stringify(configuration);
+        if (signature !== source.configSignature) { g.host.send(configuration); source.configSignature = signature; }
+      }
+      if (!phase) void sync();
     },
     status(game, preview) {
       const g = gameFor(game), profile = selectedForGame(document || { profiles: [] }, game), settings = profile?.spatialOverlays || spatialDefaults(), rates = effectiveOverlayRates(settings);
