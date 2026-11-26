@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.2
 
 - Added virtual SimHub LED devices for all six built-in wheels, so effects can run without connected wheel hardware. The bridge is now named **OpenGrid XR Lights**; existing plugin and device identities are preserved.
 - Added **Assign steering axis**, a live angle preview, inversion and an adjustable steering lock (900° by default). Virtual wheels and hands can follow a wheelbase directly, independently of game steering telemetry.

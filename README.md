@@ -12,12 +12,13 @@ A Windows OpenXR toolkit for **iRacing** and **Le Mans Ultimate**. Place a wheel
 
 If you run into an issue, feel free to clone or fork the repository, open it with your favorite AI coding tool, and ask it to investigate and fix the problem. Review and test the changes, then submit a pull request with a short explanation and your test results. See [Contributing](CONTRIBUTING.md) for build instructions. A reply or merge is not guaranteed.
 
-## Version 1.2.1
+## Version 1.2.2
 
 The latest release adds:
 
-- **Experimental virtual driver:** gloves and arms for all six built-in wheels, with steering and regripping animations.
-- **Choose your colors:** separate glove and suit themes, textured sleeves, and optional torso and legs.
+- **OpenGrid XR Lights:** SimHub LED effects for all six virtual wheels without connected hardware. [Setup](docs/simhub-virtual.md)
+- **Assign steering axis:** follow your wheelbase directly, with inversion and adjustable steering lock (900° by default). [Setup](docs/steering-wheels.md#use-your-wheelbase-directly)
+- **Fit your driver:** adjust the seat, shoulders, torso and legs; save the fit per car. [Controls](docs/driver-test.md#fit-the-seat-and-body)
 
 **Highly experimental — anatomy is still rather questionable.** Expect clipping and imperfect hand contact or elbows. Disabled by default; benchmark before keeping it on. [Driver setup, limitations and asset credits](docs/driver-test.md)
 
