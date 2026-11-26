@@ -34,6 +34,7 @@
     "converter_license": "ASCHER-CONVERTER-LICENSE.txt applies to the supplied OpenGrid-derived conversion software, not the model."
   },
   "local_changes": [
+    "Matched six control bodies to Christian's physical wheel: left large/inner thumb rotaries red; right large/inner thumb rotaries and both joysticks blue. Exact diffuse RGB values and CAD triangle spans are recorded in ascher-artura.colors.json. Only those control UVs and previously unused atlas tiles14/15 changed; positions, normals, indices, display and LED assignments remain unchanged. Christian confirmed the colors in VR; these are subjective matches, not calibrated material measurements.",
     "Preserved the original position/normal data and diffuse atlas; tagged 21 shift-light diffusers and 14 illuminated button-symbol CAD bodies using the installed SimHub physical mapper.",
     "Duplicated the 14 original rounded screen triangles 0.05 mm forward with full dashboard UVs; preserved original dark glass when the dashboard is disabled.",
     "Added built-in catalog metadata, integrity manifest and physical device6 support. Mapping details and source body/triangle ranges are in ascher-artura.mapping.json.",
