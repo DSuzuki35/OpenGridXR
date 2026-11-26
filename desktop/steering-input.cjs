@@ -19,7 +19,7 @@ function steeringSettingsToken(value) {
 }
 function createSteeringInputController({createHost}={}) {
   if(typeof createHost!=='function') throw new TypeError('A steering input host factory is required.');
-  let settings=normalizeSettings(),active=false,closed=false,leaseUntil=0,leaseTimer=null,lastActive=null;
+  let settings=normalizeSettings(),active=false,arturaDials=false,closed=false,leaseUntil=0,leaseTimer=null,lastActive=null;
   let hostState={available:false,devices:[],error:''};
   const samples=new Map();
   const host=createHost({onAxes(report) {
@@ -35,7 +35,7 @@ function createSteeringInputController({createHost}={}) {
     const enabled=active && settings.source==='device' && !!settings.deviceId;
     const discover=leaseUntil>Date.now();
     host.configureSteering({...settings,enabled,discover,token:enabled?steeringSettingsToken(settings):0});
-    const running=enabled || discover;
+    const running=enabled || discover || arturaDials;
     if(running!==lastActive) {lastActive=running;host.setActive(running);}
     if(!running) samples.clear();
   }
@@ -43,10 +43,11 @@ function createSteeringInputController({createHost}={}) {
     leaseUntil=0;clearTimeout(leaseTimer);leaseTimer=null;synchronize();
   }
   return {
-    configure(value,isActive) {
+    configure(value,isActive,dials=false) {
       if(closed) return;
       if(typeof isActive!=='boolean') throw new TypeError('Steering activation must be a boolean.');
-      settings=normalizeSettings(value);active=isActive;synchronize();
+      if(typeof dials!=='boolean') throw new TypeError('Artura dial activation must be a boolean.');
+      settings=normalizeSettings(value);active=isActive;arturaDials=dials;synchronize();
     },
     status({discover=false}={}) {
       if(discover && !closed) {
@@ -70,7 +71,7 @@ function createSteeringInputController({createHost}={}) {
     releaseDiscovery,
     close() {
       if(closed) return;
-      active=false;releaseDiscovery();closed=true;samples.clear();host.close();
+      active=false;arturaDials=false;releaseDiscovery();closed=true;samples.clear();host.close();
     },
   };
 }

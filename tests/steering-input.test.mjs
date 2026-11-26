@@ -11,6 +11,13 @@ function setup(){const {createSteeringInputController}=api();let callbacks,state
  const controller=createSteeringInputController({createHost:o=>{callbacks=o;return host;}});
  return {controller,host,calls,activation,report(v){state={...state,...v};callbacks.onStatus(state);},sample(v){callbacks.onAxes(v);}};
 }
+test('Artura dial tracking leases the existing helper without a steering assignment',()=>{
+ const h=setup();h.controller.configure(undefined,false,true);
+ assert.equal(h.activation.at(-1),true);assert.equal(h.calls.at(-1).enabled,false);assert.equal(h.calls.at(-1).discover,false);
+ h.controller.configure(undefined,false,false);assert.equal(h.activation.at(-1),false);
+ h.controller.configure(undefined,false,true);h.controller.close();assert.equal(h.activation.at(-1),false);
+ assert.throws(()=>setup().controller.configure(undefined,false,'yes'),/dial activation/);
+});
 test('steering tokens are stable and separate every profile setting',()=>{const {steeringSettingsToken}=api();const token=steeringSettingsToken(settings);assert.ok(token>0 && token<=0xffffffff);assert.equal(token,steeringSettingsToken({...settings}));for(const changed of [{axis:'y'},{invert:true},{lockDegrees:1080},{source:'telemetry'},{deviceId:''}]) assert.notEqual(token,steeringSettingsToken({...settings,...changed}));});
 test('steering discovery lease expires and releases immediately without an active assignment',t=>{
  t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});const h=setup();h.controller.configure({source:'telemetry'},true);assert.equal(h.activation.at(-1),false);

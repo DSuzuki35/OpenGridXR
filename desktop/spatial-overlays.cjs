@@ -292,7 +292,10 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
       const sessions = needsSessions ? await getSessions() : [];
       if (closed || expectedGeneration !== generation) return;
       const steeringProfile = require('./steering-selection.cjs').steeringProfile(document, sessions);
-      if (onSteeringSettings) await onSteeringSettings(steeringProfile?.spatialOverlays.steeringInput, !!steeringProfile);
+      const arturaDials=profiles.some(p=>p?.spatialOverlays?.enabled &&
+        sessions.some(s=>s.game===p.game && s.active && s.engineLoaded) &&
+        p.spatialOverlays.items.some(o=>o.enabled && o.kind==='url' && o.wheelModel==='ascher-artura'));
+      if (onSteeringSettings) await onSteeringSettings(steeringProfile?.spatialOverlays.steeringInput, !!steeringProfile, arturaDials);
       if (closed || expectedGeneration !== generation) return;
       for (const game of ["iracing", "lmu"]) {
         if (closed) return;

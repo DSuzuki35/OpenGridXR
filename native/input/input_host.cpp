@@ -1,6 +1,7 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "input_edges.hpp"
 #include "../include/steering_input.hpp"
+#include "../include/artura_dials.hpp"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -55,6 +56,7 @@ struct Device {
     unsigned buttons{}, povs{};
     og::input::Edges edges;
     bool acquired{};
+    og::artura::Positions dials;
     ULONGLONG retry{}, nextHeld{};
     struct Axis { DWORD offset{}; LONG minimum{}, maximum{}; bool available{}; };
     std::array<Axis,8> axes{};
@@ -262,6 +264,7 @@ bool commands(bool fixture, std::string &line,Steering &steering,bool &fixtureCo
 }
 int run(bool fixture) {
     Steering steering;
+    og::artura::Writer dialWriter;
     bool fixtureConnected=true;
     if (fixture) {
         fixture_devices(steering);
@@ -355,8 +358,13 @@ int run(bool fixture) {
                 }
         }
         bool published=false;
+        unsigned arturas=0;for(const auto& [key,device]:devices)if(og::artura::device_name(device->name))++arturas;
+        if(arturas!=1)for(auto& [key,device]:devices)device->dials.reset();
+        og::artura::Positions dialPositions;
+        bool dialSampled=false;
         for (auto &[key, device] : devices) {
-            if(steering.configured && !steering.interested(key)) {
+            const bool artura=arturas==1 && og::artura::device_name(device->name);
+            if(steering.configured && !steering.interested(key) && !artura) {
                 if(device->acquired) {device->api->Unacquire();device->acquired=false;device->retry=0;}
                 continue;
             }
@@ -368,6 +376,7 @@ int run(bool fixture) {
                     continue;
                 device->acquired = true;
                 device->edges.reset();
+                device->dials.reset();
             }
             DIJOYSTATE2 state{};
             std::fill(std::begin(state.rgdwPOV), std::end(state.rgdwPOV), DWORD(-1));
@@ -377,12 +386,18 @@ int run(bool fixture) {
                 else held(key, {}, device->buttons, device->povs);
                 device->acquired = false;
                 device->edges.reset();
+                device->dials.reset();
                 device->api->Unacquire();
                 device->retry = now + 250;
                 continue;
             }
+            if(artura) {
+                std::array<bool,128> buttons{};
+                for(unsigned i=0;i<device->buttons;++i)buttons[i]=(state.rgbButtons[i]&0x80)!=0;
+                device->dials.sample(buttons);dialPositions=device->dials;dialSampled=true;
+            }
             if(steering.configured) {
-                if(now>=device->nextAxes) {
+                if(steering.interested(key) && now>=device->nextAxes) {
                     axis_sample(key,device.get(),&state,steering);
                     device->nextAxes=now+(steering.discovery()?100:50);
                 }
@@ -409,6 +424,8 @@ int run(bool fixture) {
             }
         }
         if(steering.writer && !published) steering.invalidate();
+        if(arturas==1 && dialWriter.acquire(now))dialWriter.publish(dialSampled?dialPositions:og::artura::Positions{},now);
+        else if(arturas!=1)dialWriter.close();
         nextPoll =
             std::max(nextPoll + std::chrono::microseconds(16667), std::chrono::steady_clock::now());
         std::this_thread::sleep_until(nextPoll);
