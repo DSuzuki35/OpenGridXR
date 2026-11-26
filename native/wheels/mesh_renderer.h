@@ -2,6 +2,7 @@
 #include <d3d11.h>
 #include "wheel_resources.hpp"
 #include "driver_fit.h"
+#include "../include/artura_dials.hpp"
 #include <array>
 #include <cstdint>
 #include <future>
@@ -34,8 +35,9 @@ struct MeshEyeParameters {
     float body[4]{1,1,1,1}; // brightness, contrast, saturation, gamma.
     float target[4]{}; // full width/height, quarter width/height.
     float probeUv[4]{}; // scale.xy and offset.zw from model XY to probe UV.
+    float dialAngles[4]{}; // Artura dial radians left/right; z enables known CAD spans.
 };
-static_assert(sizeof(MeshEyeParameters)==224);
+static_assert(sizeof(MeshEyeParameters)==240);
 struct MeshLightsParameters {
     float colors[kModelLightCount][4]{};
     float centers[kRingCount][4]{};
@@ -61,6 +63,7 @@ struct MeshAsset {
     Com<ID3D11ShaderResourceView> atlasView;
     uint32_t indexCount{},bodyIndexCount{};
     bool taggedLights{};
+    bool arturaDials{};
     float minimum[3]{},maximum[3]{},centers[kRingCount][4]{},probeUv[4]{};
     bool initialize(ID3D11Device*,const wchar_t*,uint32_t) noexcept;
 };
@@ -85,6 +88,7 @@ class MeshRenderer {
     MeshLightsParameters lights{};
     WheelMeshCache<MeshAsset> models;
     MeshAsset* active{};
+    og::artura::Reader dialInput;
     WheelMeshCache<DriverAsset> drivers;
     DriverAsset* driver{};
     bool fitLimitedState{};

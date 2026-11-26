@@ -34,6 +34,7 @@ cbuffer Parameters : register(b0) {
     float4 eyeLocal; float4 aperture; float4 fov; float4 rectangle;
     float4 depth; float4 model; float4 clipping;
     float4 effects; float4 body; float4 target; float4 probeUv;
+    float4 dialAngles;
 };
 cbuffer Lights : register(b1) {
     float4 lightColors[96]; float4 ringCenters[17]; float4 lightOptions;
@@ -62,8 +63,24 @@ struct Varying { float4 position : SV_Position; SHADING_FREQUENCY float2 uv : TE
                  float3 driverPosition : TEXCOORD6; float3 driverView : TEXCOORD7;
 #endif
 };
-Varying vs(Input input) {
+Varying vs(Input input, uint vertexId : SV_VertexID) {
     Varying o;
+    // Source CAD spans: Körper45/46 set screws and Körper47/48 large knobs.
+    // dashboard, LED geometry or driver vertices are transformed.
+    if(dialAngles.z>.5) {
+        bool left=(vertexId>=308298 && vertexId<308736) || (vertexId>=309174 && vertexId<312510);
+        bool right=(vertexId>=308736 && vertexId<309174) || (vertexId>=312510 && vertexId<315846);
+        if(left || right) {
+            float angle=left?dialAngles.x:dialAngles.y;
+            float2 pivot=float2(left?-23:23, -37);
+            pivot=(pivot-float2(0,-1.163336))/299.961552;
+            float s,c;sincos(angle,s,c);
+            float2 q=input.position.xy-pivot;
+            input.position.xy=pivot+float2(c*q.x-s*q.y,s*q.x+c*q.y);
+            float2 n=input.normal.xy;
+            input.normal.xy=float2(c*n.x-s*n.y,s*n.x+c*n.y);
+        }
+    }
     float3 p=input.position*model.x;
     float w=eyeLocal.z-p.z;
     float2 plane=eyeLocal.z*p.xy-eyeLocal.xy*p.z;
@@ -328,6 +345,7 @@ bool MeshTargets::prepare(ID3D11Device* device,uint32_t w,uint32_t h,bool bloom,
 }
 
 bool MeshAsset::initialize(ID3D11Device* device,const wchar_t* path,uint32_t kind) noexcept {
+    arturaDials=false;
     if(!device || !path) return false;
     try {
         // Keep reading this immutable file if the desktop app atomically installs
@@ -344,6 +362,8 @@ bool MeshAsset::initialize(ID3D11Device* device,const wchar_t* path,uint32_t kin
         auto bytes=_ftelli64(file);
         if(bytes<32 || bytes>128*1024*1024 || _fseeki64(file,0,SEEK_SET)!=0) return false;
         Header h{}; if(std::fread(&h,1,sizeof(h),file)!=sizeof(h)) return false;
+        // These vertex spans apply only to the reviewed built-in CAD mesh.
+        arturaDials=kind==6 && h.version==5 && h.vertices==564102 && h.indices==564102;
         if(std::memcmp(h.magic,"AGMESH1\0",8) || (h.version!=1 && h.version!=2 && h.version!=3 && h.version!=4 && h.version!=5) || h.reserved ||
            !h.vertices || h.vertices>1000000 || !h.indices || h.indices>3000000 || h.indices%3 ||
            !h.width || !h.height || h.width>4096 || h.height>4096) return false;
@@ -632,6 +652,10 @@ bool MeshRenderer::render(ID3D11Device* device,ID3D11DeviceContext* context,ID3D
         samples=1; // A quality allocation failure must not hide an otherwise renderable wheel.
     }
     MeshEyeParameters p=input;p.target[0]=float(td.Width);p.target[1]=float(td.Height);
+    if(active->arturaDials) {
+        if(eye==0)dialInput.update();
+        std::copy_n(dialInput.angles,4,p.dialAngles);
+    }
     p.target[2]=float((td.Width+3)/4);p.target[3]=float((td.Height+3)/4);
     p.eyeLocal[3]=0;
     if(sceneProbe && std::isfinite(ambientLight) && ambientLight>0) {

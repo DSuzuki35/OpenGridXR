@@ -160,10 +160,10 @@ else {
         }),
         spatial: async () => {
           const controller = await require('./spatial-overlays.cjs').createSpatialOverlays({ electron: require('electron'), executable: path.join(helpersDir, 'OpenGridXR-OverlayHost.exe'), getSessions: runtime.sessionsStatus, model, testMode,
-            onSteeringSettings: async (settings, active) => {
+            onSteeringSettings: async (settings, active, arturaDials) => {
               if (!enabled('spatial')) return;
-              const input = active ? await services.get('steering') : services.peek('steering');
-              if (enabled('spatial')) input?.configure(settings, active);
+              const input = active || arturaDials ? await services.get('steering') : services.peek('steering');
+              if (enabled('spatial')) input?.configure(settings, active, arturaDials);
             },
             getCar: async game => enabled('telemetry') ? (await services.get('telemetry')).currentCar(game) : null,
             getMenuState:({profileId})=>{

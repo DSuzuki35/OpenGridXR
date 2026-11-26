@@ -10,6 +10,23 @@ import { createRequire } from "node:module";
 import { createDocument, validateDocument } from "../src/model.mjs";
 import { createSpatialOverlay } from "../src/spatial-overlays.mjs";
 const { createSpatialOverlays } = createRequire(import.meta.url)("../desktop/spatial-overlays.cjs");
+
+test('Artura dial input follows an active built-in wheel session, independent of steering source', async()=>{
+  let sessions=[{game:'iracing',active:true,engineLoaded:true}];const calls=[];
+  const controller=await createSpatialOverlays({electron:{},executable:'fixture',model:{validateDocument},
+    getSessions:async()=>sessions,onSteeringSettings:(...args)=>calls.push(args),
+    hostFactory:()=>{throw Error('No actual capture needed for this lifecycle test');}});
+  const document=createDocument(),settings=document.profiles[0].spatialOverlays;
+  settings.enabled=true;settings.items=[{...createSpatialOverlay(),enabled:true,wheelModel:'ascher-artura'}];
+  const update=async()=>{controller.update(document);for(let i=0;i<5;i++)await tick();};
+  try {
+    await update();assert.equal(calls.at(-1)[1],false);assert.equal(calls.at(-1)[2],true);
+    settings.items[0].wheelModel='fpe2';await update();assert.equal(calls.at(-1)[2],false);
+    settings.items[0].wheelModel='ascher-artura';sessions=[];await update();assert.equal(calls.at(-1)[2],false);
+    sessions=[{game:'iracing',active:true,engineLoaded:false}];await update();assert.equal(calls.at(-1)[2],false);
+    sessions=[{game:'iracing',active:true,engineLoaded:true}];settings.items[0].enabled=false;await update();assert.equal(calls.at(-1)[2],false);
+  }finally{controller.close();}
+});
 test("a never-ending URL cannot block the next source or cleanup after disabling overlays", async () => {
   const windows = [], hosts = [], commands = [];
   let streamActive = false;
