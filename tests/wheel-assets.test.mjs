@@ -63,7 +63,19 @@ test("bundled Artura matches its manifest and the native mesh contract", async (
   }
   assert.ok(Math.abs(maximum[0] - minimum[0] - 1) < 1e-6);
   assert.deepEqual([minimum, maximum], manifest.normalized_bounds);
-  assert.equal(colors.size, 14, "all supplied diffuse material colors survive");
+  assert.equal(colors.size, 16, "all supplied diffuse colors plus red/blue controls survive");
+  const overrides = JSON.parse(await readFile(new URL("ascher-artura.colors.json", directory)));
+  for (const control of overrides.controls) {
+    const {slot, rgb} = overrides.palette[control.color];
+    for (let vertex = control.first_triangle * 3; vertex < (control.first_triangle + control.triangles) * 3; vertex++) {
+      const offset = 32 + vertex * 36;
+      assert.equal(bytes.readFloatLE(offset + 32), 0, "colored controls retain non-emissive group");
+      assert.equal(bytes.readFloatLE(offset + 24), ((slot % 4) * 16 + 8) / width);
+      assert.equal(bytes.readFloatLE(offset + 28), (Math.floor(slot / 4) * 16 + 8) / height);
+    }
+    const pixel = (Math.floor(slot / 4) * 16 + 8) * width + (slot % 4) * 16 + 8;
+    assert.deepEqual([...bytes.subarray(32 + 40 * vertices + pixel * 4, 32 + 40 * vertices + pixel * 4 + 4)], [...rgb, 255]);
+  }
   assert.equal(groups.get(200), 42, "the CAD glass supplies exactly fourteen fitted display triangles");
   assert.ok(screenUv.every((value, i) => Math.abs(value - (i < 2 ? 0 : 1)) < 1e-6));
   assert.equal(mapping.led_controls.length, 35, "21 shift diffusers and 14 button symbols");

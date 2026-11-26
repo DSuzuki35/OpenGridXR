@@ -1,8 +1,9 @@
 """Retag supplied Artura CAD surfaces for the live display and SimHub output.
 
 Uses only Python's standard library. The reviewed source ZIP contains the exact
-supplied muted prototype; all original positions, normals and atlas pixels stay
-unchanged. CAD body/triangle ranges and physical LED order are recorded alongside
+supplied muted prototype; all original positions and normals stay unchanged.
+Six control bodies receive separate diffuse colors in unused atlas tiles.
+CAD body/triangle ranges and physical LED order are recorded alongside
 the asset, so this does not depend on an installed CAD tool or execute source code.
 """
 import hashlib
@@ -58,7 +59,32 @@ def build():
     data.extend(display)
     data.extend(original[32 + vertices * 36:32 + vertices * 36 + indices * 4])
     data.extend(struct.pack("<" + "I" * count, *range(vertices, vertices + count)))
-    data.extend(original[-width * height * 4:])
+    atlas = bytearray(original[-width * height * 4:])
+    colors = json.loads((DIRECTORY / "ascher-artura.colors.json").read_text(encoding="utf-8"))
+    # The 14 supplied material tiles remain intact. These controls use the two
+    # previously unused tiles, without changing screen or physical LED tags.
+    for color in colors["palette"].values():
+        slot, rgb = color["slot"], color["rgb"]
+        if slot not in (14, 15) or len(rgb) != 3 or any(type(c) is not int or not 0 <= c <= 255 for c in rgb):
+            raise ValueError("Invalid Artura diffuse palette")
+        for y in range((slot // 4) * 16, (slot // 4 + 1) * 16):
+            for x in range((slot % 4) * 16, (slot % 4 + 1) * 16):
+                atlas[(y * width + x) * 4:(y * width + x) * 4 + 4] = bytes(rgb + [255])
+    painted = set()
+    for control in colors["controls"]:
+        slot = colors["palette"][control["color"]]["slot"]
+        first_vertex = control["first_triangle"] * 3
+        last_vertex = first_vertex + control["triangles"] * 3
+        if not 0 <= first_vertex < last_vertex <= vertices:
+            raise ValueError("Artura color span outside source geometry")
+        for vertex in range(first_vertex, last_vertex):
+            offset = 32 + vertex * 36
+            if vertex in painted or struct.unpack_from("<f", data, offset + 32)[0] != 0:
+                raise ValueError("Artura colors overlap a control, display or LED surface")
+            painted.add(vertex)
+            struct.pack_into("<2f", data, offset + 24,
+                             ((slot % 4) * 16 + 8) / width, ((slot // 4) * 16 + 8) / height)
+    data.extend(atlas)
     (DIRECTORY / "ascher-artura.agm").write_bytes(data)
     manifest_path = DIRECTORY / "ascher-artura.conversion.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -70,6 +96,8 @@ def build():
                            "recommended_capture_size": [1024, 608]}
     manifest["led_mapping"] = {"supported": bool(groups), "physical_device": 6,
                                "physical_pixels": 63, "mapped_controls": len(groups), "mapping": "ascher-artura.mapping.json"}
+    manifest["materials"].update(count=16, palette="Supplied muted palette with red/blue control overrides",
+                                  control_colors="ascher-artura.colors.json")
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"sha256": manifest["sha256"], "bytes": len(data), "triangles": manifest["triangles"],
                       "mapped_leds": len(groups)}))
