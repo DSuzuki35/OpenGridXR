@@ -49,8 +49,8 @@ export default function SimHubBridgePanel({ disabled = false }) {
       <Button icon={RefreshCw} disabled={locked} onClick={() => run('refresh', () => api.simHubBridgeStatus())}>Refresh bridge status</Button>
     </div>
     <Note>
-      Close SimHub before installing. Afterwards, start SimHub, enable <strong>oVRlay lights</strong> in Plugins,
-      then enable <strong>Mirror my wheel lights in oVRlay</strong>. Keep your physical wheel connected and enabled in SimHub Devices.
+      Close SimHub before installing. Afterwards, start SimHub, enable <strong>OpenGrid XR Lights</strong> in Plugins,
+      then enable <strong>Mirror my wheel lights in OpenGrid XR</strong>. Choose Connected wheel for hardware or Virtual wheel for effects without a physical device.
     </Note>
     <details>
       <summary>Supported wheels and manual installation</summary>

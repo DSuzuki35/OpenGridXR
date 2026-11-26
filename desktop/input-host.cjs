@@ -1,10 +1,12 @@
 "use strict";
 const { spawn: defaultSpawn } = require("node:child_process");
 const DEVICE_ID = /^dinput:\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$/;
+const STEERING_AXES = Object.freeze(['x','y','z','rx','ry','rz','slider0','slider1']);
 
-function createInputHost({ executable, onPress = () => {}, onRelease = () => {}, onHeld = () => {}, onStatus = () => {}, spawn = defaultSpawn, testMode = false, fixture = false } = {}) {
+function createInputHost({ executable, onPress = () => {}, onRelease = () => {}, onHeld = () => {}, onAxes = () => {}, onStatus = () => {}, spawn = defaultSpawn, testMode = false, fixture = false } = {}) {
   let child = null, stoppingChild = null, retry = null, stopTimer = null, closed = false, active = false, attempt = 0, generation = 0;
   let state = { active: false, running: false, available: false, devices: [], error: "Input bindings are off.", retryAt: 0 };
+  let steeringCommand = null;
   const report = (patch) => { state = { ...state, ...patch }; onStatus(structuredClone(state)); };
   const cancelRetry = () => { if (retry) clearTimeout(retry); retry = null; };
   function schedule() {
@@ -63,10 +65,21 @@ function createInputHost({ executable, onPress = () => {}, onRelease = () => {},
                   typeof device.name !== "string" || device.name.length > 512 || /[\x00-\x1f]/.test(device.name) ||
                   !Number.isInteger(device.buttons) || device.buttons < 0 || device.buttons > 128 ||
                   !Number.isInteger(device.povs) || device.povs < 0 || device.povs > 4) return fail("Invalid input device list.");
-              ids.add(device.id); devices.push({ id: device.id, name: device.name, buttons: device.buttons, povs: device.povs });
+              if(device.axes!==undefined && (!Array.isArray(device.axes) || device.axes.length>8 || new Set(device.axes).size!==device.axes.length || !device.axes.every(axis=>STEERING_AXES.includes(axis)))) return fail('Invalid input axes.');
+              ids.add(device.id); devices.push({ id: device.id, name: device.name, buttons: device.buttons, povs: device.povs, ...(device.axes===undefined?{}:{axes:[...device.axes]}) });
             }
             received = true;
             report({ available: true, devices, error: devices.length ? "" : "No input devices connected." });
+          } else if(record.op==='error') {
+            return fail('Steering output is unavailable.');
+          } else if(record.op==='axes') {
+            const device=state.devices.find(item=>item.id===record.deviceId);
+            if(!steeringCommand || !received || !device || !record.axes || typeof record.axes!=='object' || Array.isArray(record.axes) ||
+               !Number.isSafeInteger(record.sampledAt) || record.sampledAt<=0 || Object.keys(record.axes).length>8 ||
+               !Object.entries(record.axes).every(([axis,value])=>device.axes?.includes(axis) && typeof value==='number' && Number.isFinite(value) && value>=-1 && value<=1)) return fail('Invalid axis report.');
+            const fresh=Math.abs(Date.now()-record.sampledAt)<=250;
+            try { onAxes({deviceId:device.id,axes:fresh?{...record.axes}:{},sampledAt:fresh?record.sampledAt:Date.now()}); }
+            catch { return fail('Input axis handler failed.'); }
           } else if (["press", "release", "held"].includes(record.op)) {
             const device = state.devices.find((item) => item.id === record.deviceId);
             const valid = input => input && typeof input === 'object' && !Array.isArray(input) && Number.isInteger(input.index) && input.index >= 0 &&
@@ -94,6 +107,7 @@ function createInputHost({ executable, onPress = () => {}, onRelease = () => {},
       });
       spawned.stderr.on("data", () => {});
       spawned.stdin?.on("error", () => fail("Input helper disconnected."));
+      if(steeringCommand) spawned.stdin.write(steeringCommand);
       spawned.on("error", () => fail("Build or install the input helper to use bindings."));
       spawned.on("close", () => {
         if (generation !== current || child !== spawned) return;
@@ -114,6 +128,19 @@ function createInputHost({ executable, onPress = () => {}, onRelease = () => {},
     }
   }
   return {
+    configureSteering(value) {
+      if(closed) return;
+      if(!value || typeof value.enabled!=='boolean' || typeof value.discover!=='boolean' ||
+         typeof value.deviceId!=='string' || (value.deviceId!=='' && !DEVICE_ID.test(value.deviceId)) ||
+         !STEERING_AXES.includes(value.axis) || !Number.isInteger(value.lockDegrees) || value.lockDegrees<90 || value.lockDegrees>2520 ||
+         typeof value.invert!=='boolean' || !Number.isInteger(value.token) || value.token<0 || value.token>0xffffffff ||
+         (value.enabled && (!value.deviceId || !value.token))) throw new TypeError('Invalid steering configuration.');
+      const command=JSON.stringify({op:'steering',enabled:value.enabled,discover:value.discover,deviceId:value.deviceId,
+        axis:value.axis,lockDegrees:value.lockDegrees,invert:value.invert,token:value.token})+'\n';
+      if(command===steeringCommand && !value.discover) return;
+      steeringCommand=command;
+      if(child && stoppingChild!==child) { try {child.stdin.write(command);} catch {try {child.kill();} catch {}} }
+    },
     setActive(value) {
       if (closed) return;
       if (typeof value !== "boolean") throw new TypeError("Input activation must be a boolean.");
@@ -125,4 +152,4 @@ function createInputHost({ executable, onPress = () => {}, onRelease = () => {},
     close() { if (closed) return; active = false; closed = true; cancelRetry(); report({ active: false, running: false, available: false, devices: [], retryAt: 0, error: "Input bindings are off." }); stop(); },
   };
 }
-module.exports = { createInputHost };
+module.exports = { createInputHost, STEERING_AXES, DEVICE_ID };

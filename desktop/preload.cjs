@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld(
       return () => ipcRenderer.removeListener("opengrid:updateStatus", listener);
     },
     inputStatus: () => invoke("inputStatus"),
+    steeringInputStatus: request => invoke('steeringInputStatus', request),
+    steeringInputStopDiscovery: () => invoke('steeringInputStopDiscovery'),
     inputEditorState: (state) => invoke("inputEditorState", state),
     inputCaptureStart: (actionId, profileId) => invoke("inputCaptureStart", actionId, profileId),
     inputCaptureStatus: () => invoke("inputCaptureStatus"),

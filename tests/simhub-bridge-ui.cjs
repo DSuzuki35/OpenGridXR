@@ -29,7 +29,7 @@ const assert = require('node:assert/strict');
         install: async () => {
           fixture.installs++;
           if (fixture.fail) throw Error('Close SimHub before installing the bridge.');
-          fixture.state = {...fixture.state,installed:true,current:true,message:'Bridge installed. Start SimHub and enable oVRlay lights.'};
+          fixture.state = {...fixture.state,installed:true,current:true,message:'Bridge installed. Start SimHub and enable OpenGrid XR Lights.'};
           return {...fixture.state};
         },
       });

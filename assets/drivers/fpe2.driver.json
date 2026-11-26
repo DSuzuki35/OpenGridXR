@@ -1,12 +1,14 @@
 {
   "file": "fpe2.agd",
-  "bytes": 24586696,
-  "sha256": "646a4e7b25ba0f3c6ea2d411cc66aee20c41471c5535c1d78b7bc0325f7f28c6",
-  "format": 4,
+  "bytes": 24627576,
+  "sha256": "a97c0f0a0795ae4194a8b3eb449f21ea830188e03358d28591a15c5e52dc4d18",
+  "format": 5,
   "vertices": 81354,
   "triangles": 101093,
   "joints": 90,
   "frames": 241,
+  "authoredWidthMeters": 0.31,
+  "calibration": "rigid two-bone arms; independent metric seated body",
   "releaseAngleDegrees": 70,
   "takeoverAngleDegrees": 90,
   "parts": [

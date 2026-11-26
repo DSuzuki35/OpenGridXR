@@ -20,6 +20,8 @@ export function wheelDriverAsset(modelId) {
 }
 export const driverThemes = Object.freeze(["Purple", "Black", "Red", "Blue", "White"]);
 export const driverDefaults = Object.freeze({ driverEnabled: false, driverGloveTheme: 0, driverSuitTheme: 0, driverTorso: false, driverLegs: false });
+export const driverFitDefaults = Object.freeze({ driverSeatHeight: 0, driverSeatDistance: 0, driverShoulderWidth: 1, driverTorsoLean: 0, driverLegLength: 1, driverKneeHeight: 0 });
+export const driverFitRanges = Object.freeze({ driverSeatHeight: [-.3, .3], driverSeatDistance: [-.3, .4], driverShoulderWidth: [.75, 1.25], driverTorsoLean: [-20, 30], driverLegLength: [.7, 1.15], driverKneeHeight: [-.15, .15] });
 export const centeredDriverAxis = Object.freeze({ pivotX: 0, pivotY: 0, pivotZ: 0, steeringTilt: 0 });
 export function supportsDriverAxis({ pivotX = 0, pivotY = 0, pivotZ = 0, steeringTilt = 0 }) {
   return pivotX * pivotX + pivotY * pivotY + pivotZ * pivotZ <= 0.00250001 && Math.abs(steeringTilt) <= 10;
@@ -37,16 +39,22 @@ const recenterChord = new RegExp("^(?:Ctrl\\+)?(?:Alt\\+)?(?:Shift\\+)?(" + rece
 export const spatialDefaults = () => ({ enabled: false, recenterShortcut: "", pixelBudgetMP: 60, items: [] });
 export const spatialPositionLimits = Object.freeze({ x: [-5, 5], y: [-5, 5], z: [-10, -0.1] });
 export const steeringDefaults = Object.freeze({ steeringFollow: false, pivotX: 0, pivotY: 0, pivotZ: 0, steeringTilt: 0 });
+export const steeringInputDefaults = Object.freeze({ source: "telemetry", deviceId: "", axis: "x", lockDegrees: 900, invert: false });
+export const steeringAxes = Object.freeze(["x", "y", "z", "rx", "ry", "rz", "slider0", "slider1"]);
 export const poseRanges = Object.freeze({ ...spatialPositionLimits, yaw: [-180,180], pitch: [-180,180], roll: [-180,180], widthMeters: [0.1,3] });
 export const steeringRanges = Object.freeze({ pivotX: [-5,5], pivotY: [-5,5], pivotZ: [-5,5], steeringTilt: [-90,90] });
-const placementKeys = ["anchor", ...Object.keys(poseRanges), ...Object.keys(steeringDefaults)];
+const placementKeys = ["anchor", ...Object.keys(poseRanges), ...Object.keys(steeringDefaults), ...Object.keys(driverFitDefaults)];
 export function overlayPlacement(item, carId) {
   return (item.kind === "url" && carId && item.carPlacements?.find(pose => pose.carId === carId)) || item;
+}
+export function overlayDriverFit(item, carId) {
+  const pose = overlayPlacement(item, carId);
+  return Object.fromEntries(Object.entries(driverFitDefaults).map(([key, fallback]) => [key, pose[key] ?? item[key] ?? fallback]));
 }
 export function updateCarPlacement(item, carId, patch) {
   if (item.kind !== "url" || !carId) throw new Error("Choose a dashboard and enter a car to save its placement.");
   const placements = item.carPlacements || [];
-  const current = { ...steeringDefaults, ...overlayPlacement(item, carId), ...patch };
+  const current = { ...steeringDefaults, ...overlayDriverFit(item, carId), ...overlayPlacement(item, carId), ...patch };
   const pose = { carId, ...Object.fromEntries(placementKeys.map(key => [key, current[key]])) };
   if (placements.some(entry => entry.carId === carId))
     return { ...item, carPlacements: placements.map(entry => entry.carId === carId ? pose : entry) };
@@ -104,9 +112,16 @@ function validatePlacement(p) {
   if (p.steeringFollow !== undefined && typeof p.steeringFollow !== "boolean") fail();
   for (const [key, bounds] of Object.entries(poseRanges)) if (!range(p[key], ...bounds)) fail();
   for (const [key, bounds] of Object.entries(steeringRanges)) if (p[key] !== undefined && !range(p[key], ...bounds)) fail();
+  for (const [key, bounds] of Object.entries(driverFitRanges)) if (p[key] !== undefined && !range(p[key], ...bounds)) fail();
 }
 export function validateSpatialOverlays(s) {
   if (!s || typeof s.enabled !== "boolean" || !range(s.pixelBudgetMP, 15, 180, true) || !Array.isArray(s.items) || s.items.length > 15) fail();
+  if (s.steeringInput !== undefined) {
+    const input = s.steeringInput;
+    if (!input || !["telemetry", "device"].includes(input.source) || typeof input.deviceId !== "string" ||
+        (input.deviceId !== "" && !/^dinput:\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$/.test(input.deviceId)) ||
+        !steeringAxes.includes(input.axis) || !range(input.lockDegrees, 90, 2520, true) || typeof input.invert !== "boolean") fail();
+  }
   const validShortcut = value => value === undefined || (typeof value === "string" && (value === "" || /^(?:Ctrl\+)?(?:Alt\+)?(?:Shift\+)?F(?:[1-9]|1[0-2])$/.test(value)));
   if (s.recenterShortcut !== undefined && s.recenterShortcut !== "" &&
       (typeof s.recenterShortcut !== "string" || !recenterChord.test(s.recenterShortcut))) fail();

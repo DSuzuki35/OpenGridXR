@@ -39,6 +39,8 @@ function download(value, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const preview = {
+  async steeringInputStatus() { return {devices:[],samples:{},available:false,error:'Steering axis assignment requires the Windows app.'}; },
+  async steeringInputStopDiscovery() {},
   async simHubBridgeStatus() { return {directory:'',available:false,installed:false,current:false,running:null,message:'SimHub bridge installation requires the Windows app.'}; },
   async installSimHubBridge() { throw new Error('SimHub bridge installation requires the Windows app.'); },
   async chooseSimHubFolder() { throw new Error('Folder selection requires the Windows app.'); },

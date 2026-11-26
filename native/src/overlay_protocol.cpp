@@ -94,7 +94,7 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
                 }
             }
         }
-        if (!out.values.emplace(key, value).second || out.values.size() > 40) {
+        if (!out.values.emplace(key, value).second || out.values.size() > 48) {
             error = "Duplicate or excess keys";
             return false;
         }
@@ -153,6 +153,13 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
             return false;
         }
     }
+    if (out.values.count("steeringInputToken")) {
+        const auto token = out.number("steeringInputToken", -1);
+        if (op != "configure" || out.strings.count("steeringInputToken") || !std::isfinite(token) ||
+            token < 0 || token > 4294967295. || token != std::floor(token)) {
+            error = "Invalid steering input token"; return false;
+        }
+    }
     if (op == "place" || op == "placementPreview") {
         const auto slot = out.number("slot", -1);
         const auto mode = out.text("mode");
@@ -207,6 +214,17 @@ bool parse_overlay_command(const std::string &s, OverlayCommand &out, std::strin
         const auto value = out.number(key, -1);
         if (!driverSource || out.strings.count(key) || value < 0 || value > 4 || value != std::floor(value)) {
             error = "Invalid driver theme";
+            return false;
+        }
+    }
+    struct FitRange { const char* key; double low, high; };
+    for (const auto bound : {FitRange{"driverSeatHeight", -.3, .3}, FitRange{"driverSeatDistance", -.3, .4},
+         FitRange{"driverShoulderWidth", .75, 1.25}, FitRange{"driverTorsoLean", -20, 30},
+         FitRange{"driverLegLength", .7, 1.15}, FitRange{"driverKneeHeight", -.15, .15}}) {
+        if (!out.values.count(bound.key)) continue;
+        const auto value = out.number(bound.key, bound.low - 1);
+        if (!driverSource || out.strings.count(bound.key) || value < bound.low || value > bound.high) {
+            error = "Invalid driver seating adjustment";
             return false;
         }
     }

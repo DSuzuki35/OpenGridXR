@@ -584,6 +584,9 @@ struct Host {
             s.wheelModel.fill(0); s.wheelDevice=s.wheelLights=s.wheelScreen=0; s.wheelLightTick=0;
             s.wheelAmbientLight = 0;
             s.driverEnabled = s.driverGloveTheme = s.driverSuitTheme = s.driverTorso = s.driverLegs = 0;
+            s.driverSeatHeight = s.driverSeatDistance = s.driverTorsoLean = s.driverKneeHeight = 0;
+            s.driverShoulderWidth = s.driverLegLength = 1;
+            s.driverFitLimited = 0;
             s.driverState = 0;
             s.placementMode = 0;
             placementRequests[slot] = 0;
@@ -602,6 +605,7 @@ struct Host {
             if (op == "clear" || !c.boolean("enabled")) {
                 s.enabled = 0;
                 s.webDashboard = s.steeringFollow = 0;
+                s.steeringInputToken = 0;
                 s.cockpitOcclusion = 0;
                 s.state = og::OverlayState::Disabled;
                 s.frames = {};
@@ -651,8 +655,15 @@ struct Host {
                     s.driverSuitTheme = static_cast<std::uint32_t>(c.number("driverSuitTheme", 0));
                     s.driverTorso = c.boolean("driverTorso");
                     s.driverLegs = c.boolean("driverLegs");
+                    s.driverSeatHeight = float(c.number("driverSeatHeight", 0));
+                    s.driverSeatDistance = float(c.number("driverSeatDistance", 0));
+                    s.driverShoulderWidth = float(c.number("driverShoulderWidth", 1));
+                    s.driverTorsoLean = float(c.number("driverTorsoLean", 0));
+                    s.driverLegLength = float(c.number("driverLegLength", 1));
+                    s.driverKneeHeight = float(c.number("driverKneeHeight", 0));
                 }
                 s.steeringFollow = s.webDashboard && c.boolean("steeringFollow");
+                s.steeringInputToken = s.webDashboard ? std::uint32_t(c.number("steeringInputToken", 0)) : 0;
                 s.pivotX = float(std::clamp(c.number("pivotX", 0), -5., 5.));
                 s.pivotY = float(std::clamp(c.number("pivotY", 0), -5., 5.));
                 s.pivotZ = float(std::clamp(c.number("pivotZ", 0), -5., 5.));
@@ -962,6 +973,7 @@ struct Host {
                                       ? "true"
                                       : "false")
                               << ",\"driverState\":" << (ready && s.enabled && s.driverEnabled ? s.driverState : 0u)
+                              << ",\"driverFitLimited\":" << (ready && s.enabled && s.driverEnabled && s.driverFitLimited ? "true" : "false")
                               << ",\"placementMode\":" << s.placementMode << ",\"placementRequest\":" << placementRequests[i]
                               << ",\"placementAhead\":";
                     const auto &placement = s.placementAhead;

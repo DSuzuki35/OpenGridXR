@@ -75,7 +75,11 @@ void RunHelmetLighting(Game& game, bool liveEnable) {
           "an enabled helmet can turn on lighting after the game creates its color-only eyes");
     BeginSession(app);
     if (liveEnable) {
+        const auto previousStamp=std::filesystem::last_write_time(g_root/"OpenGridXR-helmet-lmu.json");
         lighting(100);
+        // The fixture rewrites immediately after session creation. Make the
+        // saved revision observable even when both writes share a clock tick.
+        std::filesystem::last_write_time(g_root/"OpenGridXR-helmet-lmu.json",previousStamp+std::chrono::seconds(1));
         Sleep(510); // The renderer checks the saved sidecar twice per second.
     }
     std::vector<Color> submitted;

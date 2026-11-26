@@ -32,7 +32,7 @@ if ($LASTEXITCODE -ne 0) { throw "LED tests could not compile (exit $LASTEXITCOD
 if ($LASTEXITCODE -ne 0) { throw "LED tests failed (exit $LASTEXITCODE)." }
 if ($TestOnly) { return }
 
-$referenceNames = @('SimHub.Plugins.dll', 'GameReaderCommon.dll', 'BA63Driver.dll', 'WoteverCommon.dll', 'Newtonsoft.Json.dll')
+$referenceNames = @('SimHub.Plugins.dll', 'GameReaderCommon.dll', 'BA63Driver.dll', 'WoteverCommon.dll', 'Newtonsoft.Json.dll', 'SerialDash.dll')
 $references = @()
 foreach ($name in $referenceNames) {
     $referencePath = Join-Path $SimHubPath $name
@@ -47,8 +47,18 @@ foreach ($name in @('PresentationCore.dll', 'PresentationFramework.dll', 'Window
 }
 $pluginPath = Join-Path $OutputDirectory 'oVRlay.SimHubLeds.dll'
 $pluginSource = Join-Path $sourcePath 'oVRlay.SimHubLeds.cs'
-& $compilerPath /nologo /optimize+ /warnaserror+ /target:library "/out:$pluginPath" "/r:System.Core.dll" "/r:System.Drawing.dll" "/r:System.Xaml.dll" @references $coreSource $senderSource $pluginSource
+$virtualSource = Join-Path $sourcePath 'oVRlay.VirtualWheels.cs'
+& $compilerPath /nologo /optimize+ /warnaserror+ /target:library "/out:$pluginPath" "/r:System.Core.dll" "/r:System.Drawing.dll" "/r:System.Xaml.dll" @references $coreSource $senderSource $pluginSource $virtualSource
 if ($LASTEXITCODE -ne 0) { throw "SimHub observer build failed (exit $LASTEXITCODE)." }
+$virtualTests = Join-Path $sourcePath 'oVRlay.VirtualSmoke.Tests.cs'
+$virtualTestExe = Join-Path $OutputDirectory 'oVRlay.VirtualSmoke.Tests.exe'
+& $compilerPath /nologo /optimize+ /warnaserror+ /target:exe "/out:$virtualTestExe" /r:System.Drawing.dll @references "/r:$(Join-Path $SimHubPath 'GongSolutions.WPF.DragDrop.dll')" $virtualTests
+if ($LASTEXITCODE -ne 0) { throw 'Virtual LED tests could not compile.' }
+# SimHub may create relative profile folders; keep the isolated harness in build output.
+Push-Location -LiteralPath $OutputDirectory
+try { & $virtualTestExe $pluginPath $SimHubPath; $virtualTestExit = $LASTEXITCODE }
+finally { Pop-Location }
+if ($virtualTestExit -ne 0) { throw 'Virtual LED tests failed.' }
 
 $manifest = [ordered]@{
     BuiltAtUtc = [DateTime]::UtcNow.ToString('o')

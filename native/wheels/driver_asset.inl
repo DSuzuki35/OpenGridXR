@@ -21,8 +21,20 @@ struct DriverAsset {
     Com<ID3D11InputLayout> layout;
     std::vector<float> palette;
     float bounds[241][4][6]{},currentBounds[4][6]{};
+    driver_fit::Metadata fitMetadata{};
+    driver_fit::Frame fitFrames[241]{};
+    uint32_t fitRoles[128]{};
+    driver_fit::Plan fitPlan{};
+    DriverFit cachedFit{};
+    DriverMount cachedMount{};
+    float cachedWidth{};
+    bool fitCached{};
+    // Source-space support boxes contain every vertex influenced by a joint.
+    // Their transformed union encloses linear skinning without per-frame vertices.
+    float support[128][4][6]{};
+    bool supported[128][4]{};
     unsigned joints{},counts[4]{};
-    bool torso{},legs{},dirty{},texturedCloth{};
+    bool torso{},legs{},dirty{},texturedCloth{},calibrated{},fitLimited{};
 
     bool initialize(ID3D11Device* device,const std::wstring& path) {
         // The host can replace staged assets while a prior revision finishes loading.
@@ -35,27 +47,44 @@ struct DriverAsset {
         if(!file){_close(fd);return false;}
         DriverHeader h{};
         if(!file || fread(&h,sizeof(h),1,file.get())!=1 || memcmp(h.magic,"AGDRVR1",8) ||
-           (h.version<2 || h.version>4) || !h.vertices || h.vertices>300000 || !h.indices || h.indices>1200000 ||
+           (h.version<2 || h.version>5) || !h.vertices || h.vertices>300000 || !h.indices || h.indices>1200000 ||
            h.indices%3 || !h.joints || h.joints>128 || h.frames!=241 || !h.width || !h.height ||
            h.width>2048 || h.height>2048) return false;
         if(h.version>=4 && (h.width<2 || h.width%2))return false;
         const size_t paletteSize=size_t(h.frames)*h.joints*12,atlasSize=size_t(h.width)*h.height*4;
         const size_t bytes=sizeof(h)+h.vertices*sizeof(DriverVertex)+h.indices*sizeof(uint32_t)+
-                           paletteSize*sizeof(float)+sizeof(bounds)+atlasSize*(h.version>=3?2:1);
+                           paletteSize*sizeof(float)+sizeof(bounds)+atlasSize*(h.version>=3?2:1)+
+                           (h.version>=5?sizeof(fitMetadata)+h.joints*4+sizeof(fitFrames):0);
         if(_filelengthi64(_fileno(file.get()))!=static_cast<__int64>(bytes)) return false;
         std::vector<DriverVertex> verts(h.vertices);
         std::vector<uint32_t> input(h.indices),sorted(h.indices);
         std::vector<unsigned char> texture(atlasSize);
         std::vector<unsigned char> normalTexture(atlasSize);
-        palette.resize(paletteSize);joints=h.joints;texturedCloth=h.version>=4;
+        palette.resize(paletteSize);joints=h.joints;texturedCloth=h.version>=4;calibrated=h.version>=5;
         auto read=[&](void* target,size_t size){return fread(target,1,size,file.get())==size;};
         if(!read(verts.data(),verts.size()*sizeof(DriverVertex)) || !read(input.data(),input.size()*4) ||
-           !read(palette.data(),palette.size()*4) || !read(bounds,sizeof(bounds)) ||
-           !read(texture.data(),atlasSize) || (h.version>=3 && !read(normalTexture.data(),atlasSize))) return false;
+           !read(palette.data(),palette.size()*4) || !read(bounds,sizeof(bounds))) return false;
+        if(calibrated && (!read(&fitMetadata,sizeof(fitMetadata)) || !read(fitRoles,joints*4) ||
+                          !read(fitFrames,sizeof(fitFrames))))return false;
+        if(!read(texture.data(),atlasSize) || (h.version>=3 && !read(normalTexture.data(),atlasSize))) return false;
         if(h.version==2)for(size_t i=0;i<atlasSize;i+=4) {
             normalTexture[i]=normalTexture[i+1]=128;normalTexture[i+2]=normalTexture[i+3]=255;
         }
         auto bounded=[](float v){return std::isfinite(v) && std::abs(v)<=100;};
+        if(calibrated) {
+            if(!std::isfinite(fitMetadata.width) || fitMetadata.width<.1f || fitMetadata.width>1)return false;
+            for(float v:fitMetadata.pelvis)if(!bounded(v))return false;
+            for(float v:fitMetadata.upper)if(!std::isfinite(v) || v<.02f || v>1)return false;
+            for(float v:fitMetadata.lower)if(!std::isfinite(v) || v<.02f || v>1)return false;
+            for(unsigned i=0;i<joints;i++)if(fitRoles[i]>=driver_fit::roleCount)return false;
+            for(const auto& frame:fitFrames)for(const auto& side:frame.points) {
+                for(const auto& p:side)if(!bounded(p.x) || !bounded(p.y) || !bounded(p.z))return false;
+                for(unsigned segment=0;segment<5;segment++)if(segment!=2) {
+                    const float length=driver_fit::length(side[segment+1]-side[segment])*fitMetadata.width;
+                    if(length<.02f || length>1)return false;
+                }
+            }
+        }
         for(auto& v:verts) {
             for(float q:v.position) if(!bounded(q)) return false;
             for(float q:v.normal) if(!bounded(q)) return false;
@@ -67,6 +96,14 @@ struct DriverAsset {
                 sum+=v.weights[k];
             }
             if(std::abs(sum-1)>.002f) return false;
+            if(calibrated)for(unsigned k=0;k<4;k++)if(v.weights[k]>0) {
+                const unsigned j=v.joints[k],part=unsigned(v.part);auto& box=support[j][part];
+                for(unsigned axis=0;axis<3;axis++) {
+                    box[axis]=supported[j][part]?std::min(box[axis],v.position[axis]):v.position[axis];
+                    box[axis+3]=supported[j][part]?std::max(box[axis+3],v.position[axis]):v.position[axis];
+                }
+                supported[j][part]=true;
+            }
         }
         for(float v:palette) if(!bounded(v)) return false;
         for(auto& frame:bounds) for(auto& b:frame) for(unsigned a=0;a<3;a++)
@@ -208,9 +245,13 @@ struct DriverAsset {
     }
 };
 bool MeshRenderer::selectDriver(ID3D11Device* device,unsigned slot,const std::wstring& path,float radians,
-                                const float (&mount)[12],unsigned glove,unsigned suit,bool torso,bool legs) noexcept {
-    driver=nullptr;
+                                const float (&mount)[12],unsigned glove,unsigned suit,bool torso,bool legs,
+                                const DriverFit& fit,float wheelWidth,const DriverMount& mountSettings) noexcept {
+    driver=nullptr;fitLimitedState=false;
     if(slot>=15 || !device || !active || !std::isfinite(radians))return false;
+    if(!std::isfinite(wheelWidth) || wheelWidth<.1f || wheelWidth>3) {fitLimitedState=true;return false;}
+    if(!std::isfinite(mountSettings.pivotX) || !std::isfinite(mountSettings.pivotY) ||
+       !std::isfinite(mountSettings.pivotZ) || !std::isfinite(mountSettings.tiltDegrees)) {fitLimitedState=true;return false;}
     for(float v:mount)if(!std::isfinite(v))return false;
     try {
         driver=drivers.select(slot,path,[&]{
@@ -239,6 +280,53 @@ bool MeshRenderer::selectDriver(ID3D11Device* device,unsigned slot,const std::ws
         const float c=std::cos(radians),s=std::sin(radians);
         const float back[]={c,s,0,0,-s,c,0,0,0,0,1,0};
         std::copy_n(back,12,d.pose.gripMount);
+        d.fitLimited=false;
+        if(d.calibrated) {
+            driver_fit::Frame landmarks;
+            for(unsigned side=0;side<2;side++)for(unsigned point=0;point<7;point++) {
+                const auto p=d.fitFrames[a].points[side][point];
+                landmarks.points[side][point]=p+(d.fitFrames[b].points[side][point]-p)*(frame-float(a));
+            }
+            driver_fit::Matrix bodyMount,gripMount;
+            std::copy_n(mount,12,bodyMount.v);std::copy_n(back,12,gripMount.v);
+            const DriverFit clean=driver_fit::sanitized(fit);
+            const bool changed=!d.fitCached || d.cachedWidth!=wheelWidth || std::memcmp(&clean,&d.cachedFit,sizeof(clean)) ||
+                               std::memcmp(&mountSettings,&d.cachedMount,sizeof(mountSettings));
+            if(changed) {
+                d.fitPlan=driver_fit::prepare(d.fitFrames,d.fitMetadata,clean,mountSettings,wheelWidth);
+                d.cachedFit=clean;d.cachedMount=mountSettings;d.cachedWidth=wheelWidth;d.fitCached=true;
+            }
+            fitLimitedState=d.fitPlan.limited;
+            if(!d.fitPlan.valid){driver=nullptr;return false;}
+            const auto solution=driver_fit::solve(landmarks,d.fitMetadata,d.fitPlan,bodyMount,gripMount,wheelWidth);
+            bool safe=driver_fit::wristsComfortable(solution,landmarks,gripMount);
+            for(unsigned side=0;side<2;side++)safe&=std::abs(driver_fit::length(solution.wrists[side]-solution.elbows[side])-d.fitMetadata.lower[side])<.0002f;
+            if(!safe) {d.fitPlan.valid=false;d.fitPlan.limited=true;fitLimitedState=true;driver=nullptr;return false;}
+            d.fitLimited=solution.limited;
+            for(unsigned part=0;part<4;part++)for(unsigned axis=0;axis<3;axis++) {
+                d.currentBounds[part][axis]=1e10f;d.currentBounds[part][axis+3]=-1e10f;
+            }
+            for(unsigned joint=0;joint<d.joints;joint++) {
+                driver_fit::Matrix original;std::copy_n(d.pose.joints+joint*12,12,original.v);
+                // Palette output is authored-width units; calibrate in metres,
+                // then return wheel-width units for the shared stereo shaders.
+                for(float& value:original.v)value*=d.fitMetadata.width;
+                auto transformed=driver_fit::multiply(solution.transforms[d.fitRoles[joint]],original);
+                for(float& value:transformed.v)value/=wheelWidth;
+                std::copy_n(transformed.v,12,d.pose.joints+joint*12);
+                for(unsigned part=0;part<4;part++)if(d.supported[joint][part])for(unsigned corner=0;corner<8;corner++) {
+                    const auto& box=d.support[joint][part];
+                    const auto p=transformed.point({box[(corner&1)?3:0],box[(corner&2)?4:1],box[(corner&4)?5:2]});
+                    const float xyz[]={p.x,p.y,p.z};
+                    for(unsigned axis=0;axis<3;axis++) {
+                        d.currentBounds[part][axis]=std::min(d.currentBounds[part][axis],xyz[axis]);
+                        d.currentBounds[part][axis+3]=std::max(d.currentBounds[part][axis+3],xyz[axis]);
+                    }
+                }
+            }
+            const driver_fit::Matrix identity;
+            std::copy_n(identity.v,12,d.pose.mount);std::copy_n(identity.v,12,d.pose.gripMount);
+        }
         constexpr float tint[][4]={{.36f,.035f,.72f,1},{.04f,.04f,.045f,1},{1,0,0,1},{.025f,.17f,.8f,1},{.9f,.9f,.9f,1}};
         std::copy_n(tint[glove<=4?glove:0],4,d.pose.glove);
         std::copy_n(tint[suit<=4?suit:0],4,d.pose.suit);
@@ -246,3 +334,4 @@ bool MeshRenderer::selectDriver(ID3D11Device* device,unsigned slot,const std::ws
         return true;
     } catch(...) {driver=nullptr;return false;}
 }
+bool MeshRenderer::driverFitLimited() const noexcept {return fitLimitedState;}

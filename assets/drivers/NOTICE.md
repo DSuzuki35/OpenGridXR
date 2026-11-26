@@ -55,3 +55,17 @@ separate cloth region. Cloth diffuse alpha is a theme-independent stitch mask,
 not transparency. No original suit logos or third-party fabric images are used.
 At load time the regions become separate texture-array slices with independent
 mip levels, preventing cross-material color or stitching bleed at distance.
+
+Version 5 appends authored width, pelvis, joint roles and the shoulder/elbow/
+wrist/hip/knee/ankle landmarks, cuff axes and anatomical arm lengths before the texture data.
+Runtime seat calibration uses metre-based body proportions independent of wheel
+width and rigid two-bone arm solves, preserving the authored grip targets. An
+unreachable seat request is bounded against the complete steering sweep and
+reports the limit; it does not stretch sleeves or move the seat while steering.
+The elbow bend direction respects a 60-degree cuff/forearm flexion limit,
+including the supported tilted shaft and displaced pivot. Fits with no feasible
+anatomical solution hide the driver and report an unavailable-fit status.
+Leg length scales the leg segments,
+and knee height changes the seated thigh angle while preserving those lengths.
+Conservative joint support boxes update the shared stereo aperture and depth
+range without streaming vertices or loading new assets during calibration.

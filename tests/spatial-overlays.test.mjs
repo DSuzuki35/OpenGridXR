@@ -4,6 +4,49 @@ import { createSpatialOverlay, createQuickMenuOverlay, spatialDefaults, validate
 import { createProfile, normalizeProfile, parseProfile } from "../src/model.mjs";
 import * as spatial from "../src/spatial-overlays.mjs";
 
+test("assigned steering axis persists with a 900 degree default and validates device settings", () => {
+  assert.equal(spatial.steeringInputDefaults.lockDegrees, 900);
+  const settings = spatialDefaults();
+  settings.steeringInput = { ...spatial.steeringInputDefaults, source: "device", deviceId: "dinput:{00000000-0000-0000-0000-000000000001}", axis: "rx", invert: true };
+  const profile = createProfile(); profile.spatialOverlays = settings;
+  assert.deepEqual(parseProfile(JSON.stringify({version:1,profile})).spatialOverlays.steeringInput, settings.steeringInput);
+  for (const patch of [{source:"auto"},{deviceId:"random"},{axis:"button"},{lockDegrees:89},{lockDegrees:2521},{lockDegrees:NaN},{lockDegrees:"900"},{invert:1}])
+    assert.throws(() => validateSpatialOverlays({...settings,steeringInput:{...settings.steeringInput,...patch}}));
+  assert.doesNotThrow(() => validateSpatialOverlays({...settings,steeringInput:{...spatial.steeringInputDefaults, source:"device"}}));
+  assert.doesNotThrow(() => validateSpatialOverlays(spatialDefaults()));
+});
+
+test("driver seating follows car placement while old profiles inherit the default fit", () => {
+  const item = { ...createSpatialOverlay(), wheelModel: "fpe2", driverEnabled: true, driverSeatHeight: -.12, driverLegLength: .9 };
+  const saved = spatial.updateCarPlacement(item, "iracing-123", { driverSeatDistance: .04, driverShoulderWidth: 1.1 });
+  const profile = createProfile(); profile.spatialOverlays.items = [saved];
+  const loaded = parseProfile(JSON.stringify({ version: 1, profile })).spatialOverlays.items[0];
+  assert.equal(spatial.overlayDriverFit(loaded, "iracing-123").driverSeatHeight, -.12);
+  assert.equal(spatial.overlayDriverFit(loaded, "iracing-123").driverSeatDistance, .04);
+  assert.equal(spatial.overlayDriverFit(loaded, "iracing-456").driverSeatDistance, 0);
+  assert.equal(spatial.overlayDriverFit(loaded, "iracing-123").driverLegLength, .9);
+  delete loaded.carPlacements[0].driverSeatHeight;
+  assert.equal(spatial.overlayDriverFit(loaded, "iracing-123").driverSeatHeight, -.12);
+  const changed = spatial.updateCarPlacement(loaded, "iracing-123", { x: .25 });
+  assert.equal(spatial.overlayDriverFit(changed, "iracing-123").driverSeatHeight, -.12);
+  assert.equal(item.carPlacements, undefined);
+});
+
+test("driver seating rejects invalid values in default and saved car placements", () => {
+  for (const [key, bounds] of Object.entries(spatial.driverFitRanges || {})) {
+    for (const value of [bounds[0] - .01, bounds[1] + .01, NaN, Infinity, "0", null]) {
+      const settings = spatialDefaults();
+      const item = { ...createSpatialOverlay(), wheelModel: "fpe2", [key]: value };
+      settings.items = [item];
+      assert.throws(() => validateSpatialOverlays(settings), key);
+      delete item[key];
+      settings.items = [spatial.updateCarPlacement(item, "iracing-1", { [key]: value })];
+      assert.throws(() => validateSpatialOverlays(settings), `${key} per car`);
+    }
+  }
+  assert.equal(Object.keys(spatial.driverFitRanges).length, 6);
+});
+
 test("menu visibility and selection reserve default and custom color chords, but allow explicit unbinding", () => {
   for (const field of ["shortcut", "selectShortcut"]) {
     for (const colorCorrection of [undefined, {}, { cycleShortcut: "Ctrl+Alt+F6" }, { enabled: false, cycleShortcut: "F4" }]) {

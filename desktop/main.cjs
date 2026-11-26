@@ -140,7 +140,11 @@ else {
         }
         return Date.now()-entry.at<=3000?{live:entry.live,color:entry.color}:{};
       }
-      const services = createModuleServices({ isEnabled: enabled, factories: {
+      const services = createModuleServices({ isEnabled: id => enabled(id === 'steering' ? 'spatial' : id), factories: {
+        steering: () => require('./steering-input.cjs').createSteeringInputController({
+          createHost: callbacks => require('./input-host.cjs').createInputHost({ ...callbacks,
+            executable: path.join(helpersDir, 'OpenGridXR-Input.exe'), testMode }),
+        }),
         colorCorrection: () => require('./color-correction.cjs').createColorCorrection({
           executable:path.join(helpersDir,'OpenGridXR-Control.exe'),testMode,
         }),
@@ -156,6 +160,11 @@ else {
         }),
         spatial: async () => {
           const controller = await require('./spatial-overlays.cjs').createSpatialOverlays({ electron: require('electron'), executable: path.join(helpersDir, 'OpenGridXR-OverlayHost.exe'), getSessions: runtime.sessionsStatus, model, testMode,
+            onSteeringSettings: async (settings, active) => {
+              if (!enabled('spatial')) return;
+              const input = active ? await services.get('steering') : services.peek('steering');
+              if (enabled('spatial')) input?.configure(settings, active);
+            },
             getCar: async game => enabled('telemetry') ? (await services.get('telemetry')).currentCar(game) : null,
             getMenuState:({profileId})=>{
               const profile=effective(telemetryDocument).profiles.find(p=>p.id===profileId);
@@ -310,6 +319,8 @@ else {
         if (spatialNeeded) (await services.get('spatial')).update(doc);
         else if (enabled('spatial')) services.peek('spatial')?.update(doc);
         else await services.close('spatial');
+        if (!enabled('spatial')) await services.close('steering');
+        else if (!spatialNeeded) services.peek('steering')?.configure(undefined, false);
         const inputNeeded = enabled('bindings') && selected?.inputBindings?.enabled && selected.inputBindings.bindings.some(binding => enabled(moduleForAction(binding.actionId)));
         if (inputNeeded) (await services.get('bindings')).update(doc);
         else await services.close('bindings');
@@ -476,6 +487,12 @@ else {
       handle("installUpdate", () => updates.install());
       const idleInput = () => ({active:false,running:false,available:false,devices:[],paused:true,captureState:'idle',message:enabled('bindings')?'No active input bindings.':'Input bindings are disabled in Settings.'});
       handle("inputStatus", () => services.peek('bindings')?.status() || idleInput());
+      handle('steeringInputStatus', async request => {
+        requireModule('spatial');
+        if (!request || typeof request.discover !== 'boolean') throw Error('Invalid steering discovery request.');
+        return (await services.get('steering')).status({ discover: request.discover });
+      });
+      handle('steeringInputStopDiscovery', () => services.peek('steering')?.releaseDiscovery());
       handle("inputEditorState", (state) => {
         if (!state || typeof state.dirty !== 'boolean' || typeof state.busy !== 'boolean' || typeof state.profileId !== 'string' || state.profileId.length > 128) throw new Error('Invalid input editor state.');
         if (state.profileId !== editorStatus.profileId || !state.dirty) runtime.resetOutputFraming();

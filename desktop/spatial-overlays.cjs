@@ -9,9 +9,9 @@ const { stageDriver } = require("./driver-assets.cjs");
 const { randomUUID } = require('node:crypto');
 const { createQuickMenuGateway, menuActions } = require('./quick-menu.cjs');
 
-async function createSpatialOverlays({ electron, executable, getSessions, getCar, model, hostFactory = createOverlayHost, stageDriverAsset = stageDriver, setTimer = setInterval, clearTimer = clearInterval, getMenuState, onMenuAction }) {
+async function createSpatialOverlays({ electron, executable, getSessions, getCar, model, hostFactory = createOverlayHost, stageDriverAsset = stageDriver, setTimer = setInterval, clearTimer = clearInterval, getMenuState, onMenuAction, onSteeringSettings }) {
   const { BrowserWindow, desktopCapturer, session, screen } = electron;
-  const { effectiveOverlayRates, hasWheelScreen, hasWheelLights, hasWheelDriver, supportsDriverAxis, wheelLightDevice, spatialDefaults, overlayPlacement, steeringDefaults, driverDefaults, spatialPositionLimits } = await import(pathToFileURL(path.join(__dirname, "../src/spatial-overlays.mjs")).href);
+  const { effectiveOverlayRates, hasWheelScreen, hasWheelLights, hasWheelDriver, supportsDriverAxis, wheelLightDevice, spatialDefaults, overlayPlacement, overlayDriverFit, steeringDefaults, driverDefaults, spatialPositionLimits } = await import(pathToFileURL(path.join(__dirname, "../src/spatial-overlays.mjs")).href);
   const driverDirectory = electron.app?.isPackaged ? path.join(process.resourcesPath, "drivers") : path.join(__dirname, "../assets/drivers");
   const games = new Map(), selections = new Map(), titles = new Map();
   let document = null, closed = false, syncing = false, syncAgain = false, generation = 0, timer = null;
@@ -291,6 +291,9 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
       const needsSessions = profiles.some((p) => p?.spatialOverlays?.enabled && p.spatialOverlays.items.some((o) => o.enabled));
       const sessions = needsSessions ? await getSessions() : [];
       if (closed || expectedGeneration !== generation) return;
+      const steeringProfile = require('./steering-selection.cjs').steeringProfile(document, sessions);
+      if (onSteeringSettings) await onSteeringSettings(steeringProfile?.spatialOverlays.steeringInput, !!steeringProfile);
+      if (closed || expectedGeneration !== generation) return;
       for (const game of ["iracing", "lmu"]) {
         if (closed) return;
         const g = gameFor(game), p = selectedForGame(document, game), settings = p?.spatialOverlays || spatialDefaults();
@@ -355,12 +358,16 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
           const pose = overlayPlacement(item, g.car?.id);
           const driverRequested = item.driverEnabled === true && hasWheelDriver(item.wheelModel) && supportsDriverAxis(pose);
           const configuration = { op: "configure", slot, ...(uiToken?{uiToken}:{}), enabled: item.kind !== "desktop" || !!desktop, anchor: pose.anchor, x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll, widthMeters: pose.widthMeters, opacity: item.opacity / 100,
-            ...(item.kind === "url" ? Object.fromEntries(Object.entries(steeringDefaults).map(([key, fallback]) => [key, pose[key] ?? fallback])) : {}),
+            ...(item.kind === "url" ? {
+              ...Object.fromEntries(Object.entries(steeringDefaults).map(([key, fallback]) => [key, pose[key] ?? fallback])),
+              steeringInputToken: settings.steeringInput?.source === "device" ? require('./steering-input.cjs').steeringSettingsToken(settings.steeringInput) : 0,
+            } : {}),
             ...(item.kind==="url" && item.wheelModel ? {wheelModel:item.wheelModel,wheelLights:hasWheelLights(item.wheelModel) && item.wheelLights===true,
               wheelAmbientLight:item.wheelAmbientLight ?? 0,
               wheelDevice:wheelLightDevice(item.wheelModel, item.wheelDevice || 0),wheelScreen:!!dashboardUrl(item)} : {}),
             ...(hasWheelDriver(item.wheelModel) ? {
               ...Object.fromEntries(Object.entries(driverDefaults).map(([key, fallback]) => [key, item[key] ?? fallback])),
+              ...overlayDriverFit(item, g.car?.id),
               driverEnabled: driverRequested && existing?.driver?.ready === true,
             } : {}),
             sourceKind: item.kind, cockpitOcclusion: item.kind === "url" && item.cockpitOcclusion === true,
@@ -501,7 +508,8 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
           const source = g.sources.get(item.id), input = nativeSlot(native, slot);
           const driverReadyForRenderer = item.driverEnabled === true && source?.driver?.ready === true && supportsDriverAxis(overlayPlacement(item, g.car?.id));
           const driverError = item.driverEnabled && (source?.driver?.error ||
-            (driverReadyForRenderer && input?.driverState === 3 ? "The renderer could not load the driver asset." : ""));
+            (driverReadyForRenderer && input?.driverState === 3 ? "The renderer could not load the driver asset." :
+             driverReadyForRenderer && input?.driverState === 4 ? "Driver unavailable at this wheel size. Reduce wheel width or reset driver fit." : ""));
           const displaying = isDisplaying(settings, item, slot, rates, source, native, admitted);
           if (displaying && item.kind === "url" && preview?.profileId === profile.id && preview.id === item.id) {
             g.editorUntil = Date.now() + 2500;
@@ -514,6 +522,7 @@ async function createSpatialOverlays({ electron, executable, getSessions, getCar
             source: sourceSummary(game, item, source, displaying),
             ...(item.wheelModel ? {ledConnected:!!(source?.led && wheelLights.sample(source.led.device)), ledError:wheelLights.error} : {}),
             ...(driverError ? { driverError } : {}),
+            driverFitLimited: displaying && driverReadyForRenderer && input?.driverFitLimited === true,
             status: item.wheelModel && input?.state===3 ? "layer-limit" :
               item.wheelModel && input?.state===5 ? "error" :
               item.wheelModel && source?.status==="capturing" && !displaying ? "waiting" : source?.status || (!settings.enabled || !item.enabled ? "disabled" : rates[slot] === 0 ? "budget-paused" : native.available && !admitted.has(item.id) ? "layer-limit" : "waiting"), reason: source?.reason || (item.wheelModel && input?.state===5 ? "The renderer could not load the wheel. Re-import a custom model or check the graphics device." : item.wheelModel && input?.state===0 && source?.status==="capturing" ? "Waiting for the VR renderer to present the wheel." : ""), effectiveFps: rates[slot] };

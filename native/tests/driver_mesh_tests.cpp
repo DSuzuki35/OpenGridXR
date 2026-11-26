@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -13,6 +14,87 @@
 using namespace ovrlay;
 namespace fs=std::filesystem;
 static void check(bool value,const char* why){if(!value)throw std::runtime_error(why);}
+static void verifyFit(const fs::path& path) {
+    using namespace driver_fit;
+    std::ifstream file(path,std::ios::binary);char magic[8];uint32_t header[7];
+    file.read(magic,8);file.read(reinterpret_cast<char*>(header),sizeof(header));
+    check(file && header[0]==5,"built-in driver has v5 anatomy metadata");
+    const auto vertices=header[1],indices=header[2],joints=header[3];
+    file.seekg(36ull+vertices*68ull+indices*4ull+241ull*joints*48+241ull*4*6*4);
+    Metadata meta;uint32_t roles[128];Frame frames[241];
+    file.read(reinterpret_cast<char*>(&meta),sizeof(meta));file.read(reinterpret_cast<char*>(roles),joints*4);
+    file.read(reinterpret_cast<char*>(frames),sizeof(frames));check(bool(file),"read calibration metadata");
+    const DriverFit fits[]={{},{-.3f,-.3f,.75f,-20,.7f,-.15f},{.3f,.4f,1.25f,30,1.15f,.15f},
+                            {-.08f,.04f,1.08f,12,.85f,.06f}};
+    bool sawLimit=false;
+    const DriverMount settingsList[]={{},{.025f,.03f,.025f,10.f}};
+    for(const auto& settings:settingsList)for(float width:{.27f,.30f,.32f,.36f})for(const auto& fit:fits) {
+      const auto plan=prepare(frames,meta,fit,settings,width);
+      if(!plan.valid) {
+          float worst=0;
+          for(unsigned f=0;f<241;f++) {
+              const float a=(float(f)*3-360)*.01745329252f;const auto g=gripRotation(a);
+              const auto q=solve(frames[f],meta,plan,inverseRigid(steering(settings,a)),g,width);
+              for(unsigned side=0;side<2;side++)worst=std::max(worst,std::acos(std::clamp(dot(unit(g.vector(frames[f].points[side][6]-frames[f].points[side][2])),unit(q.wrists[side]-q.elbows[side])),-1.f,1.f))*57.2957795f);
+          }
+          std::cerr<<"Invalid plan width "<<width<<" tilt "<<settings.tiltDegrees<<" height "<<fit.seatHeight<<" worst "<<worst<<"\n";
+      }
+      check(plan.valid,"normal wheel sizes have a feasible anatomical fit");
+      const auto reference=solve(frames[120],meta,plan,Matrix{},Matrix{},width);
+      for(unsigned f=0;f<481;f++) {
+        Frame sampled=frames[f/2];
+        if(f%2)for(unsigned side=0;side<2;side++)for(unsigned point=0;point<7;point++)
+            sampled.points[side][point]=(sampled.points[side][point]+frames[f/2+1].points[side][point])*.5f;
+        const float radians=(float(f)*1.5f-360)*.01745329252f,c=std::cos(radians),s=std::sin(radians);
+        Matrix grip{{c,s,0,0,-s,c,0,0,0,0,1,0}};
+        const auto actual=og::steered_dashboard({{0,0,0,1},{0,0,0}},{settings.pivotX,settings.pivotY,settings.pivotZ},settings.tiltDegrees,radians);
+        const auto x=og::spatial_rotate(actual.orientation,{1,0,0}),y=og::spatial_rotate(actual.orientation,{0,1,0}),z=og::spatial_rotate(actual.orientation,{0,0,1});
+        const Matrix world{{x.x,y.x,z.x,actual.position.x,x.y,y.y,z.y,actual.position.y,x.z,y.z,z.z,actual.position.z}};
+        const auto expectedWorld=steering(settings,radians);
+        for(unsigned i=0;i<12;i++)check(std::abs(expectedWorld.v[i]-world.v[i])<1e-5f,"fit sweep matches actual tilted pivot steering");
+        const Matrix mount=inverseRigid(world);
+            const auto solved=solve(sampled,meta,plan,mount,grip,width);sawLimit|=solved.limited;
+            if(!wristsComfortable(solved,sampled,grip)) {
+                std::cerr<<"Wrist limit frame "<<f<<" width "<<width<<" seat "<<fit.seatHeight<<"\n";
+                for(unsigned side=0;side<2;side++)std::cerr<<std::acos(std::clamp(dot(unit(grip.vector(sampled.points[side][6]-sampled.points[side][2])),unit(solved.wrists[side]-solved.elbows[side])),-1.f,1.f))*57.2957795f<<" ";
+                check(false,"wrist flexion stays within 60 degrees");
+            }
+            for(unsigned side=0;side<2;side++) {
+                const auto* p=sampled.points[side];const Vec sh=p[0]*meta.width,el=p[1]*meta.width,wr=p[2]*meta.width;
+                check(length(solved.wrists[side]-grip.point(p[2]*width))<1e-6f,"fit preserves grip wrist target");
+                check(std::abs(length(solved.elbows[side]-solved.shoulders[side])-meta.upper[side])<.0002f,"upper arm length is anatomical");
+                check(std::abs(length(solved.wrists[side]-solved.elbows[side])-meta.lower[side])<.0002f,"forearm length is anatomical");
+                check(length(solved.transforms[3+side].point(el)-solved.transforms[5+side].point(el))<.0002f,"elbow seam remains joined");
+                check(length(solved.transforms[5+side].point(wr)-solved.transforms[7+side].point(wr))<.0002f,"cuff remains joined to wrist");
+                const Vec hip=p[3]*meta.width,knee=p[4]*meta.width,ankle=p[5]*meta.width;
+                check(length(solved.transforms[9+side].point(knee)-solved.transforms[11+side].point(knee))<.0002f,"knee seam remains joined");
+                check(length(solved.transforms[11+side].point(ankle)-solved.transforms[13+side].point(ankle))<.0002f,"ankle seam remains joined");
+                check(std::abs(length(solved.transforms[9+side].point(knee)-solved.transforms[9+side].point(hip))-length(knee-hip)*fit.legLength)<.0002f,"leg length follows fit");
+            }
+            for(const auto& transform:solved.transforms)for(float value:transform.v)check(std::isfinite(value),"fit transform finite");
+            for(unsigned role:{0u,9u,10u,11u,12u,13u,14u}) {
+                const auto stable=multiply(mount,reference.transforms[role]);
+                for(unsigned i=0;i<12;i++)check(std::abs(stable.v[i]-solved.transforms[role].v[i])<.0001f,"seat and legs stay stationary throughout steering");
+            }
+        }
+    }
+    check(sawLimit,"extreme fit reports reach limit");
+    const auto narrowPlan=prepare(frames,meta,{},{},.27f),widePlan=prepare(frames,meta,{},{},.36f);
+    const auto narrowWheel=solve(frames[120],meta,narrowPlan,Matrix{},Matrix{},.27f),wideWheel=solve(frames[120],meta,widePlan,Matrix{},Matrix{},.36f);
+    for(unsigned role:{0u,9u,10u,11u,12u,13u,14u})for(unsigned i=0;i<12;i++)if(i%4!=3)
+        check(std::abs(narrowWheel.transforms[role].v[i]-wideWheel.transforms[role].v[i])<1e-6f,"body proportions independent of wheel width");
+    DriverFit invalid;invalid.seatHeight=std::numeric_limits<float>::quiet_NaN();invalid.legLength=99;
+    const auto clean=sanitized(invalid);check(clean.seatHeight==0 && clean.legLength==1.15f,"nonfinite and out-of-range fit sanitized");
+    check(!prepare(frames,meta,{},{},3.f).valid,"physically impossible wheel size cannot render stretched anatomy");
+    const DriverMount regressionMount{-.00799165f,.00581979f,-.0173977f,-.711802f};
+    const DriverFit regressionFit{-.244535f,-.24798f,.831632f,-5.76017f,1.14265f,-.0438939f};
+    const auto regressionPlan=prepare(frames,meta,regressionFit,regressionMount,.359067f);
+    check(regressionPlan.valid,"interpolated handover regression has a safe calibration");
+    const float regressionAngle=-79.5f*.01745329252f;const auto regressionGrip=gripRotation(regressionAngle);
+    const auto regressionFrame=sample(frames,(-79.5f+360)/3);
+    const auto regression=solve(regressionFrame,meta,regressionPlan,inverseRigid(steering(regressionMount,regressionAngle)),regressionGrip,.359067f);
+    check(wristsComfortable(regression,regressionFrame,regressionGrip),"interpolated handover cannot produce extreme wrist flexion");
+}
 template<class F> void loaded(F select) {
     auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(15);
     while(!select()) {
@@ -53,6 +135,7 @@ struct DriverPlane {
 int wmain(int argc,wchar_t** argv) {
     try {
         check(argc>=3,"expected wheel and driver paths");
+        verifyFit(argv[2]);
         Com<ID3D11Device> dev;Com<ID3D11DeviceContext> ctx;
         auto create=[&](D3D_DRIVER_TYPE type){return D3D11CreateDevice(nullptr,type,nullptr,0,nullptr,0,
             D3D11_SDK_VERSION,dev.put(),nullptr,ctx.put());};
@@ -140,11 +223,14 @@ int wmain(int argc,wchar_t** argv) {
             return maxDelta<=1;
         };
         const float identity[]={1,0,0,0,0,1,0,0,0,0,1,0};
+        DriverFit fit;
+        const float wheelWidth=kind==4?.32f:.30f;
         auto pose=[&](float angle,unsigned glove,unsigned suit,bool torso,bool legs,bool custom=false){
             wheelPose=og::steered_dashboard(identityPose,custom?XrVector3f{.025f,.03f,.025f}:XrVector3f{},custom?10.f:0.f,angle);
             const auto x=wheelLocal({1,0,0},true),y=wheelLocal({0,1,0},true),z=wheelLocal({0,0,1},true),p=wheelLocal({});
             const float mount[]={x.x,y.x,z.x,p.x,x.y,y.y,z.y,p.y,x.z,y.z,z.z,p.z};
-            return r.selectDriver(dev.get(),0,argv[2],angle,mount,glove,suit,torso,legs);
+            return r.selectDriver(dev.get(),0,argv[2],angle,mount,glove,suit,torso,legs,fit,wheelWidth,
+                                  custom?DriverMount{.025f,.03f,.025f,10.f}:DriverMount{});
         };
         loaded([&]{return pose(0,0,0,false,false);});
         const auto arms=draw(0),right=draw(1);
@@ -158,7 +244,7 @@ int wmain(int argc,wchar_t** argv) {
         for(float angle:{15.f,90.f,-15.f,-90.f}) {
             pose(angle*rad,0,0,false,false);const auto first=draw(0);
             pose((angle+std::copysign(360.f,angle))*rad,0,0,false,false);
-            check(changed(first,draw(0))<200,"continuous periodic steering after full turn");
+            check(changed(first,draw(0))<200u*(desc.Width/512)*(desc.Height/512),"continuous periodic steering after full turn");
         }
         auto capture=[&](const std::wstring& suffix){
             if(argc<4)return;
@@ -175,6 +261,20 @@ int wmain(int argc,wchar_t** argv) {
         pose(90.f*rad,0,0,false,false);const auto standard=draw(0,true);
         pose(90.f*rad,0,0,false,false,true);capture(L"-custom90");
         check(changed(standard,draw(0,true))>500,"custom calibrated mount");
+        fit={};pose(0,0,0,true,true);const auto standardBody=draw(0,true);capture(L"-body-default");
+        fit={-.08f,.04f,1.08f,12,.85f,.06f};pose(0,0,0,true,true);
+        check(changed(standardBody,draw(0,true))>500,"seated fit changes visible body");capture(L"-body-fitted");
+        check(changed(draw(0,true),draw(1,true))>150,"fitted body stereo disparity");
+        for(const auto& extreme:{DriverFit{-.3f,-.3f,.75f,-20,.7f,-.15f},DriverFit{.3f,.4f,1.25f,30,1.15f,.15f}}) {
+            fit=extreme;
+            for(float angle:{0.f,70.f,90.f,180.f,360.f}) {
+                check(pose(angle*rad,0,0,true,true,true),"extreme fit selected");
+                draw(0,true);draw(1,true);
+                capture(std::wstring(fit.seatHeight<0?L"-fit-low-":L"-fit-high-")+std::to_wstring(int(angle)));
+            }
+        }
+        fit={};
+        check(!r.selectDriver(dev.get(),0,argv[2],0,identity,0,0,true,true,fit,3.f) && r.driverFitLimited(),"impossible wheel size reports unavailable fit");
         wheelPose=identityPose;
         r.forgetDriver(0);
         check(wheelRestored(),"disabled driver restores wheel");

@@ -235,7 +235,7 @@ function createSimHubBridge({ sourceFile, dataDirectory, chooseDirectory,
       staged = false;
       if (hash(await fs.readFile(target)) !== hash(source)) throw new Error('The installed bridge could not be verified. Use the manual copy option.');
       const result = await readStatus();
-      if (!result.error) result.message = 'Bridge installed. Open SimHub, enable oVRlay lights in Plugins, then enable Mirror my wheel lights in oVRlay.';
+      if (!result.error) result.message = 'Bridge installed. Open SimHub, enable OpenGrid XR Lights in Plugins, then enable Mirror my wheel lights in OpenGrid XR.';
       return result;
     } finally {
       // Never follow a replaced directory to clean up a temporary file.

@@ -1,12 +1,14 @@
 {
   "file": "ascher-artura.agd",
-  "bytes": 24586696,
-  "sha256": "bd6c8cd1332b38d65ee4f1b655cedab591ee24b55af6691544ed9f6dcf064741",
-  "format": 4,
+  "bytes": 24627576,
+  "sha256": "38583dc32ab6475cacff0795af29792c4b6d476ef64dc070f85e86f56e282852",
+  "format": 5,
   "vertices": 81354,
   "triangles": 101093,
   "joints": 90,
   "frames": 241,
+  "authoredWidthMeters": 0.3,
+  "calibration": "rigid two-bone arms; independent metric seated body",
   "releaseAngleDegrees": 70,
   "takeoverAngleDegrees": 90,
   "parts": [

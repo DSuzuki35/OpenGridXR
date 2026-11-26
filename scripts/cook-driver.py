@@ -205,9 +205,13 @@ positions=np.array([v[:3]+(1.,) for v in vertices],dtype=np.float32)
 part_ids=np.array([int(v[8]) for v in vertices])
 joint_ids=np.array([v[9:13] for v in vertices],dtype=np.uint32)
 weights=np.array([v[13:17] for v in vertices],dtype=np.float32)
-palettes=[];bounds=[];checks=[]
+palettes=[];bounds=[];checks=[];fit_frames=[]
 for angle in range(-360,361,3):
     checks.append({'angle':angle,'hands':pose(angle)})
+    fit_frames.append([[list(conversion @ body.matrix_world @ body.pose.bones[name+'.'+side].head)
+                        for name in ['upperarm01','lowerarm01','wrist','upperleg01','lowerleg01','foot']]+
+                       [list(conversion @ body.matrix_world @ body.pose.bones['wrist.'+side].tail)]
+                       for side in ['L','R']])
     matrices=np.array([list(conversion @ arm.matrix_world @ arm.pose.bones[name].matrix @ arm.data.bones[name].matrix_local.inverted() @ binding)[:3]
                        for arm,name,binding in joints],dtype=np.float32)
     assert np.isfinite(matrices).all()
@@ -228,11 +232,26 @@ rgba=np.empty(1024*1024*4,dtype=np.float32);image.pixels.foreach_get(rgba)
 glove_color=np.clip(np.round(rgba*255),0,255).astype(np.uint8).reshape(1024,1024,4)
 cloth_color,cloth_normal=cloth_maps()
 pixels=np.concatenate((glove_color,cloth_color),axis=1).tobytes()
-data=bytearray(struct.pack('<8s7I',b'AGDRVR1\0',4,len(vertices),len(indices),len(joints),len(palettes),2048,1024))
+data=bytearray(struct.pack('<8s7I',b'AGDRVR1\0',5,len(vertices),len(indices),len(joints),len(palettes),2048,1024))
 for v in vertices:data.extend(struct.pack('<9f4I4f',*v))
 data.extend(np.asarray(indices,dtype='<u4').tobytes())
 data.extend(np.asarray(palettes,dtype='<f4').tobytes())
 data.extend(np.asarray(bounds,dtype='<f4').tobytes())
+# Runtime calibration works on rigid anatomical segments in metres. Keep the
+# existing authored skinning, grip choreography and texture layout unchanged.
+pelvis=conversion @ body.matrix_world @ body.pose.bones['spine05'].head
+upper_lengths=[(point('lowerarm01.'+side)-point('upperarm01.'+side)).length for side in ['L','R']]
+lower_lengths=[(point('wrist.'+side)-point('lowerarm01.'+side)).length for side in ['L','R']]
+data.extend(struct.pack('<8f',width,*pelvis,*upper_lengths,*lower_lengths))
+def fit_role(arm,name):
+    if arm==right:return 1
+    if arm==left:return 2
+    side=1 if name.endswith('.R') else 0
+    for prefix,role in [('upperarm',3),('lowerarm',5),('wrist.',7),('upperleg',9),('lowerleg',11),('foot.',13),('toe',13)]:
+        if name.startswith(prefix):return role+side
+    return 0
+data.extend(np.asarray([fit_role(arm,name) for arm,name,_ in joints],dtype='<u4').tobytes())
+data.extend(np.asarray(fit_frames,dtype='<f4').tobytes())
 data.extend(pixels)
 normal=bpy.data.images.get('vr_glove_normal.png')
 assert normal and normal.size[:]==(1024,1024)
@@ -240,9 +259,11 @@ normal_pixels=np.empty(1024*1024*4,dtype=np.float32);normal.pixels.foreach_get(n
 glove_normal=np.clip(np.round(normal_pixels*255),0,255).astype(np.uint8).reshape(1024,1024,4)
 data.extend(np.concatenate((glove_normal,cloth_normal),axis=1).tobytes())
 args.output.mkdir(parents=True,exist_ok=True)
-name=model+'.agd';(args.output/name).write_bytes(data)
+name=model+'.agd'
+staged=args.output/(name+'.tmp');staged.write_bytes(data);staged.replace(args.output/name)
 manifest={'file':name,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),
-          'format':4,'vertices':len(vertices),'triangles':len(indices)//3,'joints':len(joints),'frames':len(palettes),
+          'format':5,'vertices':len(vertices),'triangles':len(indices)//3,'joints':len(joints),'frames':len(palettes),
+          'authoredWidthMeters':width,'calibration':'rigid two-bone arms; independent metric seated body',
           'releaseAngleDegrees':70,'takeoverAngleDegrees':90,'parts':parts,
           'maxReachExcessMm':max(h['reachExcessMm'] for f in checks for h in f['hands']),
           'maxWristFlexDegrees':max(h['wristFlexDegrees'] for f in checks for h in f['hands']),

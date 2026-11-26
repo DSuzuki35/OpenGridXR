@@ -35,7 +35,23 @@
   gap: 10px;
 }
 .placement-fields + h3 { margin-top: 14px; }
+.driver-fit-settings { container-type: inline-size; min-width: 0; padding: 12px; border: 1px solid #403347; border-radius: 7px; }
+.driver-fit-settings .placement-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.driver-fit-settings > summary { cursor: pointer; font-weight: 550; }
+.driver-fit-settings > .panel-description { margin: 12px 0; }
+.driver-fit-settings > .button { margin-top: 12px; }
+.driver-fit-settings > .selection-hint { margin-bottom: 0; }
 .placement-fields + p { margin-top: 10px; }
+.steering-input-settings { margin-top: 16px; padding: 14px; border: 1px solid #403347; border-radius: 7px; }
+.steering-input-settings > p { margin: 10px 0; }
+.steering-input-selectors { display: grid; grid-template-columns: minmax(0, 3fr) minmax(80px, 1fr); gap: 10px; margin: 12px 0; }
+.steering-input-selectors label { min-width: 0; display: grid; gap: 6px; font-size: 12px; }
+.steering-input-selectors select { width: 100%; min-width: 0; min-height: 38px; padding: 7px 10px; }
+.steering-input-meter { display: grid; gap: 6px; margin: 14px 0; }
+.steering-input-meter meter { width: 100%; height: 16px; }
+.steering-input-meter meter::-webkit-meter-bar { background: #302738; border: 0; }
+.steering-input-meter meter::-webkit-meter-optimum-value { background: #ae91e4; }
+.steering-input-meter output { font-size: 12px; font-variant-numeric: tabular-nums; }
 .placement-field { min-width: 0; }
 .placement-field label { display: block; margin-bottom: 5px; font-size: 11px; color: #d4c5df; }
 .placement-number {
@@ -87,10 +103,11 @@
   .placement-steering { grid-template-columns: 1fr; }
   .placement-steering .dashboard-pivot { max-width: 380px; }
   .placement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .driver-fit-settings .placement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container (max-width: 275px) {
   .placement-field .placement-number { grid-template-columns: 20px minmax(0, 1fr) auto 20px; }
   .placement-number button { width: 20px; }
-  .placement-fields, .placement-steering .placement-fields { grid-template-columns: 1fr; }
+  .placement-fields, .placement-steering .placement-fields, .driver-fit-settings .placement-fields { grid-template-columns: 1fr; }
   .placement-opacity .placement-field { display: block; }
 }

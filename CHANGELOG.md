@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added virtual SimHub LED devices for all six built-in wheels, so effects can run without connected wheel hardware. The bridge is now named **OpenGrid XR Lights**; existing plugin and device identities are preserved.
+- Added **Assign steering axis**, a live angle preview, inversion and an adjustable steering lock (900° by default). Virtual wheels and hands can follow a wheelbase directly, independently of game steering telemetry.
+- Added seat height/distance, shoulder width, torso lean, leg length and knee height controls, with decimal entry, reset and per-car storage.
+- Improved driver fitting across steering poses and wheel sizes. Cached calibration keeps the body stationary; unreachable or unsafe poses hide the driver while keeping the wheel visible. The driver remains highly experimental.
+- Updated setup guides with screenshots. Thanks to the [AZOM project's SimHub API notes](https://github.com/giantorth/AZOM/blob/main/docs/simhub.md#ileddevicemanager-virtual-driver-injection) for the LED-manager integration reference.
+
 ## 1.2.1
 
 - Added a **Changelog** button to update notifications and Application updates, opening the offered release's notes or the installed version's notes when no update is offered.

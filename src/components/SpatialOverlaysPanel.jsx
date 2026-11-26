@@ -2,6 +2,7 @@ import PlacementMap from "./PlacementMap.jsx";
 import { PlacementFields } from "./PlacementFields.jsx";
 import "./placement-editor.css";
 import DashboardPivotPreview from "./DashboardPivotPreview.jsx";
+import SteeringInput from "./SteeringInput.jsx";
 import React, { useEffect, useId, useState } from "react";
 import {
   ArrowDown,
@@ -20,7 +21,7 @@ import {
 import { api, isBrowserPreview } from "../api.mjs";
 import {
   spatialDefaults, recenterKeys, wheelModels, hasWheelScreen, hasWheelLights, hasWheelDriver, wheelLightDevice,
-  driverDefaults, driverThemes, centeredDriverAxis, supportsDriverAxis,
+  driverDefaults, driverThemes, driverFitDefaults, overlayDriverFit, centeredDriverAxis, supportsDriverAxis,
   createSpatialOverlay,
   createQuickMenuOverlay,
   occupiedShortcuts,
@@ -441,6 +442,8 @@ export default function SpatialOverlaysPanel({
         {selected.kind === "url" && <div className="placement-section">
           <Toggle label="Follow steering wheel" checked={pose.steeringFollow === true}
             onChange={steeringFollow => setPose({ steeringFollow })} description="Rotate the dashboard around the wheel hub as you steer." />
+          {pose.steeringFollow && <SteeringInput key={profile.id} value={settings.steeringInput}
+            onChange={steeringInput => onChange({ steeringInput })} />}
           {pose.steeringFollow && <div className="placement-steering">
             <DashboardPivotPreview placement={pose} aspect={selected.width / selected.height} onChange={setPose} disabled={!!busy} />
             <div><h3>Pivot coordinates and tilt</h3>
@@ -671,6 +674,14 @@ export default function SpatialOverlaysPanel({
                       </div>)}
                     <Toggle label="Show torso" checked={selected.driverTorso === true} onChange={driverTorso => edit({ driverTorso })} />
                     <Toggle label="Show legs" checked={selected.driverLegs === true} onChange={driverLegs => edit({ driverLegs })} />
+                    <details className="driver-fit-settings" open>
+                      <summary>Seat &amp; body fit</summary>
+                      <p className="panel-description">Adjust the driver without moving the wheel. Positive seat distance moves the body back; positive torso lean reclines it. Hands stay at the grips.</p>
+                      <PlacementFields key={`${profile.id}:${selected.id}:${car?.id || "default"}:${hasCarPlacement}`} axes={Object.keys(driverFitDefaults)} pose={overlayDriverFit(selected, car?.id)} onChange={setPose} />
+                      <Button onClick={() => setPose(driverFitDefaults)}>Reset seat &amp; body fit</Button>
+                      <p className="selection-hint">{hasCarPlacement ? "Saved with this car’s wheel placement." : "Enable Remember placement for this car to keep a separate fit for each car."} Save the profile to apply. Body fit is limited by arm reach.</p>
+                      {selectedStatus?.driverFitLimited && <Note tone="warning">The requested seat position exceeds arm reach. The body has been kept within reach so the hands stay on the wheel. Move the seat closer or reduce the adjustment.</Note>}
+                    </details>
                     {driverAxisSupported && selectedStatus?.driverError && <Note tone="warning">{selectedStatus.driverError}</Note>}
                   </>}
                 </>}
@@ -686,12 +697,13 @@ export default function SpatialOverlaysPanel({
                 </div>}
                 {hasWheelLights(selected.wheelModel) && (wheelModels.some(w=>w.id===selected.wheelModel) || !!selected.wheelDevice) && <Toggle
                   label="Mirror SimHub LEDs" checked={selected.wheelLights===true} onChange={wheelLights=>edit({wheelLights})}
-                  description="Use the matching physical wheel’s colors from the SimHub lights observer."/>}
+                  description="Use the matching connected or virtual device’s colors from the SimHub lights bridge."/>}
                 {hasWheelLights(selected.wheelModel) && selected.wheelLights && <>
-                  <p className="selection-hint" role="status">{selectedStatus?.ledConnected ? "Receiving SimHub LED colors" : (selectedStatus?.ledError || "Waiting for the wheel and SimHub lights observer")}</p>
+                  <p className="selection-hint" role="status">{selectedStatus?.ledConnected ? "Receiving SimHub LED colors" : (selectedStatus?.ledError || "Waiting for the connected or virtual SimHub device")}</p>
                   <details>
                     <summary>Set up SimHub wheel lights</summary>
-                    <p>Close SimHub. Copy oVRlay.SimHubLeds.dll from the plugin folder into your SimHub installation. Restart SimHub, enable <strong>oVRlay lights</strong> and connect the matching wheel.</p>
+                    <p>Use <strong>Setup → Install SimHub bridge</strong> with SimHub closed, then restart SimHub and enable <strong>OpenGrid XR Lights</strong>.</p>
+                    <p>Choose <strong>Connected wheel</strong> to mirror your hardware. Without hardware, choose <strong>Virtual wheel</strong> for the matching model and press <strong>Add virtual device</strong>. Configure its effects in SimHub Devices; physical wheel profiles stay separate.</p>
                     <Button disabled={isBrowserPreview || !!busy} onClick={() => run("simhub-plugin-folder", () => api.openSimHubPluginFolder())}>Open plugin folder</Button>
                   </details>
                 </>}

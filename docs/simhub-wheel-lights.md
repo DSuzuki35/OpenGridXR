@@ -1,11 +1,11 @@
 # Mirror your SimHub wheel lights
 
-Use this optional observer to copy your physical wheel’s RPM, flags and button colors to its virtual counterpart. A dashboard URL alone needs only SimHub’s web server.
+Use this optional bridge to copy SimHub’s RPM, flags and button colors to your 3D wheel. It can mirror connected hardware or run a separate virtual device without a physical wheel. A dashboard URL alone needs only SimHub’s web server.
 
 1. Close SimHub. In OpenGrid, open **Setup → SimHub bridge**.
 2. Check the detected folder, or use **Choose SimHub folder**. Click **Install SimHub bridge** (or **Update SimHub bridge**). The app copies only its bundled plugin and preserves the previous copy as a backup. Artura support requires observer version 1.2 or newer, included with this release.
-3. Start SimHub and enable **oVRlay lights** in its plugin list. On its settings page, enable **Mirror my wheel lights in oVRlay**.
-4. In SimHub Devices, connect and enable the physical wheel. Select the matching virtual model in OpenGrid and enable its SimHub lights. Use a SimHub LED test effect to check the result.
+3. Start SimHub and enable **OpenGrid XR Lights** in its plugin list. On its settings page, enable **Mirror my wheel lights in OpenGrid XR**.
+4. Choose **Connected wheel** for your hardware, or **Virtual wheel** and **Add virtual device** for a separate device without hardware. Configure its LED effects in SimHub Devices. Select the matching 3D model in OpenGrid and enable its SimHub lights. Use a SimHub LED test effect to check the result. [Virtual device instructions](simhub-virtual.md)
 
 Hyper P1, Hyper SL, GXL V2, GT-MAX 32, FPE2 and Ascher Artura Ultimate have separate LED layouts. The observer reads the final RGB values after SimHub applies effects, mapping and brightness. Each wheel receives only its own colors. OpenGrid discards stale colors after one second.
 

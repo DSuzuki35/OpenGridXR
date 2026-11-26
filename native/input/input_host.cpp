@@ -1,12 +1,15 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "input_edges.hpp"
+#include "../include/steering_input.hpp"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstring>
 #include <dinput.h>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
 #include <thread>
 #include <windows.h>
@@ -53,11 +56,116 @@ struct Device {
     og::input::Edges edges;
     bool acquired{};
     ULONGLONG retry{}, nextHeld{};
+    struct Axis { DWORD offset{}; LONG minimum{}, maximum{}; bool available{}; };
+    std::array<Axis,8> axes{};
+    bool axesEnumerated{};
+    ULONGLONG nextAxes{},nextAxisCheck{};
     ~Device() {
         if (api)
             api->Unacquire();
     }
 };
+std::int64_t sampled_at();
+constexpr const char *axisNames[]={"x","y","z","rx","ry","rz","slider0","slider1"};
+const DWORD axisOffsets[]={DIJOFS_X,DIJOFS_Y,DIJOFS_Z,DIJOFS_RX,DIJOFS_RY,DIJOFS_RZ,DIJOFS_SLIDER(0),DIJOFS_SLIDER(1)};
+struct Steering {
+    bool configured{},enabled{},discover{};
+    unsigned revision{};
+    std::string deviceId;
+    unsigned axis{};
+    double lockDegrees{900};
+    bool invert{};
+    std::uint32_t token{};
+    ULONGLONG discoveryUntil{};
+    std::unique_ptr<og::steering::Writer> writer;
+    bool discovery() const { return discover && GetTickCount64()<discoveryUntil; }
+    bool interested(const std::string &key) const { return discovery() || (enabled && deviceId==key); }
+    void invalidate() {if(writer) writer->publish(0,token,false);}
+};
+BOOL CALLBACK enumerate_axes(const DIDEVICEOBJECTINSTANCEW *object,void *pointer) {
+    if(static_cast<std::vector<DWORD> *>(pointer)->size()>=128) return DIENUM_STOP;
+    if((DIDFT_GETTYPE(object->dwType)&DIDFT_ABSAXIS)!=0)
+        static_cast<std::vector<DWORD> *>(pointer)->push_back(object->dwType);
+    return DIENUM_CONTINUE;
+}
+const std::string fixtureId="dinput:{00000000-0000-0000-0000-000000000001}";
+void fixture_devices(const Steering &steering,bool connected=true) {
+    std::cout<<"{\"op\":\"devices\",\"devices\":[";
+    if(connected) {
+        std::cout<<"{\"id\":"<<quoted(fixtureId)<<",\"name\":\"Synthetic controller\",\"buttons\":128,\"povs\":4";
+        if(steering.configured) std::cout<<",\"axes\":[\"x\",\"rz\",\"slider0\"]";
+        std::cout<<'}';
+    }
+    std::cout<<"]}\n"<<std::flush;
+}
+bool configure_steering(const std::string &line,Steering &s,bool fixture) {
+    // Parent sends this fixed, bounded JSON schema. Reject reordered/extra fields instead
+    // of interpreting arbitrary JSON in the device process.
+    static const std::regex pattern(R"cfg(^\{"op":"steering","enabled":(true|false),"discover":(true|false),"deviceId":"((?:dinput:\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\})?)","axis":"(x|y|z|rx|ry|rz|slider0|slider1)","lockDegrees":([0-9]{2,4}),"invert":(true|false),"token":([0-9]{1,10})\}$)cfg");
+    std::smatch match;
+    if(!std::regex_match(line,match,pattern)) {s.invalidate();return false;}
+    const bool enabled=match[1]=="true",discover=match[2]=="true",invert=match[6]=="true";
+    const auto degrees=std::stoul(match[5].str());
+    const auto token=std::stoull(match[7].str());
+    const std::string device=match[3].str(),axis=match[4].str();
+    if(degrees<90 || degrees>2520 || token>0xffffffffull || (enabled && (device.empty() || !token))) {s.invalidate();return false;}
+    unsigned axisIndex=0;while(axisIndex<8 && axis!=axisNames[axisIndex]) ++axisIndex;
+    const bool changed=s.enabled!=enabled || s.deviceId!=device || s.axis!=axisIndex ||
+        s.lockDegrees!=degrees || s.invert!=invert || s.token!=token;
+    if(!s.configured || changed || s.discover!=discover) ++s.revision;
+    if(changed) s.invalidate();
+    s.configured=true;s.enabled=enabled;s.discover=discover;s.deviceId=device;s.axis=axisIndex;
+    s.lockDegrees=degrees;s.invert=invert;s.token=static_cast<std::uint32_t>(token);
+    s.discoveryUntil=discover?GetTickCount64()+30000:0;
+    if(enabled && !s.writer) {
+        const std::wstring name=fixture ? L"Local\\OpenGridXR.SteeringInput.Fixture."+std::to_wstring(GetCurrentProcessId()) : og::steering::MappingName;
+        s.writer=std::make_unique<og::steering::Writer>(name.c_str());
+        if(!s.writer->available()) {std::cout<<"{\"op\":\"error\"}\n"<<std::flush;return false;}
+    }
+    if(changed) s.invalidate();
+    return true;
+}
+void read_axis_capabilities(Device &device) {
+    std::vector<DWORD> objects;
+    device.axes={};
+    device.axesEnumerated=true;
+    if(FAILED(device.api->EnumObjects(enumerate_axes,&objects,DIDFT_AXIS))) return;
+    for(unsigned i=0;i<8;++i) {
+        DIDEVICEOBJECTINSTANCEW object{};object.dwSize=sizeof(object);
+        if(FAILED(device.api->GetObjectInfo(&object,axisOffsets[i],DIPH_BYOFFSET)) ||
+           std::find(objects.begin(),objects.end(),object.dwType)==objects.end()) continue;
+        DIPROPRANGE range{};range.diph.dwSize=sizeof(range);range.diph.dwHeaderSize=sizeof(DIPROPHEADER);
+        range.diph.dwHow=DIPH_BYID;range.diph.dwObj=object.dwType;
+        // Read the client's documented range. Never write calibration/range or FF properties.
+        if(SUCCEEDED(device.api->GetProperty(DIPROP_RANGE,&range.diph)) &&
+           og::steering::normalize_axis(range.lMin,range.lMin,range.lMax))
+            device.axes[i]={axisOffsets[i],range.lMin,range.lMax,true};
+    }
+    device.axesEnumerated=true;
+}
+std::string axis_list(const Device &device) {
+    std::string result="[";bool first=true;
+    for(unsigned i=0;i<8;++i) if(device.axes[i].available) {
+        if(!first) result+=',';first=false;result+=quoted(axisNames[i]);
+    }
+    return result+"]";
+}
+std::optional<double> read_axis(const DIJOYSTATE2 &state,const Device::Axis &axis) {
+    if(!axis.available) return std::nullopt;
+    LONG value{};
+    std::memcpy(&value,reinterpret_cast<const char *>(&state)+axis.offset,sizeof(value));
+    return og::steering::normalize_axis(value,axis.minimum,axis.maximum);
+}
+void axis_sample(const std::string &key,const Device *device,const DIJOYSTATE2 *state,const Steering &steering) {
+    std::cout<<"{\"op\":\"axes\",\"sampledAt\":"<<sampled_at()<<",\"deviceId\":"<<quoted(key)<<",\"axes\":{";
+    bool first=true;
+    if(device && state) for(unsigned i=0;i<8;++i) {
+        if(!steering.discovery() && i!=steering.axis) continue;
+        const auto value=read_axis(*state,device->axes[i]);if(!value) continue;
+        if(!first) std::cout<<',';first=false;std::cout<<quoted(axisNames[i])<<':'<<*value;
+    }
+    std::cout<<"}}\n"<<std::flush;
+}
 struct Candidate {
     GUID guid;
     std::string name;
@@ -96,7 +204,7 @@ void held(const std::string &device, const og::input::Sample &sample, unsigned b
 }
 // Electron supplies a pipe. Checking it here keeps both input and output bounded,
 // avoids a blocked reader thread, and notices parent EOF within one polling interval.
-bool commands(bool fixture, std::string &line) {
+bool commands(bool fixture, std::string &line,Steering &steering,bool &fixtureConnected) {
     HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
     DWORD available{};
     if (GetFileType(input) == FILE_TYPE_PIPE) {
@@ -121,6 +229,22 @@ bool commands(bool fixture, std::string &line) {
                 line.end());
             if (line == "{\"op\":\"quit\"}" || line == "quit")
                 return false;
+            if(line.rfind("{\"op\":\"steering\"",0)==0) {
+                if(!configure_steering(line,steering,fixture)) return false;
+                if(fixture) fixture_devices(steering,fixtureConnected);
+            }
+            if(fixture && line=="{\"op\":\"fixture-disconnect\"}") {fixtureConnected=false;steering.invalidate();fixture_devices(steering,false);}
+            if(fixture && line=="{\"op\":\"fixture-reconnect\"}") {fixtureConnected=true;fixture_devices(steering);}
+            if(fixture && line.rfind("{\"op\":\"fixture-axis\",\"value\":",0)==0 && steering.configured) {
+                static const std::regex axisPattern(R"cfg(^\{"op":"fixture-axis","value":(-?(?:0(?:\.[0-9]{1,6})?|1(?:\.0{1,6})?))\}$)cfg");
+                std::smatch match;
+                if(!std::regex_match(line,match,axisPattern)) return false;
+                double value=std::stod(match[1].str());
+                if(fixtureConnected && steering.interested(fixtureId))
+                    std::cout<<"{\"op\":\"axes\",\"sampledAt\":"<<sampled_at()<<",\"deviceId\":"<<quoted(fixtureId)<<",\"axes\":{\"x\":"<<value<<"}}\n"<<std::flush;
+                if(fixtureConnected && steering.enabled && steering.deviceId==fixtureId && steering.axis==0 && steering.writer)
+                    steering.writer->publish(og::steering::radians(value,steering.lockDegrees,steering.invert),steering.token,true);
+            }
             if (fixture && line == "{\"op\":\"fixture-press\"}") {
                 press("dinput:{00000000-0000-0000-0000-000000000001}", {false, 127, -1});
                 og::input::Sample sample;sample.buttons[127]=true;
@@ -129,7 +253,7 @@ bool commands(bool fixture, std::string &line) {
             }
             line.clear();
         } else {
-            if (line.size() >= 256)
+            if (line.size() >= 512)
                 return false;
             line += c;
         }
@@ -137,13 +261,12 @@ bool commands(bool fixture, std::string &line) {
     return true;
 }
 int run(bool fixture) {
+    Steering steering;
+    bool fixtureConnected=true;
     if (fixture) {
-        std::cout
-            << "{\"op\":\"devices\",\"devices\":[{\"id\":\"dinput:{00000000-0000-0000-0000-"
-               "000000000001}\",\"name\":\"Synthetic controller\",\"buttons\":128,\"povs\":4}]}\n"
-            << std::flush;
+        fixture_devices(steering);
         std::string line;
-        while (commands(true, line) && std::cout)
+        while (commands(true, line,steering,fixtureConnected) && std::cout)
             std::this_thread::sleep_for(std::chrono::milliseconds(17));
         return 0;
     }
@@ -167,14 +290,18 @@ int run(bool fixture) {
     std::map<std::string, std::unique_ptr<Device>> devices;
     std::string previous, line;
     ULONGLONG nextEnumeration{};
+    unsigned previousRevision{};
+    bool previousDiscovery{};
     auto nextPoll = std::chrono::steady_clock::now();
-    while (commands(false, line) && std::cout) {
+    while (commands(false, line,steering,fixtureConnected) && std::cout) {
         MSG message;
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
         const auto now = GetTickCount64();
+        bool reportDevices=now>=nextEnumeration || previousRevision!=steering.revision || previousDiscovery!=steering.discovery();
+        previousRevision=steering.revision;previousDiscovery=steering.discovery();
         if (now >= nextEnumeration) {
             nextEnumeration = now + 1000;
             std::map<std::string, Candidate> found;
@@ -201,6 +328,14 @@ int run(bool fixture) {
                             devices.emplace(key, std::move(device));
                         }
                     }
+            }
+        }
+        // Capability reads happen on demand, including a late discovery request.
+        for(auto &[key,device]:devices)
+            if(steering.interested(key) && (!device->axesEnumerated || now>=device->nextAxisCheck)) {
+                read_axis_capabilities(*device);device->nextAxisCheck=now+1000;reportDevices=true;
+            }
+        if(reportDevices) {
                 std::string record = "{\"op\":\"devices\",\"devices\":[";
                 bool first = true;
                 for (const auto &[key, device] : devices) {
@@ -209,16 +344,22 @@ int run(bool fixture) {
                     first = false;
                     record += "{\"id\":" + quoted(key) + ",\"name\":" + quoted(device->name) +
                               ",\"buttons\":" + std::to_string(device->buttons) +
-                              ",\"povs\":" + std::to_string(device->povs) + "}";
+                              ",\"povs\":" + std::to_string(device->povs);
+                    if(steering.configured) record+=",\"axes\":"+(steering.interested(key)?axis_list(*device):"[]");
+                    record+="}";
                 }
                 record += "]}";
                 if (record != previous) {
                     std::cout << record << '\n' << std::flush;
                     previous = record;
                 }
-            }
         }
+        bool published=false;
         for (auto &[key, device] : devices) {
+            if(steering.configured && !steering.interested(key)) {
+                if(device->acquired) {device->api->Unacquire();device->acquired=false;device->retry=0;}
+                continue;
+            }
             if (!device->acquired) {
                 if (now < device->retry)
                     continue;
@@ -232,11 +373,26 @@ int run(bool fixture) {
             std::fill(std::begin(state.rgdwPOV), std::end(state.rgdwPOV), DWORD(-1));
             if (FAILED(device->api->Poll()) ||
                 FAILED(device->api->GetDeviceState(sizeof(state), &state))) {
-                held(key, {}, device->buttons, device->povs);
+                if(steering.configured) axis_sample(key,nullptr,nullptr,steering);
+                else held(key, {}, device->buttons, device->povs);
                 device->acquired = false;
                 device->edges.reset();
                 device->api->Unacquire();
                 device->retry = now + 250;
+                continue;
+            }
+            if(steering.configured) {
+                if(now>=device->nextAxes) {
+                    axis_sample(key,device.get(),&state,steering);
+                    device->nextAxes=now+(steering.discovery()?100:50);
+                }
+                if(steering.enabled && key==steering.deviceId) {
+                    const auto value=read_axis(state,device->axes[steering.axis]);
+                    if(value && steering.writer) {
+                        steering.writer->publish(og::steering::radians(*value,steering.lockDegrees,steering.invert),steering.token,true,now);
+                        published=true;
+                    }
+                }
                 continue;
             }
             og::input::Sample sample;
@@ -252,6 +408,7 @@ int run(bool fixture) {
                 device->nextHeld=now+100;
             }
         }
+        if(steering.writer && !published) steering.invalidate();
         nextPoll =
             std::max(nextPoll + std::chrono::microseconds(16667), std::chrono::steady_clock::now());
         std::this_thread::sleep_until(nextPoll);

@@ -14,6 +14,7 @@ function harness(options = {}) {
     const child = new EventEmitter();
     child.stdout = new EventEmitter(); child.stdout.setEncoding = () => {};
     child.stderr = new EventEmitter(); child.stdin = new EventEmitter();
+    child.stdin.write = value => { child.config=value;return true; };
     child.stdin.end = (value) => { child.sent = value; }; child.kill = () => { child.killed = true; };
     child.record = (record) => child.stdout.emit("data", JSON.stringify(record) + "\n");
     Object.assign(child, { exe, args, opts }); processes.push(child); return child;
@@ -98,4 +99,52 @@ test("real synthetic helper pipe emits controlled input and exits on EOF without
   assert.equal(records[0].op, "devices"); assert.equal(records[1].op, "press"); assert.equal(records[1].index, 127);
   assert.equal(records[2].op,'held');assert.deepEqual(records[2].inputs,[{kind:'button',index:127}]);
   assert.equal(records[3].op,'release');assert.equal(records[3].index,127);
+});
+
+test('steering configuration enables bounded fresh axis reports without changing button-only hosts', t => {
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});
+  const axes=[];const h=harness({onAxes:sample=>axes.push(sample)});
+  h.host.configureSteering({enabled:true,discover:false,deviceId:id,axis:'x',lockDegrees:900,invert:false,token:42});
+  h.host.setActive(true);const p=h.processes[0];p.stdin.write=value=>{p.config=value;return true;};
+  h.host.configureSteering({enabled:true,discover:true,deviceId:id,axis:'x',lockDegrees:900,invert:false,token:42});
+  assert.equal(JSON.parse(p.config).token,42);
+  p.record({op:'devices',devices:[{...list.devices[0],axes:['x','rz']}]});
+  p.record({op:'axes',deviceId:id,axes:{x:-1,rz:0.5},sampledAt:10000});
+  assert.deepEqual(axes.at(-1),{deviceId:id,axes:{x:-1,rz:0.5},sampledAt:10000});
+  t.mock.timers.tick(251);p.record({op:'axes',deviceId:id,axes:{x:1},sampledAt:10000});
+  assert.deepEqual(axes.at(-1),{deviceId:id,axes:{},sampledAt:10251});
+  p.record({op:'axes',deviceId:id,axes:{slider1:0},sampledAt:10251});
+  assert.equal(p.killed,true);h.host.close();p.emit('close');
+});
+
+test('real synthetic helper supplies axes only after a steering request', { skip: process.platform !== 'win32' || !existsSync(executable), timeout:5000 }, async()=>{
+  const child=spawnNative(executable,['--fixture'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+  let output='';child.stdout.setEncoding('utf8');child.stdout.on('data',chunk=>output+=chunk);
+  child.stdin.write(JSON.stringify({op:'steering',enabled:true,discover:true,deviceId:'dinput:{00000000-0000-0000-0000-000000000001}',axis:'x',lockDegrees:900,invert:false,token:42})+'\n');
+  child.stdin.write('{"op":"fixture-axis","value":1}\n');child.stdin.end();
+  const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve);});
+  assert.equal(code,0);const records=output.trim().split('\n').map(JSON.parse);
+  assert.ok(records.some(r=>r.op==='devices' && r.devices[0]?.axes?.includes('x')));
+  assert.ok(records.some(r=>r.op==='axes' && r.axes?.x===1));
+});
+
+
+test('synthetic steering disconnect clears samples until reconnect and cached selection survives helper restart', {skip:process.platform!=='win32' || !existsSync(executable),timeout:5000}, async()=>{
+  const child=spawnNative(executable,['--fixture'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+  let output='';child.stdout.setEncoding('utf8');child.stdout.on('data',chunk=>output+=chunk);
+  child.stdin.write(JSON.stringify({op:'steering',enabled:true,discover:true,deviceId:'dinput:{00000000-0000-0000-0000-000000000001}',axis:'x',lockDegrees:900,invert:false,token:42})+'\n');
+  for(const line of ['{"op":"fixture-axis","value":1}','{"op":"fixture-disconnect"}','{"op":"fixture-axis","value":-1}','{"op":"fixture-reconnect"}','{"op":"fixture-axis","value":0}']) child.stdin.write(line+'\n');
+  child.stdin.end();const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve);});
+  assert.equal(code,0);const records=output.trim().split('\n').map(JSON.parse);
+  assert.deepEqual(records.filter(r=>r.op==='axes').map(r=>r.axes.x),[1,0]);
+  assert.ok(records.some(r=>r.op==='devices' && r.devices.length===0));
+});
+
+test('steering helper restart resends its selection and malformed normalized axes fail closed',t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});const h=harness();
+  const config={enabled:true,discover:false,deviceId:id,axis:'x',lockDegrees:900,invert:false,token:42};
+  h.host.configureSteering(config);h.host.setActive(true);const first=h.processes[0];assert.equal(JSON.parse(first.config).token,42);
+  first.emit('close');t.mock.timers.tick(1000);const second=h.processes[1];assert.deepEqual(JSON.parse(second.config),{op:'steering',...config});
+  second.record({op:'devices',devices:[{...list.devices[0],axes:['x']}]});
+  second.record({op:'axes',deviceId:id,axes:{x:1.01},sampledAt:11000});assert.equal(second.killed,true);h.host.close();second.emit('close');
 });

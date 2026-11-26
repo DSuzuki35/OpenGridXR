@@ -29,6 +29,24 @@ The renderer draws each eye from its own viewpoint, including the back of the ri
 
 Multiple overlays using the same wheel share its geometry on the GPU. OpenGrid loads meshes and compiles shaders in the background. Disabling an overlay lets pending work finish in the background. Closing the OpenXR session joins outstanding workers before the layer releases its graphics device.
 
+## Use your wheelbase directly
+
+![Assigned steering axis with device selector, rotation range and live angle](images/screenshots/steering-axis.png)
+
+Under **Follow steering wheel → Steering input**, choose **Assigned axis**.
+Click **Assign steering axis** and turn your wheel; leave pedals and other controls still.
+You can also choose the base and axis manually. The live angle shows the detected direction;
+use **Invert steering axis** if necessary.
+
+Set **Steering lock** to the total rotation configured in your wheelbase driver.
+The default **900°** means **450° each way**. OpenGrid reads the axis without changing
+the hardware lock or force feedback. Save the profile to apply it to all steering-following
+wheels and dashboards in that profile. Hands follow the same wheel angle.
+
+This source does not need game steering telemetry. If the base disconnects or stops supplying
+fresh data, the virtual wheel centers until it reconnects. **Game telemetry** remains the
+default source. Automatic per-car placement still needs the game's car identity.
+
 ## SimHub display and LEDs
 
 **Scene lighting on wheel** adjusts how strongly track light affects the wheel body in VR. Try 60%, save before launching the sim, then compare the pit garage with the open track. At 0% the wheel keeps its usual lighting. The SimHub display and active LEDs keep their own colors. If the game image cannot be sampled, the wheel keeps its usual lighting. D3D11 and supported native D3D12 sessions can supply the lighting sample.
@@ -37,7 +55,7 @@ For a wheel-mounted dashboard, use **Play space** and **Follow steering wheel**.
 
 In SimHub Dash Studio, open your dashboard’s browser display and copy its HTTP or HTTPS URL. Paste it into **Wheel display URL (optional)** and save. Localhost URLs work. On the Hyper P1, GT-MAX 32, FPE2 and Artura Ultimate, OpenGrid fits this page to the model’s display surface. Hyper SL and GXL V2 have no display.
 
-To mirror the physical device’s lights, enable **Mirror SimHub LEDs** and install or enable the SimHub observer. The source panel reports when colors arrive. Each model uses its own physical LED layout. For the Artura, use an observer build that supports **Ascher Artura Ultimate**; an older observer will not forward its colors. The dashboard and LED observer run independently. [SimHub observer setup](simhub-wheel-lights.md)
+Enable **Mirror SimHub LEDs** and install the bridge from **Setup → Install SimHub bridge**. In SimHub’s **OpenGrid XR Lights** settings, choose **Connected wheel** to mirror your hardware, or **Virtual wheel** to run LED effects without that hardware. Virtual devices have separate effect profiles; your physical wheel’s settings stay unchanged. The source panel reports when colors arrive. Each model keeps its own LED layout, and the dashboard URL works independently. [Bridge setup](simhub-wheel-lights.md) · [Virtual wheel setup](simhub-virtual.md)
 
 ## Import a wheel
 

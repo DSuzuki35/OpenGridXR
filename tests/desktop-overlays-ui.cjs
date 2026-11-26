@@ -28,6 +28,8 @@ const assert = require("node:assert/strict");
     const page = await app.firstWindow(); page.setDefaultTimeout(3000);
     await page.addInitScript(() => { window.openGrid = {
       overlayStatus: async () => window.fixtureStatus || ({ items: [], shortcutErrors: [] }),
+      steeringInputStatus: async () => ({available:true,devices:[{id:"dinput:{00000000-0000-0000-0000-000000000001}",name:"Test wheelbase",axes:["x","rx"]}],samples:{"dinput:{00000000-0000-0000-0000-000000000001}":{x:window.fixtureSteering ?? 0,rx:0}}}),
+      steeringInputStopDiscovery: async () => {},
       recenterOverlays: async game => { window.recenteredGame = game; return { message: "Recentered" }; },
       importWheelModel: async () => ({id:"f".repeat(64),name:"My rim"}),
       listOverlayDisplays: async () => [{ id: "-42", name: "4:3 screen", x: -1600, y: 0, width: 1600, height: 1200 }, { id: "-43", name: "Portrait screen", x: 0, y: 0, width: 1080, height: 1920 }],
@@ -115,6 +117,30 @@ const assert = require("node:assert/strict");
     await move.press("Alt+Shift+ArrowLeft");
     await move.press("Control+Alt+Shift+ArrowUp");
     await page.getByRole("switch", {name:"Follow steering wheel"}).click();
+    await page.getByRole("button", {name:"Assigned axis", exact:true}).click();
+    assert.equal((await state()).spatialOverlays.steeringInput.lockDegrees, 900);
+    await page.getByRole("button", {name:"Assign steering axis", exact:true}).click();
+    await page.evaluate(() => { window.fixtureSteering = .5; });
+    await page.getByText(/Assigned Test wheelbase/).waitFor();
+    assert.equal((await state()).spatialOverlays.steeringInput.axis, "x");
+    await page.getByText("225.0° right", {exact:true}).waitFor();
+    await page.getByRole("switch", {name:"Invert steering axis",exact:true}).click();
+    await page.getByText("225.0° left", {exact:true}).waitFor();
+    await page.getByLabel("Steering lock value",{exact:true}).fill("1080");
+    await page.getByText("270.0° left", {exact:true}).waitFor();
+    if (process.env.STEERING_UI_SCREENSHOT) {
+      for (const name of ["src/styles.css","src/components/PlacementMap.css","src/components/dashboard-pivot.css","src/components/placement-editor.css"]) await page.addStyleTag({path:name});
+      await page.setViewportSize({width:1280,height:1100});
+      const cdp = await page.context().newCDPSession(page);
+      const clip = await page.locator('.steering-input-settings').evaluate(element => {
+        const r=element.getBoundingClientRect(); return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1};
+      });
+      const shot = await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip});
+      await fs.writeFile(process.env.STEERING_UI_SCREENSHOT,Buffer.from(shot.data,'base64'));await cdp.detach();
+    }
+    await page.evaluate(() => { window.fixtureSteering = undefined; });
+    await page.getByRole("button", {name:"Game telemetry",exact:true}).click();
+    assert.equal((await state()).spatialOverlays.steeringInput.source, "telemetry");
     const field = name => page.getByRole("spinbutton", {name,exact:true});
     const pivotY = field("Pivot vertical value");
     await pivotY.fill("-0,241");
@@ -226,6 +252,27 @@ const assert = require("node:assert/strict");
     await page.getByRole("switch", { name: "Show legs", exact: true }).click();
     const driverItem = (await state()).spatialOverlays.items[0];
     assert.deepEqual([driverItem.driverEnabled, driverItem.driverGloveTheme, driverItem.driverSuitTheme, driverItem.driverTorso, driverItem.driverLegs], [true, 2, 4, true, true]);
+    const seatHeight = page.getByRole("spinbutton", {name:"Seat height value", exact:true});
+    await seatHeight.fill("-0,123"); await seatHeight.press("Enter");
+    assert.equal((await state()).spatialOverlays.items[0].driverSeatHeight, -.123);
+    const legs = page.getByRole("spinbutton", {name:"Leg length value", exact:true});
+    await legs.fill("85.5"); await legs.press("Enter");
+    assert.equal((await state()).spatialOverlays.items[0].driverLegLength, .855);
+    await page.getByRole("button", {name:"Reset seat & body fit", exact:true}).click();
+    assert.equal(await seatHeight.inputValue(), "0");
+    assert.equal(await legs.inputValue(), "100");
+    assert.equal((await state()).spatialOverlays.items[0].driverEnabled, true, "fit reset preserves driver visibility");
+    await page.getByText("Remember placement for this car", {exact:true}).click();
+    await seatHeight.fill("-0.08"); await seatHeight.press("Enter");
+    const fitted = (await state()).spatialOverlays.items[0];
+    assert.equal(fitted.driverSeatHeight, 0);
+    assert.equal(fitted.carPlacements.find(p => p.carId === "iracing-23").driverSeatHeight, -.08);
+    await seatHeight.fill("-0.2");
+    await page.evaluate(() => { window.fixtureStatus.car = {id:"iracing-24",name:"Third car"}; });
+    await page.getByText(/Third car · Using the default placement/).waitFor();
+    assert.equal(await seatHeight.inputValue(), "0", "car changes discard the previous car's uncommitted fit draft");
+    await gloves.focus();
+    assert.equal((await state()).spatialOverlays.items[0].driverSeatHeight, 0);
     if (process.env.DRIVER_UI_SCREENSHOT) {
       await page.setViewportSize({ width: 1100, height: 1100 });
       await page.addStyleTag({ content: "body { margin: 20px; }" });

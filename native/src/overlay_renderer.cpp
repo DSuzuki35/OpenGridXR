@@ -12,6 +12,7 @@
 #include "dashboard_placement.hpp"
 #include "desktop_interaction.hpp"
 #include "overlay_transport.hpp"
+#include "steering_input.hpp"
 #include "session_d3d11on12.hpp"
 #include "wheel_model.hpp"
 #include "../wheels/mesh_renderer.h"
@@ -210,6 +211,7 @@ struct OverlayRenderer::Impl {
         std::array<char,65> id{};
         std::wstring path,driverPath;
         unsigned kind{},driverState{};
+        bool driverFitLimited{};
     };
     std::array<WheelFile,overlay_count> wheelFiles;
     bool wheelPipelineFailed{};
@@ -223,8 +225,10 @@ struct OverlayRenderer::Impl {
     LmuCockpitDepthFn lmuDepth{};
     uint64_t lmuRetryAt{};
     telemetry::SteeringInput steering;
+    og::steering::Reader assignedSteering;
     bool steeringActive{};
     void stopSteering() {
+        assignedSteering.reset();
         if (steeringActive)
             steering.reset();
         steeringActive = false;
@@ -894,6 +898,7 @@ struct OverlayRenderer::Impl {
             config.pivotX*config.pivotX+config.pivotY*config.pivotY+config.pivotZ*config.pivotZ<=.00250001f &&
             std::abs(config.steeringTilt)<=10.f;
         file.driverState=0;
+        file.driverFitLimited=false;
         if(driverRequested) {
             const XrPosef identity{{0,0,0,1},{0,0,0}};
             const auto back=inverse(steered_dashboard(identity,{config.pivotX,config.pivotY,config.pivotZ},
@@ -901,9 +906,15 @@ struct OverlayRenderer::Impl {
             const auto x=spatial_rotate(back.orientation,{1,0,0}),y=spatial_rotate(back.orientation,{0,1,0}),
                        z=spatial_rotate(back.orientation,{0,0,1});
             const float rows[]={x.x,y.x,z.x,back.position.x,x.y,y.y,z.y,back.position.y,x.z,y.z,z.z,back.position.z};
+            ovrlay::DriverFit fit;
+            fit.seatHeight=config.driverSeatHeight;fit.seatDistance=config.driverSeatDistance;
+            fit.shoulderWidth=config.driverShoulderWidth;fit.torsoLean=config.driverTorsoLean;
+            fit.legLength=config.driverLegLength;fit.kneeHeight=config.driverKneeHeight;
             const bool ready=wheels->selectDriver(device.Get(),slotIndex,file.driverPath,steeringRadians,rows,config.driverGloveTheme,
-                                 config.driverSuitTheme,config.driverTorso!=0,config.driverLegs!=0);
-            file.driverState=ready?2u:wheels->driverFailed(slotIndex)?3u:1u;
+                                 config.driverSuitTheme,config.driverTorso!=0,config.driverLegs!=0,fit,config.widthMeters,
+                                 {config.pivotX,config.pivotY,config.pivotZ,config.steeringTilt});
+            file.driverFitLimited=wheels->driverFitLimited();
+            file.driverState=ready?2u:file.driverFitLimited?4u:wheels->driverFailed(slotIndex)?3u:1u;
         } else wheels->forgetDriver(slotIndex);
         ovrlay::MeshEyeParameters params[2]{};
         auto& mask=masks[slotIndex];
@@ -1265,11 +1276,12 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
     std::array<DesktopPointer, overlay_count> pointers{};
     std::array<XrPosef, overlay_count> rays{};
     std::array<float, overlay_count> opacities{};
-    std::optional<double> wheelAngle;
-    bool readWheel = false;
+    std::optional<double> telemetryAngle;
+    bool readWheel = false, readAssignedWheel = false;
     XrSpaceLocation inputHead{XR_TYPE_SPACE_LOCATION};
     bool inputHeadSampled{}, inputHeadLocated{}, interactive{}, retainedDashboard{};
     for (unsigned i = 0; i < overlay_count; ++i) {
+        std::optional<double> wheelAngle;
         auto &slot = p.slots[i];
         auto &mask = p.masks[i];
         auto submit = [&](bool dashboard, bool stereo, bool wheel) {
@@ -1371,11 +1383,17 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
         // Persist the wheel's neutral mounting pose and apply the live steering
         // transform to the displayed dashboard throughout the grab and release.
         if (config.webDashboard && config.steeringFollow) {
-            if (!readWheel) {
+            if (config.steeringInputToken) {
+                readAssignedWheel = true;
+                wheelAngle = p.assignedSteering.read(config.steeringInputToken);
+            } else {
+              if (!readWheel) {
                 readWheel = true;
                 p.steeringActive = true;
-                wheelAngle = p.steering.read(
+                telemetryAngle = p.steering.read(
                     p.lmuGame ? telemetry::Game::Lmu : telemetry::Game::IRacing, now);
+              }
+              wheelAngle = telemetryAngle;
             }
             if (wheelAngle)
                 pose = steered_dashboard(pose, {config.pivotX, config.pivotY, config.pivotZ},
@@ -1552,6 +1570,7 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
                 slot.retainedOcclusion = config.cockpitOcclusion;
                 state.cockpitDepthActive = masked && applyDepth ? 1u : 0u;
                 state.driverState=isWheel?p.wheelFiles[i].driverState:0u;
+                state.driverFitLimited=isWheel && p.wheelFiles[i].driverFitLimited;
                 admitted[i] = true;
                 rays[i] = pointerRay;
                 opacities[i] = config.opacity;
@@ -1576,8 +1595,11 @@ void OverlayRenderer::append(const XrFrameEndInfo &info, bool enabled, bool shou
             p.channel->unlock();
         }
     }
-    if (!readWheel && !retainedDashboard)
+    if (!readWheel && !readAssignedWheel && !retainedDashboard)
         p.stopSteering();
+    else if (!readWheel && p.steeringActive) {
+        p.steering.reset(); p.steeringActive = false;
+    }
     if (!interactive) {
         if (p.channel->lock()) {
             for (unsigned i = 0; i < overlay_count; ++i) {

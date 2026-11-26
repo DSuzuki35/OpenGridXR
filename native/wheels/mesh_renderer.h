@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d11.h>
 #include "wheel_resources.hpp"
+#include "driver_fit.h"
 #include <array>
 #include <cstdint>
 #include <future>
@@ -86,13 +87,16 @@ class MeshRenderer {
     MeshAsset* active{};
     WheelMeshCache<DriverAsset> drivers;
     DriverAsset* driver{};
+    bool fitLimitedState{};
 public:
     bool initializePipeline(ID3D11Device*) noexcept;
     bool selectModel(ID3D11Device*,unsigned slot,const std::wstring& path,unsigned kind,unsigned deviceKind) noexcept;
     bool selectDriver(ID3D11Device*,unsigned slot,const std::wstring& path,float radians,
-                      const float (&neutralToWheel)[12],unsigned glove,unsigned suit,bool torso,bool legs) noexcept;
+                      const float (&neutralToWheel)[12],unsigned glove,unsigned suit,bool torso,bool legs,
+                      const DriverFit& fit={},float wheelWidth=.3f,const DriverMount& mountSettings={}) noexcept;
+    bool driverFitLimited() const noexcept;
     void forgetDriver(unsigned slot) {
-        drivers.forget(slot);driver=nullptr;drivers.collect();
+        drivers.forget(slot);driver=nullptr;fitLimitedState=false;drivers.collect();
         if(!drivers.hasAssets())driverTargets.reset();
     }
     bool driverFailed(unsigned slot) const {return drivers.failed(slot);}

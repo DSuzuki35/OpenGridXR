@@ -15,21 +15,22 @@ using SimHub.Plugins.Devices;
 using SimHub.Plugins.OutputPlugins.GraphicalDash.LedModules;
 using SimHub.Plugins.OutputPlugins.GraphicalDash.PSE;
 
-[assembly: AssemblyTitle("oVRlay SimHub LED Observer")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyTitle("OpenGrid XR SimHub Lights")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 namespace oVRlay.SimHubLeds
 {
     public sealed class ObserverSettings
     {
         public bool Enabled { get; set; }
-        public ObserverSettings() { Enabled = true; }
+        public bool[] VirtualModels { get; set; }
+        public ObserverSettings() { Enabled = true; VirtualModels = new bool[6]; }
     }
 
-    [PluginName("oVRlay lights")]
-    [PluginAuthor("oVRlay")]
-    [PluginDescription("Mirrors each supported wheel's existing LED output to its own oVRlay model.")]
+    [PluginName("OpenGrid XR Lights")]
+    [PluginAuthor("OpenGrid XR · based on oVRlay")]
+    [PluginDescription("Mirrors matching wheel LEDs or runs separate virtual wheel effects without hardware.")]
     public sealed class LedObserverPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
         private sealed class ModelSpec
@@ -71,13 +72,15 @@ namespace oVRlay.SimHubLeds
         private readonly object lifecycleGate = new object();
 
         public PluginManager PluginManager { get; set; }
-        public string LeftMenuTitle { get { return "oVRlay lights"; } }
+        public string LeftMenuTitle { get { return "OpenGrid XR Lights"; } }
         public ImageSource PictureIcon { get { return null; } }
 
         public void Init(PluginManager pluginManager)
         {
             PluginManager = pluginManager;
+            VirtualWheelModes.SetMask(0);
             settings = this.ReadCommonSettings<ObserverSettings>("GeneralSettings", delegate { return new ObserverSettings(); });
+            if(settings.VirtualModels==null || settings.VirtualModels.Length!=6) settings.VirtualModels=new bool[6];
             enabled = settings.Enabled;
             stopped = false;
             status = enabled ? "Waiting for supported wheels." : "Light mirroring is off.";
@@ -88,6 +91,7 @@ namespace oVRlay.SimHubLeds
                 sender = new LocalUdpSender();
                 forwarders=Models.Select(spec=>new LedForwarder(Stopwatch.GetTimestamp,Stopwatch.Frequency,
                     sender.Queue,spec.Id,spec.Count)).ToArray();
+                ApplyVirtualModes();
             }
             catch (Exception ex) { startupError = status = "Observer unavailable: " + ex.Message; }
         }
@@ -100,6 +104,8 @@ namespace oVRlay.SimHubLeds
                 typeof(ILedDeviceManager).GetEvent("AfterDisplay") == null ||
                 typeof(ILedDeviceManager).GetProperty("LastState") == null ||
                 typeof(ILedDeviceManager).GetMethod("GetPhysicalMapper", Type.EmptyTypes) == null ||
+                typeof(ILedDeviceManager).GetMethod("Display") == null ||
+                typeof(ILedDeviceManager).GetMethod("Display").GetParameters().Length != 12 ||
                 typeof(IPhysicalMapper).GetMethod("GetColor", new[] { typeof(int), typeof(LedDeviceState), typeof(bool) }) == null)
                 return "This SimHub LED API is incompatible. Rebuild the observer for your installed SimHub version.";
             return null;
@@ -134,8 +140,11 @@ namespace oVRlay.SimHubLeds
                     else
                     {
                         var active=activeDevices;
-                        status=active.Length==0 ? "Waiting for a connected wheel in SimHub Devices." :
+                        status=active.Length==0 ? (settings.VirtualModels.Any(value=>value) ?
+                            "Waiting for virtual LED output. Add and enable the matching OpenGrid XR virtual device in SimHub Devices." :
+                            "Waiting for a connected wheel in SimHub Devices.") :
                             string.Join("; ",active.Select(binding=>binding.Spec.Name+
+                                (binding.Driver is VirtualLedManager ? " (virtual)" : " (connected)")+
                                 (now-System.Threading.Interlocked.Read(ref binding.LastFrame)<=Stopwatch.Frequency ?
                                 " - "+binding.Spec.Count+" live LEDs" : " - waiting for LED output")));
                     }
@@ -164,7 +173,10 @@ namespace oVRlay.SimHubLeds
             foreach(var spec in Models)
             {
                 var old=previous.FirstOrDefault(binding=>binding.Spec.Id==spec.Id);
-                var selected=candidates.Where(x=>spec.Matches(x.Device.DeviceDescriptor.DeviceTypeID))
+                bool virtualMode=settings.VirtualModels[spec.Id-1];
+                var selected=candidates.Where(x=>virtualMode ?
+                    string.Equals(x.Device.DeviceDescriptor.DeviceTypeID,VirtualWheelModel.All[spec.Id-1].VirtualId,StringComparison.Ordinal) :
+                    spec.Matches(x.Device.DeviceDescriptor.DeviceTypeID))
                     .OrderByDescending(x=>old!=null && object.ReferenceEquals(x.Module,old.Module))
                     .ThenBy(x=>x.Device.InstanceId).FirstOrDefault();
                 if(selected==null) continue;
@@ -215,13 +227,62 @@ namespace oVRlay.SimHubLeds
                 try{binding.Driver.AfterDisplay-=OnAfterDisplay;}catch(Exception){}
         }
 
+        private void ApplyVirtualModes()
+        {
+            int mask=0;
+            if(enabled && !stopped && forwarders!=null)
+                for(int i=0;i<6;++i) if(settings.VirtualModels[i]) mask|=1<<i;
+            VirtualWheelModes.SetMask(mask);
+        }
+
+        private void SaveSettings()
+        {
+            try { this.SaveCommonSettings("GeneralSettings",settings); }
+            catch(Exception) { status="Setting changed for this session; it could not be saved."; }
+        }
+
         public Control GetWPFSettingsControl(PluginManager pluginManager)
         {
             var panel = new StackPanel { Margin = new Thickness(20), MaxWidth = 680 };
-            panel.Children.Add(new TextBlock { Text = "oVRlay lights", FontSize = 24, Margin = new Thickness(0, 0, 0, 16) });
-            var toggle = new CheckBox { Content = "Mirror my wheel lights in oVRlay", IsChecked = enabled, Margin = new Thickness(0, 0, 0, 16) };
+            panel.Children.Add(new TextBlock { Text = "OpenGrid XR Lights", FontSize = 24, Margin = new Thickness(0, 0, 0, 16) });
+            var toggle = new CheckBox { Content = "Mirror my wheel lights in OpenGrid XR", IsChecked = enabled, Margin = new Thickness(0, 0, 0, 16) };
             panel.Children.Add(toggle);
-            panel.Children.Add(new TextBlock { Text = "Each virtual wheel uses its own matching SimHub device: Hyper P1, Hyper SL, GXL V2, GT-MAX 32, FPE2 or Ascher Artura Ultimate. Keep those devices connected and enabled. Existing effects, button colors and brightness are preserved; missing devices do not borrow another wheel's colors.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 16) });
+            panel.Children.Add(new TextBlock { Text = "Connected wheel mirrors your existing hardware. Virtual wheel runs SimHub effects without hardware: select that mode, add its virtual device, then edit its LEDs in SimHub Devices. Each model has separate effects, button colors and brightness. Physical devices keep their own settings.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 16) });
+            foreach(var model in VirtualWheelModel.All)
+            {
+                var captured=model;
+                var row=new StackPanel { Orientation=Orientation.Horizontal, Margin=new Thickness(0,0,0,10) };
+                row.Children.Add(new TextBlock { Text=model.Name, Width=195, VerticalAlignment=VerticalAlignment.Center });
+                var mode=new ComboBox { Width=155, SelectedIndex=settings.VirtualModels[model.Id-1]?1:0 };
+                mode.Items.Add("Connected wheel"); mode.Items.Add("Virtual wheel");
+                mode.SelectedIndex=settings.VirtualModels[model.Id-1]?1:0;
+                mode.SelectionChanged+=delegate {
+                    lock(lifecycleGate) {
+                        settings.VirtualModels[captured.Id-1]=mode.SelectedIndex==1;
+                        ApplyVirtualModes(); Unbind();
+                        System.Threading.Interlocked.Exchange(ref nextBind,0);
+                    }
+                    SaveSettings();
+                };
+                row.Children.Add(mode);
+                var add=new Button { Content="Add virtual device", Margin=new Thickness(10,0,0,0), Padding=new Thickness(8,3,8,3) };
+                add.Click+=async delegate {
+                    add.IsEnabled=false;
+                    try {
+                        var devices=pluginManager.GetPlugin<DevicesPlugin>();
+                        if(devices==null) throw new InvalidOperationException("Enable SimHub's Devices feature first.");
+                        var existing=devices.GetDevices().FirstOrDefault(d=>d.DeviceDescriptor!=null && d.DeviceDescriptor.DeviceTypeID==captured.VirtualId);
+                        if(existing!=null) { devices.DevicesPluginSettings.SelectedDeviceInstance=existing; status="Open Devices to edit "+existing.DeviceDescriptor.Name+" LEDs."; }
+                        else {
+                            var created=await devices.ShowAddDevice(add,captured.VirtualId,true,true);
+                            if(created!=null) status="Added "+created.DeviceDescriptor.Name+". Open Devices to edit its LEDs.";
+                        }
+                        System.Threading.Interlocked.Exchange(ref nextBind,0);
+                    } catch(Exception ex) {status="Cannot add virtual device: "+ex.Message;}
+                    finally {add.IsEnabled=true;}
+                };
+                row.Children.Add(add); panel.Children.Add(row);
+            }
             var statusText = new TextBlock { Text = status, TextWrapping = TextWrapping.Wrap };
             panel.Children.Add(statusText);
             RoutedEventHandler changed = delegate
@@ -230,12 +291,12 @@ namespace oVRlay.SimHubLeds
                 {
                     enabled = toggle.IsChecked == true;
                     settings.Enabled = enabled;
+                    ApplyVirtualModes();
                     System.Threading.Interlocked.Exchange(ref nextBind, 0);
                     if (!enabled) Unbind();
                     status = enabled ? "Waiting for supported wheels." : "Light mirroring is off.";
                 }
-                try { this.SaveCommonSettings("GeneralSettings", settings); }
-                catch (Exception) { status = "Setting changed for this session; it could not be saved."; }
+                SaveSettings();
                 statusText.Text = status;
             };
             toggle.Checked += changed;
@@ -254,6 +315,7 @@ namespace oVRlay.SimHubLeds
             lock (lifecycleGate)
             {
                 stopped = true;
+                ApplyVirtualModes();
                 Unbind();
                 forwarders = null;
                 previous = sender;

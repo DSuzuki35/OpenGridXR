@@ -131,12 +131,27 @@ int main() {
                  R"({"op":"place","slot":0,"mode":"reset","requestId":-1})"})
             check(!og::parse_overlay_command(line, c, error), "invalid dashboard gesture rejected");
         check(og::parse_overlay_command(
-            R"({"op":"configure","slot":4,"enabled":true,"anchor":"local","x":0,"y":-0.3,"z":-0.6,"yaw":0,"pitch":0,"roll":0,"widthMeters":0.4,"opacity":1,"sourceKind":"url","cockpitOcclusion":true,"steeringFollow":true,"pivotX":0,"pivotY":-0.12,"pivotZ":0,"steeringTilt":8,"showInStream":false,"desktopMode":0,"desktopX":0,"desktopY":0,"desktopWidth":0,"desktopHeight":0,"precisionScale":1.75,"precisionShortcut":"","wheelModel":"ascher-artura","wheelDevice":6,"wheelLights":true,"wheelScreen":true,"wheelAmbientLight":72.5,"driverEnabled":true,"driverGloveTheme":0,"driverSuitTheme":4,"driverTorso":false,"driverLegs":true})",
+            R"({"op":"configure","slot":4,"enabled":true,"anchor":"local","x":0,"y":-0.3,"z":-0.6,"yaw":0,"pitch":0,"roll":0,"widthMeters":0.4,"opacity":1,"sourceKind":"url","cockpitOcclusion":true,"steeringFollow":true,"pivotX":0,"pivotY":-0.12,"pivotZ":0,"steeringTilt":8,"showInStream":false,"desktopMode":0,"desktopX":0,"desktopY":0,"desktopWidth":0,"desktopHeight":0,"precisionScale":1.75,"precisionShortcut":"","wheelModel":"ascher-artura","wheelDevice":6,"wheelLights":true,"wheelScreen":true,"wheelAmbientLight":72.5,"driverEnabled":true,"driverGloveTheme":0,"driverSuitTheme":4,"driverTorso":false,"driverLegs":true,"driverSeatHeight":-0.1,"driverSeatDistance":0.04,"driverShoulderWidth":1.1,"driverTorsoLean":10,"driverLegLength":0.85,"driverKneeHeight":0.02})",
             c,error) && c.number("wheelAmbientLight", -1) == 72.5 && c.boolean("driverEnabled") &&
             c.number("driverSuitTheme", -1) == 4 && !c.boolean("driverTorso") && c.boolean("driverLegs"),
               "complete wheel and driver configuration fits the IPC key bound");
         const std::string driverConfig = R"({"op":"configure","sourceKind":"url","wheelModel":"fpe2","wheelDevice":5,)";
+        for (auto token : {"0", "1", "4294967295"})
+            check(og::parse_overlay_command(driverConfig + "\"steeringInputToken\":" + token + "}", c, error), "steering token accepts uint32");
+        for (auto token : {"-1", "4294967296", "0.5", "true", "\"1\"", "1e999"})
+            check(!og::parse_overlay_command(driverConfig + "\"steeringInputToken\":" + token + "}", c, error), "invalid steering token rejected");
         check(og::parse_overlay_command(driverConfig + R"("driverEnabled":false})", c, error), "FPE2 accepts driver configuration");
+        struct DriverFitRange { const char* key; double low, high; };
+        for (const auto bound : {DriverFitRange{"driverSeatHeight", -.3, .3}, DriverFitRange{"driverSeatDistance", -.3, .4},
+             DriverFitRange{"driverShoulderWidth", .75, 1.25}, DriverFitRange{"driverTorsoLean", -20, 30},
+             DriverFitRange{"driverLegLength", .7, 1.15}, DriverFitRange{"driverKneeHeight", -.15, .15}}) {
+            const auto command = driverConfig + "\"" + bound.key + "\":";
+            for (double value : {bound.low, bound.high})
+                check(og::parse_overlay_command(command + std::to_string(value) + "}", c, error), "seating limits accepted");
+            for (const auto value : {std::to_string(bound.low - .01), std::to_string(bound.high + .01),
+                     std::string("\"0\""), std::string("true"), std::string("1e999")})
+                check(!og::parse_overlay_command(command + value + "}", c, error), "invalid seating value rejected");
+        }
         for (const auto model : {"hyper-p1", "hyper-sl", "gxl", "gt-max", "fpe2", "ascher-artura"})
             for (const auto enabled : {"true", "false"})
                 check(og::parse_overlay_command(std::string(R"({"op":"configure","sourceKind":"url","wheelModel":")") +
